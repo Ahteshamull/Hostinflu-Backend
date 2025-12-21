@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import dbConnect from "./config/database/dbConfig.js";
-import router from "./routes/index.js";
+import router from "./config/api/index.js";
 
 dotenv.config();
 

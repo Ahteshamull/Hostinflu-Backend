@@ -1,7 +1,4 @@
-
-import userModel from "../../models/auth/userModal.js";
-
-
+import userModel from "../schema/user.modal.js";
 
 export const allUser = async (req, res) => {
   let allUser = await userModel.find({});

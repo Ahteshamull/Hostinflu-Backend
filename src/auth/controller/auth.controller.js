@@ -1,16 +1,12 @@
-import EmailValidateCheck from "../../helper/emailValidate.js";
-import userModel from "../../models/auth/userModal.js";
+import EmailValidateCheck from "../../helper/helpers/emailValidate.js";
+import userModel from "../../users/schema/user.modal.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import SendOtp from "../../helper/sendOtp.js";
-import otp from "otp-generator-simple";
-import otpGenerator from "otp-generator-simple";
-import PasswordReset from "../../models/auth/passwordResetModal/passwordResetModal.js";
-import otpService from "../../helper/otpService.js";
-import userModal from "../../models/auth/userModal.js";
+import SendOtp from "../../helper/helpers/sendOtp.js";
+// PasswordReset model was deleted - functions using it are commented out
 
 export const signup = async (req, res) => {
-  let { name, email, password, role } = req.body;
+  let { name, email, password, role } = req.body || {};
 
   if (!name || !email || !password) {
     return res.status(404).send({ error: true, message: "Field Is Required" });
@@ -19,6 +15,7 @@ export const signup = async (req, res) => {
   if (!EmailValidateCheck(email)) {
     return res.status(404).send({ error: true, message: "Invalid Email" });
   }
+
   const existingUser = await userModel.findOne({ email });
 
   if (existingUser) {
@@ -64,7 +61,7 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
 
   if (!email || !password) {
     return res
@@ -80,10 +77,7 @@ export const login = async (req, res) => {
     });
   }
 
-  const isPasswordValid = await bcrypt.compare(
-    password,
-    existingUser.password
-  );
+  const isPasswordValid = await bcrypt.compare(password, existingUser.password);
 
   if (!isPasswordValid) {
     return res
@@ -115,7 +109,9 @@ export const login = async (req, res) => {
     .cookie("refreshToken", refreshToken, cookieOptions)
     .json({
       success: true,
-      message: `${existingUser.role === "admin" ? "Admin" : "User"} login successfully`,
+      message: `${
+        existingUser.role === "admin" ? "Admin" : "User"
+      } login successfully`,
       data: loginUserInfo,
       accessToken,
       refreshToken,
@@ -151,121 +147,121 @@ export const logout = async (req, res) => {
   });
 };
 
-export const forgotPassword = async (req, res) => {
-  const { email } = req.body;
+// export const forgotPassword = async (req, res) => {
+//   const { email } = req.body;
 
-  if (!email) {
-    return res.status(400).json({ error: true, message: "Email is required" });
-  }
+//   if (!email) {
+//     return res.status(400).json({ error: true, message: "Email is required" });
+//   }
 
-  const user = await userModel.findOne({ email });
-  if (!user) {
-    return res.status(404).json({ error: true, message: "User not found" });
-  }
+//   const user = await userModel.findOne({ email });
+//   if (!user) {
+//     return res.status(404).json({ error: true, message: "User not found" });
+//   }
 
-  // Clean expired OTPs
-  await PasswordReset.cleanExpiredOTPs();
+//   // Clean expired OTPs
+//   await PasswordReset.cleanExpiredOTPs();
 
-  // Generate OTP
-  const otpData = otpService.generateOTPData(email);
+//   // Generate OTP
+//   const otpData = otpService.generateOTPData(email);
 
-  // Delete existing OTP
-  await PasswordReset.deleteMany({ email });
+//   // Delete existing OTP
+//   await PasswordReset.deleteMany({ email });
 
-  const resetRecord = new PasswordReset({
-    email,
-    hashedOTP: otpData.hashedOTP,
-    otpCreatedAt: otpData.otpCreatedAt,
-    otpExpiresAt: otpData.otpExpiresAt,
-  });
-  await resetRecord.save();
+//   const resetRecord = new PasswordReset({
+//     email,
+//     hashedOTP: otpData.hashedOTP,
+//     otpCreatedAt: otpData.otpCreatedAt,
+//     otpExpiresAt: otpData.otpExpiresAt,
+//   });
+//   await resetRecord.save();
 
-  try {
-    await SendOtp.sendOTPEmail(email, otpData.otp, user.name || "");
-    return res.status(200).json({
-      success: true,
-      message: "OTP sent successfully",
-    });
-  } catch (err) {
-    await PasswordReset.deleteMany({ email });
-    console.error("OTP send failed:", err);
-    return res.status(500).json({ error: true, message: "Failed to send OTP" });
-  }
-};
+//   try {
+//     await SendOtp.sendOTPEmail(email, otpData.otp, user.name || "");
+//     return res.status(200).json({
+//       success: true,
+//       message: "OTP sent successfully",
+//     });
+//   } catch (err) {
+//     await PasswordReset.deleteMany({ email });
+//     console.error("OTP send failed:", err);
+//     return res.status(500).json({ error: true, message: "Failed to send OTP" });
+//   }
+// };
 
 // ----------------- Verify Reset OTP -----------------
-export const verifyResetOTP = async (req, res) => {
-  const { otp } = req.body;
+// export const verifyResetOTP = async (req, res) => {
+//   const { otp } = req.body;
 
-  if (!otp) {
-    return res.status(400).json({ error: true, message: "OTP is required" });
-  }
+//   if (!otp) {
+//     return res.status(400).json({ error: true, message: "OTP is required" });
+//   }
 
-  // Find all active OTP records
-  const activeResets = await PasswordReset.find({
-    otpExpiresAt: { $gt: new Date() },
-    isUsed: false,
-  });
+//   // Find all active OTP records
+//   const activeResets = await PasswordReset.find({
+//     otpExpiresAt: { $gt: new Date() },
+//     isUsed: false,
+//   });
 
-  if (activeResets.length === 0) {
-    return res
-      .status(400)
-      .json({ error: true, message: "No active OTP found" });
-  }
+//   if (activeResets.length === 0) {
+//     return res
+//       .status(400)
+//       .json({ error: true, message: "No active OTP found" });
+//   }
 
-  // Check each active reset to find matching OTP
-  let validRecord = null;
-  for (const record of activeResets) {
-    const isValid = await otpService.verifyOTP(
-      otp,
-      record.email,
-      record.hashedOTP
-    );
-    if (isValid) {
-      validRecord = record;
-      break;
-    }
-  }
+//   // Check each active reset to find matching OTP
+//   let validRecord = null;
+//   for (const record of activeResets) {
+//     const isValid = await otpService.verifyOTP(
+//       otp,
+//       record.email,
+//       record.hashedOTP
+//     );
+//     if (isValid) {
+//       validRecord = record;
+//       break;
+//     }
+//   }
 
-  if (!validRecord) {
-    return res.status(400).json({ error: true, message: "Invalid OTP" });
-  }
+//   if (!validRecord) {
+//     return res.status(400).json({ error: true, message: "Invalid OTP" });
+//   }
 
-  // Check rate limiting
-  const rateLimit = otpService.validateAttemptRate(
-    validRecord.attempts,
-    validRecord.lastAttempt,
-    5,
-    15
-  );
-  if (!rateLimit.allowed) {
-    return res.status(429).json({ error: true, message: rateLimit.message });
-  }
+//   // Check rate limiting
+//   const rateLimit = otpService.validateAttemptRate(
+//     validRecord.attempts,
+//     validRecord.lastAttempt,
+//     5,
+//     15
+//   );
+//   if (!rateLimit.allowed) {
+//     return res.status(429).json({ error: true, message: rateLimit.message });
+//   }
 
-  // Find user
-  const user = await userModel.findOne({ email: validRecord.email });
-  if (!user) {
-    return res.status(404).json({ error: true, message: "User not found" });
-  }
+//   // Find user
+//   const user = await userModel.findOne({ email: validRecord.email });
+//   if (!user) {
+//     return res.status(404).json({ error: true, message: "User not found" });
+//   }
 
-  // Mark OTP as used
-  validRecord.isUsed = true;
-  validRecord.lastAttempt = new Date();
-  await validRecord.save();
+//   // Mark OTP as used
+//   validRecord.isUsed = true;
+//   validRecord.lastAttempt = new Date();
+//   await validRecord.save();
 
-  // Generate reset token
-  const resetToken = jwt.sign(
-    { userId: user._id, email: user.email, purpose: "password-reset" },
-    process.env.RESET_TOKEN_SECRET || "secret123",
-    { expiresIn: "15m" }
-  );
+//   // Generate reset token
+//   const resetToken = jwt.sign(
+//     { userId: user._id, email: user.email, purpose: "password-reset" },
+//     process.env.RESET_TOKEN_SECRET || "secret123",
+//     { expiresIn: "15m" }
+//   );
 
-  return res.status(200).json({
-    success: true,
-    message: "OTP verified successfully",
-    data: { resetToken, expiresIn: "15m" },
-  });
-};
+//   return res.status(200).json({
+//     success: true,
+//     message: "OTP verified successfully",
+//     data: { resetToken, expiresIn: "15m" },
+//   });
+// };
 
 // ----------------- Reset Password -----------------
 export const resetPassword = async (req, res) => {
@@ -481,12 +477,12 @@ export const refreshAccessToken = async (req, res) => {
         data: { accessToken, refreshToken: newRefreshToken },
       });
   } catch (error) {
-    return res
-      .status(401)
-      .json({ error: true, message: error?.message || "Invalid refresh token" });
+    return res.status(401).json({
+      error: true,
+      message: error?.message || "Invalid refresh token",
+    });
   }
 };
- 
 
 export const testEmailConfig = async (req, res) => {
   try {
