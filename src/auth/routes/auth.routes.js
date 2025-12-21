@@ -11,10 +11,14 @@ import {
   testEmailConfig,
   verifyResetOTP,
 } from "../controller/auth.controller.js";
+import {
+  upload,
+  errorCheck,
+} from "../../helper/middlewares/imageControlMiddleware.js";
 
 const router = express.Router();
 //localhost:3000/api/v1/auth/registration
-router.post("/signup", signup);
+router.post("/signup", upload.single("image"), errorCheck, signup);
 router.post("/login", login);
 router.post("/logout", logout);
 router.post("/forgot-password", forgotPassword);

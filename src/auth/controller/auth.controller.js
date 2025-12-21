@@ -16,6 +16,9 @@ export const signup = async (req, res) => {
     return res.status(404).send({ error: true, message: "Invalid Email" });
   }
 
+  // Convert email to lowercase for consistency
+  email = email.toLowerCase();
+
   const existingUser = await userModel.findOne({ email });
 
   if (existingUser) {
@@ -30,16 +33,22 @@ export const signup = async (req, res) => {
       if (err) {
         console.log(err);
       } else {
+        // Get image file path if uploaded
+        const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+
         const user = new userModel({
           name,
           email,
           password: hash,
           role,
+          image: imagePath, // Add image path to user document
         });
         await user.save();
-        return res
-          .status(201)
-          .send({ success: true, message: "User Created Successfully", data: user });
+        return res.status(201).send({
+          success: true,
+          message: "User Created Successfully",
+          data: user,
+        });
       }
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 import express from "express";
-import auth from "../../auth/routes/index.js";
-import user from "../../users/routes/index.js";
+import auth from "../auth/routes/index.js";
+import user from "../users/routes/index.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
