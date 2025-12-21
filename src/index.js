@@ -21,10 +21,10 @@ app.use(router);
 
 // Root route
 app.get("/", (req, res) => {
-    res.json({
-        error: false,
-        success: true,
-    message: `Welcome to the Hostinflu , {Server Is Running} ${PORT}`,
+  res.json({
+    error: false,
+    success: true,
+    message: `Welcome to the Hostinflu , {Server Is Running On} ${PORT}`,
     version: "v1",
   });
 });
