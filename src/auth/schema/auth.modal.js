@@ -30,20 +30,29 @@ const userSchema = new Schema(
     phone: {
       type: String,
     },
-    address: {
+    userName: {
+      type: String,
+      unique: true,
+      required: [true, "Username is required"],
+      trim: true,
+      lowercase: true,
+      minlength: [5, "Username must be at least 5 characters"],
+      maxlength: [20, "Username must not exceed 20 characters"],
+      match: [
+        /^[a-z0-9_]+$/,
+        "Username can only contain lowercase letters, numbers, and underscore (_)",
+      ],
+    },
+    location: {
       type: String,
     },
     image: {
       type: String,
     },
-    isVerify: {
-      type: Boolean,
-      default: false,
-    },
     role: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+      enum: ["host", "influencer"],
+      default: "influencer",
     },
     refreshToken: {
       type: String,

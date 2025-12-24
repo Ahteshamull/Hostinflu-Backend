@@ -1,39 +1,57 @@
 import bcrypt from "bcrypt";
-import crypto from "crypto";
+
+const MAX_ATTEMPTS = 5;
+const LOCK_MINUTES = 10;
+const MAX_RESEND = 3;
+const RESEND_INTERVAL_MIN = 2;
 
 const otpService = {
-  generateOTPData: (email) => {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
-    const hashedOTP = bcrypt.hashSync(otp, 10);
-
-    const otpCreatedAt = new Date();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-
-    return { email, otp, hashedOTP, otpCreatedAt, otpExpiresAt };
+  generateOTP() {
+    return Math.floor(1000 + Math.random() * 9000).toString();
   },
 
-  verifyOTP: async (otp, email, hashedOTP) => {
-    return await bcrypt.compare(otp, hashedOTP);
+  hashOTP(otp) {
+    return bcrypt.hashSync(otp, 10);
   },
 
-  validateAttemptRate: (attempts, lastAttempt, maxAttempts, lockoutMinutes) => {
-    if (attempts < maxAttempts) {
-      return { allowed: true };
-    }
+  async verifyOTP(inputOtp, hashedOtp) {
+    return await bcrypt.compare(inputOtp, hashedOtp);
+  },
 
-    if (!lastAttempt) return { allowed: true };
+  canAttempt(resetDoc) {
+    if (resetDoc.attempts < MAX_ATTEMPTS) return { allowed: true };
 
-    const minutesPassed = (new Date() - lastAttempt) / 1000 / 60;
-    if (minutesPassed >= lockoutMinutes) {
-      return { allowed: true };
-    }
+    const minutes = (Date.now() - resetDoc.lastAttemptAt) / 1000 / 60;
+
+    if (minutes >= LOCK_MINUTES) return { allowed: true };
 
     return {
       allowed: false,
       message: `Too many attempts. Try again after ${Math.ceil(
-        lockoutMinutes - minutesPassed
-      )} minutes.`,
+        LOCK_MINUTES - minutes
+      )} minutes`,
     };
+  },
+
+  canResend(resetDoc) {
+    if (resetDoc.resendCount >= MAX_RESEND) {
+      return { allowed: false, message: "OTP resend limit reached" };
+    }
+
+    if (!resetDoc.lastResendAt) return { allowed: true };
+
+    const minutes = (Date.now() - resetDoc.lastResendAt) / 1000 / 60;
+
+    if (minutes < RESEND_INTERVAL_MIN) {
+      return {
+        allowed: false,
+        message: `Please wait ${Math.ceil(
+          RESEND_INTERVAL_MIN - minutes
+        )} minutes before resending`,
+      };
+    }
+
+    return { allowed: true };
   },
 };
 

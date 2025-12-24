@@ -3,30 +3,34 @@ import {
   forgotPassword,
   login,
   logout,
-  OtpVerify,
   refreshAccessToken,
   ResendOtp,
   resetPassword,
-  signup,
-  testEmailConfig,
-  verifyResetOTP,
+  createUser,
+  verifyOtp,
+  changePassword,
+  currentUserLogin,
 } from "../controller/auth.controller.js";
-import {
-  upload,
-  errorCheck,
-} from "../../helper/middlewares/imageControlMiddleware.js";
 
 const router = express.Router();
-//localhost:3000/api/v1/auth/registration
-router.post("/signup", upload.single("image"), errorCheck, signup);
+//localhost:3000/api/v1/auth/create-user
+router.post("/create-user", createUser);
+//localhost:3000/api/v1/auth/login
 router.post("/login", login);
+//localhost:3000/api/v1/auth/logout
 router.post("/logout", logout);
+//localhost:3000/api/v1/auth/forgot-password
 router.post("/forgot-password", forgotPassword);
-router.post("/verify-reset-otp", verifyResetOTP);
-router.post("/reset-password", resetPassword);
-router.post("/refresh-token", refreshAccessToken);
-router.post("/otp-verify", OtpVerify);
+//localhost:3000/api/v1/auth/change-password
+router.post("/change-password", changePassword);
+//localhost:3000/api/v1/auth/resend-otp
 router.post("/resend-otp", ResendOtp);
-router.get("/test-email", testEmailConfig);
-
+//localhost:3000/api/v1/auth/verify-reset-otp
+router.post("/verify-reset-otp", verifyOtp);
+//localhost:3000/api/v1/auth/reset-password
+router.post("/reset-password", resetPassword);
+//localhost:3000/api/v1/auth/refresh-token
+router.post("/refresh-token", refreshAccessToken);
+//localhost:3000/api/v1/auth/current-user-login
+router.post("/current-user-login", currentUserLogin);
 export default router;

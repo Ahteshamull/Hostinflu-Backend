@@ -24,18 +24,61 @@ export const allUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "All users retrieved successfully",
-      data: users,
       pagination: {
         currentPage: page,
         totalPages,
         totalUsers,
         limit,
       },
+      data: users,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Failed to retrieve users",
+      error: error.message,
+    });
+  }
+};
+
+export const singleUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate user ID
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Find user by ID
+    const user = await userModel.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User retrieved successfully",
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve user",
       error: error.message,
     });
   }

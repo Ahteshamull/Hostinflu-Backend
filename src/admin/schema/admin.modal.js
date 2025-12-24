@@ -36,10 +36,6 @@ const adminSchema = new Schema(
     image: {
       type: String,
     },
-    isVerify: {
-      type: Boolean,
-      default: false,
-    },
     role: {
       type: String,
       enum: ["superAdmin", "admin"],
