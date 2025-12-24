@@ -1,12 +1,14 @@
 import express from "express";
 import auth from "../auth/routes/index.js";
 import user from "../users/routes/index.js";
+import admin from "../admin/routes/index.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
 
 router.use(baseurl, auth);
 router.use(baseurl, user);
+router.use(baseurl, admin);
 
 // 404 fallback for API
 router.use(baseurl, (req, res) => {

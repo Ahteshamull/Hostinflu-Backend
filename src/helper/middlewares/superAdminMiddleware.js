@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import Admin from "../../admin/schema/admin.modal.js";
 
-const adminMiddleware = async (req, res, next) => {
+const superAdminMiddleware = async (req, res, next) => {
   let { token } = req.cookies;
 
   if (token) {
@@ -29,14 +29,13 @@ const adminMiddleware = async (req, res, next) => {
         });
       }
 
-      // Allow both admin and superAdmin roles
-      if (admin.role === "admin" || admin.role === "superAdmin") {
+      if (admin.role === "superAdmin") {
         req.admin = admin; // Add admin to request for use in controller
         next();
       } else {
         return res.status(403).json({
           success: false,
-          message: "Only Admin or Super Admin can access this",
+          message: "Only Super Admin can create admins",
         });
       }
     } catch (err) {
@@ -53,4 +52,4 @@ const adminMiddleware = async (req, res, next) => {
   }
 };
 
-export default adminMiddleware;
+export default superAdminMiddleware;
