@@ -1,19 +1,20 @@
-import express from "express";
 import dotenv from "dotenv";
+
+dotenv.config();
+
+import express from "express";
 import cookieParser from "cookie-parser";
 import dbConnect from "./config/database/dbConfig.js";
 import router from "./api/index.js";
 
-dotenv.config();
-
 const app = express();
 
-// Middlewares
+const PORT = process.env.PORT || 5000;
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Serve static files from uploads folder
 app.use("/uploads", express.static("uploads"));
 
 // Routes
@@ -24,7 +25,7 @@ app.get("/", (req, res) => {
   res.json({
     error: false,
     success: true,
-    message: `Welcome to the Hostinflu , {Server Is Running On} ${PORT}`,
+    message: `Welcome to Hostinflu. Server is running on port ${PORT}`,
     version: "v1",
   });
 });
@@ -33,5 +34,6 @@ app.get("/", (req, res) => {
 dbConnect();
 
 // Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running at ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Server running at ${PORT}`);
+});
