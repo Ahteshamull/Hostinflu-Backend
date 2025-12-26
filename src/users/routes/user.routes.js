@@ -18,7 +18,7 @@ router.get("/all-users", allUser);
 router.get("/single-user/:id", singleUser);
 
 //localhost:3000/api/v1/user/update-user/:id
-router.put("/update-user/:id", upload.single("image"), errorCheck, updateUser);
+router.patch("/update-user/:id", upload.single("image"), errorCheck, updateUser);
 
 //localhost:3000/api/v1/user/delete-user/:id
 router.delete("/delete-user/:id", deleteUser);

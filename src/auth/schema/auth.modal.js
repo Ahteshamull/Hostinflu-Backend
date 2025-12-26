@@ -43,7 +43,29 @@ const userSchema = new Schema(
         "Username can only contain lowercase letters, numbers, and underscore (_)",
       ],
     },
-    location: {
+    country: {
+      type: String,
+    },
+    state: {
+      type: String,
+    },
+    city: {
+      type: String,
+    },
+    zipCode: {
+      type: String,
+    },
+    fullAddress: {
+      type: String,
+    },
+    dateOfBirth: {
+      type: Date,
+    },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+    },
+    aboutMe: {
       type: String,
     },
     image: {

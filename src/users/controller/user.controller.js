@@ -66,14 +66,7 @@ export const singleUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "User retrieved successfully",
-      data: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+      data: user,
     });
   } catch (error) {
     return res.status(500).json({
@@ -87,7 +80,21 @@ export const singleUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email } = req.body;
+    const {
+      name,
+      userName,
+      email,
+      phone,
+      dateOfBirth,
+      gender,
+      country,
+      state,
+      city,
+      zipCode,
+      fullAddress,
+      aboutMe,
+      image,
+    } = req.body;
 
     // Validate user ID
     if (!id) {
@@ -121,12 +128,64 @@ export const updateUser = async (req, res) => {
       }
     }
 
+    // If userName is being updated, check if it's already used by another user
+    if (userName && userName.toLowerCase().trim() !== existingUser.userName) {
+      // Convert to lowercase for validation and storage
+      const normalizedUserName = userName.toLowerCase().trim();
+
+      // Validate userName format - only lowercase letters, numbers, and underscore
+      if (!/^[a-z0-9_]+$/.test(normalizedUserName)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Username can only contain lowercase letters, numbers, and underscore (_)",
+        });
+      }
+
+      // Validate minimum length
+      if (normalizedUserName.length < 5) {
+        return res.status(400).json({
+          success: false,
+          message: "Username must be at least 5 characters",
+        });
+      }
+
+      // Validate maximum length
+      if (normalizedUserName.length > 20) {
+        return res.status(400).json({
+          success: false,
+          message: "Username must not exceed 20 characters",
+        });
+      }
+
+      // Check for uniqueness
+      const userNameExists = await userModel.findOne({
+        userName: normalizedUserName,
+        _id: { $ne: id },
+      });
+      if (userNameExists) {
+        return res.status(400).json({
+          success: false,
+          message: "Username is already in use by another user",
+        });
+      }
+    }
+
     // Prepare update object - only include fields that are actually different
     const updateData = {};
     let hasChanges = false;
 
+    // Basic Information
     if (name !== undefined && name !== existingUser.name) {
       updateData.name = name;
+      hasChanges = true;
+    }
+
+    if (
+      userName !== undefined &&
+      userName.toLowerCase().trim() !== existingUser.userName
+    ) {
+      updateData.userName = userName.toLowerCase().trim();
       hasChanges = true;
     }
 
@@ -138,7 +197,58 @@ export const updateUser = async (req, res) => {
       hasChanges = true;
     }
 
-    // Handle image update
+    if (phone !== undefined && phone !== existingUser.phone) {
+      updateData.phone = phone;
+      hasChanges = true;
+    }
+
+    if (dateOfBirth !== undefined && dateOfBirth !== existingUser.dateOfBirth) {
+      updateData.dateOfBirth = dateOfBirth;
+      hasChanges = true;
+    }
+
+    if (gender !== undefined && gender !== existingUser.gender) {
+      updateData.gender = gender;
+      hasChanges = true;
+    }
+
+    // Location Information
+    if (country !== undefined && country !== existingUser.country) {
+      updateData.country = country;
+      hasChanges = true;
+    }
+
+    if (state !== undefined && state !== existingUser.state) {
+      updateData.state = state;
+      hasChanges = true;
+    }
+
+    if (city !== undefined && city !== existingUser.city) {
+      updateData.city = city;
+      hasChanges = true;
+    }
+
+    if (zipCode !== undefined && zipCode !== existingUser.zipCode) {
+      updateData.zipCode = zipCode;
+      hasChanges = true;
+    }
+
+    if (fullAddress !== undefined && fullAddress !== existingUser.fullAddress) {
+      updateData.fullAddress = fullAddress;
+      hasChanges = true;
+    }
+
+    if (aboutMe !== undefined && aboutMe !== existingUser.aboutMe) {
+      updateData.aboutMe = aboutMe;
+      hasChanges = true;
+    }
+
+    // Handle image update (from request body or file upload)
+    if (image !== undefined && image !== existingUser.image) {
+      updateData.image = image;
+      hasChanges = true;
+    }
+
     if (req.file) {
       // Delete old image if it exists
       if (existingUser.image) {
