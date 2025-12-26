@@ -15,7 +15,7 @@ const sendContactEmail = async ({
     from: `"HostInflu Contact" <${process.env.OTP_EMAIL}>`,
     to: process.env.ADMIN_EMAIL,
     replyTo: email,
-    subject: `New Contact Message: ${subject}`,
+    subject: `HostInflu New Contact Message: ${subject}`,
     html: contactEmailTemplate(
       firstName,
       lastName,

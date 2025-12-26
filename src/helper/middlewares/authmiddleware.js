@@ -48,7 +48,7 @@ const adminMiddleware = async (req, res, next) => {
   } else {
     return res.status(403).json({
       success: false,
-      message: "Token Not Found",
+      message: "Login first or Token Not Found",
     });
   }
 };
