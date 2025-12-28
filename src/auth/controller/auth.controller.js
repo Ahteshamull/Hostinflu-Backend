@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import otpService from "../../helper/helpers/otpService.js";
 import PasswordReset from "../schema/passwordReset.modal.js";
 import sendOtp from "../../helper/helpers/sendOtp.js";
+import { notifyAdminOnUserCreated } from "../../notification/service/notification.service.js";
 
 export const createUser = async (req, res) => {
   // Handle form data where fields might be in different locations
@@ -95,13 +96,16 @@ export const createUser = async (req, res) => {
         const user = new userModel({
           name,
           email,
-          userName, // ✅ validated username
+          userName,
           password: hash,
-          confirmPassword: hash, // (আপনার আগের structure অনুযায়ী রেখেছি)
+          confirmPassword: hash,
           role,
         });
 
         await user.save();
+
+        // Send notification to admin about new user registration
+        await notifyAdminOnUserCreated(user._id, user.name, user.email);
 
         return res.status(201).send({
           success: true,

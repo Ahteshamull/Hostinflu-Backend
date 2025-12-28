@@ -1,0 +1,58 @@
+import express from "express";
+import {
+  createListing,
+  getAllListings,
+  getSingleListing,
+  updateListing,
+  adminAcceptListing,
+} from "../controller/listing.controller.js";
+import {
+  authenticateToken,
+  requireHostRole,
+  requireSuperAdminOrAdminRole,
+} from "../../middleware/auth.middleware.js";
+import {
+  upload,
+  errorCheck,
+} from "../../helper/middlewares/imageControlMiddleware.js";
+
+const router = express.Router();
+
+// Configure upload for multiple images (up to 10)
+const uploadMultipleImages = upload.array("images", 10);
+
+// localhost:3000/api/v1/listing/create-listing
+router.post(
+  "/create-listing",
+  authenticateToken,
+  requireHostRole,
+  uploadMultipleImages,
+  errorCheck,
+  createListing
+);
+
+// localhost:3000/api/v1/listing/all-listings
+router.get("/all-listings", getAllListings);
+
+// localhost:3000/api/v1/listing/single-listing/:id
+router.get("/single-listing/:id", getSingleListing);
+
+// localhost:3000/api/v1/listing/update-listing/:id
+router.put(
+  "/update-listing/:id",
+  authenticateToken,
+  requireHostRole,
+  uploadMultipleImages,
+  errorCheck,
+  updateListing
+);
+
+// localhost:3000/api/v1/listing/admin-accept/listing/:id
+router.put(
+  "/admin-accept/listing/:id",
+  authenticateToken,
+  requireSuperAdminOrAdminRole,
+  adminAcceptListing
+);
+
+export default router;
