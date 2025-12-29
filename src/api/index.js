@@ -8,6 +8,7 @@ import notification from "../notification/routes/index.js";
 import listing from "../listing/routes/index.js";
 import search from "../search/routes/index.js";
 import deal from "../deals/routes/index.js";
+import collaboration from "../collaboration/routes/index.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
@@ -21,6 +22,7 @@ router.use(baseurl, notification);
 router.use(baseurl, listing);
 router.use(baseurl, search);
 router.use(baseurl, deal);
+router.use(baseurl, collaboration);
 
 // 404 fallback for API
 router.use(baseurl, (req, res) => {
