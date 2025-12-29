@@ -3,10 +3,6 @@ import User from "../../auth/schema/auth.modal.js";
 // Middleware to check if user is host or influencer
 const requireHostOrInfluencerRole = async (req, res, next) => {
   try {
-    console.log("Role middleware - req.user:", req.user);
-    console.log("Role middleware - req.user.id:", req.user?.id);
-    console.log("Role middleware - req.user._id:", req.user?._id);
-
     if (!req.user || (!req.user.id && !req.user._id)) {
       return res.status(401).json({
         message: "Authentication required",
