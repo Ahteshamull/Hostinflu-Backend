@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import Admin from "../admin/schema/admin.modal.js";
+import Admin from "../../admin/schema/admin.modal.js";
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {

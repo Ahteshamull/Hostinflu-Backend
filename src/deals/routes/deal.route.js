@@ -8,10 +8,9 @@ import {
 import {
   authenticateToken,
   requireHostRole,
-} from "../../middleware/auth.middleware.js";
+} from "../../helper/middlewares/auth.middleware.js";
 
 const router = express.Router();
-
 
 // localhost:3000/api/v1/deal/create-deal - Create new deal
 router.post("/create-deal", authenticateToken, requireHostRole, createDeal);

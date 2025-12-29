@@ -10,7 +10,7 @@ import {
   authenticateToken,
   requireHostRole,
   requireSuperAdminOrAdminRole,
-} from "../../middleware/auth.middleware.js";
+} from "../../helper/middlewares/auth.middleware.js";
 import {
   upload,
   errorCheck,
