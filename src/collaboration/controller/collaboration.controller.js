@@ -16,8 +16,6 @@ export const createCollaboration = async (req, res) => {
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
 
-   
-
     if (!userId || !userRole) {
       return res.status(401).json({
         message: "User ID or role not found in token",
@@ -43,10 +41,8 @@ export const createCollaboration = async (req, res) => {
     // Role-based validation
     if (userRole === "host") {
       // Host selects an influencer
-      
     } else if (userRole === "influencer") {
       // Influencer selects a host
-      
     }
 
     const newCollaboration = new Collaborations({
@@ -75,6 +71,48 @@ export const createCollaboration = async (req, res) => {
       success: false,
       error: true,
       message: "Error creating collaboration",
+      error: error.message,
+    });
+  }
+};
+
+export const getAllCollaboration = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    const filter = {};
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const collaborations = await Collaborations.find(filter)
+      .populate("selectInfluencerOrHost", "name email")
+      .populate("selectDeal", "dealTitle")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Collaborations.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Collaborations retrieved successfully",
+      data: {
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(total / limit),
+            total,
+            limit: parseInt(limit),
+          },
+        collaborations,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving collaborations",
       error: error.message,
     });
   }
