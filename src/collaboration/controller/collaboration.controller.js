@@ -99,12 +99,12 @@ export const getAllCollaboration = async (req, res) => {
       error: false,
       message: "Collaborations retrieved successfully",
       data: {
-          pagination: {
-            currentPage: parseInt(page),
-            totalPages: Math.ceil(total / limit),
-            total,
-            limit: parseInt(limit),
-          },
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          total,
+          limit: parseInt(limit),
+        },
         collaborations,
       },
     });
@@ -113,6 +113,48 @@ export const getAllCollaboration = async (req, res) => {
       success: false,
       error: true,
       message: "Error retrieving collaborations",
+      error: error.message,
+    });
+  }
+};
+
+export const getSingleCollaboration = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Collaboration ID is required",
+      });
+    }
+
+    const collaboration = await Collaborations.findById(id)
+      .populate("selectInfluencerOrHost", "name email")
+      .populate("selectDeal", "dealTitle");
+
+    if (!collaboration) {
+      return res.status(404).json({
+        success: false,
+        error: true,
+        message: "Collaboration not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Collaboration retrieved successfully",
+      data: {
+        collaboration,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving collaboration",
       error: error.message,
     });
   }
