@@ -92,6 +92,11 @@ const dealSchema = new Schema(
       type: [deliverableSchema],
       validate: [(v) => v.length > 0, "At least one deliverable is required"],
     },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User ID is required"],
+    },
     status: {
       type: String,
       enum: ["active", "pending", "completed"],

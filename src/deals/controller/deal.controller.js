@@ -11,7 +11,7 @@ const createDeal = async (req, res) => {
       outTimeAndDate,
       compensation,
       deliverables,
-    } = req.body || req.fields;
+    } = req.body ;
 
     // Get userId from token
     const userId = req.user?.id || req.user?.userId || req.user?._id;
@@ -98,13 +98,13 @@ const getAllDeals = async (req, res) => {
       error: false,
       message: "Deals retrieved successfully",
       data: {
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(total / limit),
+            total,
+            limit: parseInt(limit),
+          },
         deals,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(total / limit),
-          total,
-          limit: parseInt(limit),
-        },
       },
     });
   } catch (error) {
