@@ -87,7 +87,6 @@ const getSearchSuggestions = async (req, res) => {
       });
     }
 
-    // Get unique locations, property types, and titles for suggestions
     const [locations, propertyTypes, titles] = await Promise.all([
       Listing.distinct("location", { status: "verified" }),
       Listing.distinct("propertyType", { status: "verified" }),
