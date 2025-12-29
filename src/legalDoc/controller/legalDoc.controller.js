@@ -66,7 +66,7 @@ export const getDoc = async (req, res) => {
     if (documents.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "No legal documents found",
+        message: "No legal documents found for the specified content type",
       });
     }
 
