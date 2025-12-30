@@ -196,7 +196,10 @@ export const updateCollaboration = async (req, res) => {
     }
 
     // Check if user has permission to update this collaboration
-    if (collaboration.userId.toString() !== userId.toString()) {
+    if (
+      !collaboration.userId ||
+      collaboration.userId.toString() !== userId.toString()
+    ) {
       return res.status(403).json({
         success: false,
         error: true,

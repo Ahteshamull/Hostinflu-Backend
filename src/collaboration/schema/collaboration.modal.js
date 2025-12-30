@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const collaborationSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User ID is required"],
+    },
+
     selectInfluencerOrHost: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
