@@ -1,4 +1,5 @@
 import Collaborations from "../schema/collaboration.modal.js";
+import { createCollaborationNotification } from "../../notification/controller/notification.controller.js";
 
 export const createCollaboration = async (req, res) => {
   try {
@@ -57,6 +58,14 @@ export const createCollaboration = async (req, res) => {
     });
 
     const savedCollaboration = await newCollaboration.save();
+
+    // Send notification to the receiver
+    try {
+      await createCollaborationNotification(savedCollaboration, userRole);
+    } catch (notificationError) {
+      console.error("Failed to send notification:", notificationError);
+      // Continue with response even if notification fails
+    }
 
     res.status(201).json({
       success: true,
