@@ -56,6 +56,35 @@ const collaborationSchema = new mongoose.Schema(
       enum: ["pending", "accepted", "rejected", "completed"],
       default: "pending",
     },
+
+    // 📱 Social Media Links (only for influencers)
+    socialMediaLinks: {
+      instagram: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      facebook: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      twitter: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      youtube: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      tiktok: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+    },
   },
   {
     timestamps: true,
