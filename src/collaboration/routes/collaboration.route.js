@@ -11,10 +11,10 @@ import {
   userPersonalTotalCollaborations,
   userPersonalCompleteContents,
   userPersonalEarnStar,
+  userPersonalCollaborationsGrowth,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
-
 
 const router = express.Router();
 
@@ -61,7 +61,7 @@ router.get(
   "/user-personal-completed-contents",
   authenticateToken,
   userPersonalCompleteContents
-);  
+);
 
 //localhost:3000/api/v1/collaboration/user-personal-earn-stars
 router.get(
@@ -70,5 +70,11 @@ router.get(
   userPersonalEarnStar
 );
 
+//localhost:3000/api/v1/collaboration/user-personal-collaborations-growth
+router.get(
+  "/user-personal-collaborations-growth",
+  authenticateToken,
+  userPersonalCollaborationsGrowth
+);
 
 export default router;

@@ -563,3 +563,79 @@ export const userPersonalEarnStar = async (req, res) => {
     });
   }
 };
+
+export const userPersonalCollaborationsGrowth = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    // Create date range for the specified year
+    const startDate = new Date(year, 0, 1); // January 1st
+    const endDate = new Date(year, 11, 31); // December 31st
+
+    // Get total collaborations for the year
+    const totalCollaborations = await Collaborations.countDocuments({
+      userId: userId,
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    });
+
+    // Get collaborations by month
+    const monthlyCollaborations = await Collaborations.aggregate([
+      {
+        $match: {
+          userId: userId,
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    // Initialize all 12 months with 0 collaborations
+    const monthlyData = [];
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+
+    for (let i = 1; i <= 12; i++) {
+      const monthData = monthlyCollaborations.find((item) => item._id === i);
+      monthlyData.push({
+        month: months[i - 1],
+        monthNumber: i,
+        count: monthData ? monthData.count : 0,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User personal collaborations growth retrieved successfully",
+      data: {
+        year,
+        totalCollaborations,
+        monthlyData,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user personal collaborations growth",
+      error: error.message,
+    });
+  }
+};
