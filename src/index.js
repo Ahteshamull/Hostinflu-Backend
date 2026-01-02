@@ -9,20 +9,21 @@ import router from "./api/index.js";
 import cors from "cors";
 const app = express();
 
-
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({
-  origin: "*", // Adjust this to your frontend URL in production
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "*", // Adjust this to your frontend URL in production
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/uploads", express.static("uploads"));
 
-// Routes
+//routes
 app.use(router);
 
 // Root route
