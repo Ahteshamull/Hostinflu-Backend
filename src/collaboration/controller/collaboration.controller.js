@@ -332,3 +332,97 @@ export const totalCollaboration = async (req, res) => {
     });
   }
 };
+
+export const activeCollaborations = async (req, res) => {
+  try {
+    const active = await Collaborations.countDocuments({ status: "active" });
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Active collaborations retrieved successfully",
+      data: {
+        activeCollaborations: active,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving active collaborations",
+      error: error.message,
+    });
+  }
+};
+
+export const completedCollaborations = async (req, res) => {
+  try {
+    const completed = await Collaborations.countDocuments({
+      status: "completed",
+    });
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Completed collaborations retrieved successfully",
+      data: {
+        completedCollaborations: completed,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving completed collaborations",
+      error: error.message,
+    });
+  }
+};
+
+export const userPersonalActiveCollaborations = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const active = await Collaborations.countDocuments({
+      userId,
+      status: "active",
+    });
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User personal active collaborations retrieved successfully",
+      data: {
+        activeCollaborations: active,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user personal active collaborations",
+      error: error.message,
+    });
+  }
+};
+
+export const userPersonalCompletedCollaborations = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const completed = await Collaborations.countDocuments({
+      userId,
+      status: "completed",
+    });
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User personal completed collaborations retrieved successfully",
+      data: {
+        completedCollaborations: completed,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user personal completed collaborations",
+      error: error.message,
+    });
+  }
+};

@@ -6,6 +6,8 @@ import {
   getSingleCollaboration,
   updateCollaboration,
   totalCollaboration,
+  activeCollaborations,
+  completedCollaborations,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -36,5 +38,12 @@ router.put(
 
 //localhost:3000/api/v1/collaboration/total-collaborations 
 router.get("/total-collaborations", totalCollaboration);
+
+//localhost:3000/api/v1/collaboration/active-collaborations 
+router.get("/active-collaborations", activeCollaborations);
+
+//localhost:3000/api/v1/collaboration/completed-collaborations 
+router.get("/completed-collaborations", completedCollaborations);
+
 
 export default router;
