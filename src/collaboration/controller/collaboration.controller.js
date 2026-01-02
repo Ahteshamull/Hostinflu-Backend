@@ -450,3 +450,116 @@ export const userPersonalTotalCollaborations = async (req, res) => {
     });
   }
 };
+
+export const userPersonalCompleteContents = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Get completed collaborations for the user with their content
+    const completedCollaborations = await Collaborations.find({
+      userId: userId,
+      status: "completed",
+    }).select("content title description createdAt updatedAt");
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User personal completed contents retrieved successfully",
+      data: {
+        completedContents: completedCollaborations,
+        total: completedCollaborations.length,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user personal completed contents",
+      error: error.message,
+    });
+  }
+};
+
+export const userPersonalEarnStar = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    // Create date range for the specified year
+    const startDate = new Date(year, 0, 1); // January 1st
+    const endDate = new Date(year, 11, 31); // December 31st
+
+    // Aggregate night credits by month for the specified user and year
+    const monthlyStars = await Collaborations.aggregate([
+      {
+        $match: {
+          userId: userId,
+          numberOfNights: { $exists: true, $gt: 0 },
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          totalNightCredits: { $sum: "$numberOfNights" },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    // Initialize all 12 months with 0 night credits
+    const monthlyData = [];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    for (let i = 1; i <= 12; i++) {
+      const monthData = monthlyStars.find((item) => item._id === i);
+      monthlyData.push({
+        month: months[i - 1],
+        monthNumber: i,
+        nightCredits: monthData ? monthData.totalNightCredits : 0,
+      });
+    }
+
+    // Calculate total night credits for the year
+    const totalNightCredits = monthlyData.reduce(
+      (total, month) => total + month.nightCredits,
+      0
+    );
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User personal earned stars retrieved successfully",
+      data: {
+        year,
+        totalNightCredits,
+        monthlyData,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user personal earned stars",
+      error: error.message,
+    });
+  }
+};

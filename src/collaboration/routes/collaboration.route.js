@@ -9,9 +9,12 @@ import {
   activeCollaborations,
   completedCollaborations,
   userPersonalTotalCollaborations,
+  userPersonalCompleteContents,
+  userPersonalEarnStar,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
+
 
 const router = express.Router();
 
@@ -52,5 +55,20 @@ router.get(
   authenticateToken,
   userPersonalTotalCollaborations
 );
+
+//localhost:3000/api/v1/collaboration/user-personal-completed-contents
+router.get(
+  "/user-personal-completed-contents",
+  authenticateToken,
+  userPersonalCompleteContents
+);  
+
+//localhost:3000/api/v1/collaboration/user-personal-earn-stars
+router.get(
+  "/user-personal-earn-stars",
+  authenticateToken,
+  userPersonalEarnStar
+);
+
 
 export default router;
