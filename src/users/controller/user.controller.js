@@ -335,3 +335,24 @@ export const deleteUser = async (req, res) => {
     });
   }
 };
+
+export const totalUser = async (req, res) => {
+  try {
+    // Get total count of users
+    const totalUsers = await userModel.countDocuments({});
+
+    return res.status(200).json({
+      success: true,
+      message: "Total users retrieved successfully",
+      data: {
+        totalUsers,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve total users",
+      error: error.message,
+    });
+  }
+};

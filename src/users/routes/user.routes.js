@@ -4,6 +4,7 @@ import {
   singleUser,
   updateUser,
   deleteUser,
+  totalUser,
 } from "../controller/user.controller.js";
 import {
   upload,
@@ -22,5 +23,8 @@ router.patch("/update-user/:id", upload.single("image"), errorCheck, updateUser)
 
 //localhost:3000/api/v1/user/delete-user/:id
 router.delete("/delete-user/:id", deleteUser);
+
+//localhost:3000/api/v1/user/total-users
+router.get("/total-users", totalUser);
 
 export default router;

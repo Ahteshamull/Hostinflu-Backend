@@ -5,6 +5,7 @@ import {
   getSingleListing,
   updateListing,
   adminAcceptListing,
+  totalListing,
 } from "../controller/listing.controller.js";
 import {
   authenticateToken,
@@ -54,5 +55,11 @@ router.put(
   requireSuperAdminOrAdminRole,
   adminAcceptListing
 );
+
+
+
+// localhost:3000/api/v1/listing/total-listings
+router.get("/total-listings", totalListing);
+
 
 export default router;
