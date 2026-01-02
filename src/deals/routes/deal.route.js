@@ -4,6 +4,7 @@ import {
   getAllDeals,
   getSingleDeal,
   updateDeal,
+  totalDeal,
 } from "../controller/deal.controller.js";
 import {
   authenticateToken,
@@ -23,5 +24,8 @@ router.get("/get-single-deal/:id", getSingleDeal);
 
 // localhost:3000/api/v1/deal/update-deal/:id - Update deal
 router.put("/update-deal/:id", authenticateToken, requireHostRole, updateDeal);
+
+// localhost:3000/api/v1/deal/total-deals
+router.get("/total-deals", totalDeal);
 
 export default router;
