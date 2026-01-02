@@ -34,7 +34,7 @@ router.put(
   updateCollaboration
 );
 
-//localhost:3000/api/v1/collaboration/total-collaborations (admin only)
+//localhost:3000/api/v1/collaboration/total-collaborations 
 router.get("/total-collaborations", totalCollaboration);
 
 export default router;
