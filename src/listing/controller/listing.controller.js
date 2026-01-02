@@ -302,6 +302,28 @@ const totalListing = async (req, res) => {
   }
 };
 
+const personalTotalListings = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const total = await Listing.countDocuments({ userId });
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Total listings retrieved successfully",
+      data: {
+        total,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving total listings",
+      error: error.message,
+    });
+  }
+};
+
 export {
   createListing,
   getAllListings,
@@ -309,4 +331,5 @@ export {
   updateListing,
   adminAcceptListing,
   totalListing,
+  personalTotalListings,
 };

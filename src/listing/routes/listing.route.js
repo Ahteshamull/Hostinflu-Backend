@@ -6,6 +6,7 @@ import {
   updateListing,
   adminAcceptListing,
   totalListing,
+  personalTotalListings,
 } from "../controller/listing.controller.js";
 import {
   authenticateToken,
@@ -60,6 +61,9 @@ router.put(
 
 // localhost:3000/api/v1/listing/total-listings
 router.get("/total-listings", totalListing);
+
+// localhost:3000/api/v1/listing/personal-total-listings
+router.get("/personal-total-listings", authenticateToken, personalTotalListings);
 
 
 export default router;
