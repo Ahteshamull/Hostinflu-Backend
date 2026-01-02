@@ -324,6 +324,82 @@ const personalTotalListings = async (req, res) => {
   }
 };
 
+const personalListingsGrowth = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    // Create date range for the specified year
+    const startDate = new Date(year, 0, 1); // January 1st
+    const endDate = new Date(year, 11, 31); // December 31st
+
+    // Aggregate listings by month for the specified user and year
+    const monthlyListings = await Listing.aggregate([
+      {
+        $match: {
+          userId: userId,
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    // Initialize all 12 months with 0 count
+    const monthlyData = [];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    for (let i = 1; i <= 12; i++) {
+      const monthData = monthlyListings.find((item) => item._id === i);
+      monthlyData.push({
+        month: months[i - 1],
+        monthNumber: i,
+        count: monthData ? monthData.count : 0,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Personal listings growth retrieved successfully",
+      data: {
+        year,
+        monthlyData,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving personal listings growth",
+      error: error.message,
+    });
+  }
+};
+
 export {
   createListing,
   getAllListings,
@@ -332,4 +408,5 @@ export {
   adminAcceptListing,
   totalListing,
   personalTotalListings,
+  personalListingsGrowth,
 };
