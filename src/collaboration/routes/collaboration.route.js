@@ -5,6 +5,7 @@ import {
   getAllCollaboration,
   getSingleCollaboration,
   updateCollaboration,
+  totalCollaboration,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -32,5 +33,8 @@ router.put(
   requireHostOrInfluencerRole,
   updateCollaboration
 );
+
+//localhost:3000/api/v1/collaboration/total-collaborations (admin only)
+router.get("/total-collaborations", totalCollaboration);
 
 export default router;
