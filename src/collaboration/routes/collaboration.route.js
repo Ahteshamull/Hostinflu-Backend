@@ -37,18 +37,20 @@ router.put(
   updateCollaboration
 );
 
-//localhost:3000/api/v1/collaboration/total-collaborations 
+//localhost:3000/api/v1/collaboration/total-collaborations
 router.get("/total-collaborations", totalCollaboration);
 
-//localhost:3000/api/v1/collaboration/active-collaborations 
+//localhost:3000/api/v1/collaboration/active-collaborations
 router.get("/active-collaborations", activeCollaborations);
 
-//localhost:3000/api/v1/collaboration/completed-collaborations 
+//localhost:3000/api/v1/collaboration/completed-collaborations
 router.get("/completed-collaborations", completedCollaborations);
 
-//localhost:3000/api/v1/collaboration/user-personal-total-collaborations 
-router.get("/user-personal-total-collaborations", userPersonalTotalCollaborations);
-
-
+//localhost:3000/api/v1/collaboration/user-personal-total-collaborations
+router.get(
+  "/user-personal-total-collaborations",
+  authenticateToken,
+  userPersonalTotalCollaborations
+);
 
 export default router;
