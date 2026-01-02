@@ -5,6 +5,7 @@ import {
   getSingleDeal,
   updateDeal,
   totalDeal,
+  userPersonalTotalDeals,
 } from "../controller/deal.controller.js";
 import {
   authenticateToken,
@@ -27,5 +28,8 @@ router.put("/update-deal/:id", authenticateToken, requireHostRole, updateDeal);
 
 // localhost:3000/api/v1/deal/total-deals
 router.get("/total-deals", totalDeal);
+
+// localhost:3000/api/v1/deal/user-personal-total-deals
+router.get("/user-personal-total-deals", authenticateToken, userPersonalTotalDeals);
 
 export default router;

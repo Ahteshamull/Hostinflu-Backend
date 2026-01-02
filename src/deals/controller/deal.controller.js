@@ -208,5 +208,27 @@ const totalDeal = async (req, res) => {
   }
 };
 
-export { createDeal, getAllDeals, getSingleDeal, updateDeal, totalDeal };
+const userPersonalTotalDeals = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const total = await Deal.countDocuments({ userId });
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Total user deals retrieved successfully",
+      data: {
+        total,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving total user deals",
+      error: error.message,
+    });
+  }
+};
+
+export { createDeal, getAllDeals, getSingleDeal, updateDeal, totalDeal, userPersonalTotalDeals };
 
