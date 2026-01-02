@@ -6,6 +6,7 @@ import {
   updateDeal,
   totalDeal,
   userPersonalTotalDeals,
+  userPersonalDealsGrowth,
 } from "../controller/deal.controller.js";
 import {
   authenticateToken,
@@ -31,5 +32,10 @@ router.get("/total-deals", totalDeal);
 
 // localhost:3000/api/v1/deal/user-personal-total-deals
 router.get("/user-personal-total-deals", authenticateToken, userPersonalTotalDeals);
+
+// localhost:3000/api/v1/deal/user-personal-deals-growth
+router.get("/user-personal-deals-growth", authenticateToken, userPersonalDealsGrowth);
+
+
 
 export default router;

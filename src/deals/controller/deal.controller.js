@@ -11,7 +11,7 @@ const createDeal = async (req, res) => {
       outTimeAndDate,
       compensation,
       deliverables,
-    } = req.body ;
+    } = req.body;
 
     // Get userId from token
     const userId = req.user?.id || req.user?.userId || req.user?._id;
@@ -98,12 +98,12 @@ const getAllDeals = async (req, res) => {
       error: false,
       message: "Deals retrieved successfully",
       data: {
-          pagination: {
-            currentPage: parseInt(page),
-            totalPages: Math.ceil(total / limit),
-            total,
-            limit: parseInt(limit),
-          },
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          total,
+          limit: parseInt(limit),
+        },
         deals,
       },
     });
@@ -230,5 +230,97 @@ const userPersonalTotalDeals = async (req, res) => {
   }
 };
 
-export { createDeal, getAllDeals, getSingleDeal, updateDeal, totalDeal, userPersonalTotalDeals };
+const userPersonalDealsGrowth = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
 
+    // Create date range for the specified year
+    const startDate = new Date(year, 0, 1); // January 1st
+    const endDate = new Date(year, 11, 31); // December 31st
+
+    // Aggregate deals by month and status for the specified user and year
+    const monthlyDeals = await Deal.aggregate([
+      {
+        $match: {
+          userId: userId,
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            month: { $month: "$createdAt" },
+            status: "$status",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { "_id.month": 1 },
+      },
+    ]);
+
+    // Initialize all 12 months with 0 counts for both statuses
+    const monthlyData = [];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    for (let i = 1; i <= 12; i++) {
+      const monthData = monthlyDeals.filter((item) => item._id.month === i);
+      const closedDeals =
+        monthData.find((item) => item._id.status === "closed")?.count || 0;
+      const inProgressDeals =
+        monthData.find((item) => item._id.status === "in-progress")?.count || 0;
+
+      monthlyData.push({
+        month: months[i - 1],
+        monthNumber: i,
+        dealsClosed: closedDeals,
+        dealsInProgress: inProgressDeals,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User personal deals growth retrieved successfully",
+      data: {
+        year,
+        monthlyData,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user personal deals growth",
+      error: error.message,
+    });
+  }
+};
+
+export {
+  createDeal,
+  getAllDeals,
+  getSingleDeal,
+  updateDeal,
+  totalDeal,
+  userPersonalTotalDeals,
+  userPersonalDealsGrowth,
+};
