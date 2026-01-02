@@ -6,11 +6,16 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import dbConnect from "./config/database/dbConfig.js";
 import router from "./api/index.js";
-
+import cors from "cors";
 const app = express();
+
 
 const PORT = process.env.PORT || 5000;
 
+app.use(cors({
+  origin: "*", // Adjust this to your frontend URL in production
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
