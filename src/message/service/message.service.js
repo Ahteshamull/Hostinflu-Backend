@@ -1,0 +1,441 @@
+import mongoose from "mongoose";
+import messages from "../schema/message.modal.js";
+import conversations from "../../conversition/schema/conversition.modal.js";
+import userModal from "../../auth/schema/auth.modal.js";
+import {
+  onlineUsers,
+  getSocketIO,
+} from "../../socket/connection/socket.Connection.js";
+
+/**
+ * Create a new message
+ */
+const new_message_IntoDb = async (user, data, files = null) => {
+  if (!user?.id) {
+    throw new Error("User ID not found in token");
+  }
+
+  // Receiver may be a User
+  const isReceiverExist = await userModal
+    .findById(data.receiverId)
+    .select("_id");
+
+  if (!isReceiverExist) {
+    throw new Error("Receiver ID not found");
+  }
+
+  const io = getSocketIO();
+  let isNewConversation = false;
+
+  // Find or create conversation
+  let conversation = await conversations.findOne({
+    eventId: data.eventId,
+    participants: { $all: [user.id, data.receiverId] },
+  });
+
+  if (!conversation) {
+    conversation = await conversations.create({
+      eventId: data.eventId,
+      participants: [user.id, data.receiverId],
+    });
+    isNewConversation = true;
+  } else {
+    const isExistConversation = await conversations.exists({
+      _id: conversation._id,
+      participants: user.id,
+    });
+
+    if (!isExistConversation) {
+      throw new Error("Conversation not found");
+    }
+  }
+
+  // Join online users to room
+  const participants = [user.id, data.receiverId].filter(Boolean);
+  for (const participantId of participants) {
+    const socketId = onlineUsers.get(participantId.toString());
+    if (socketId) {
+      const participantSocket = io.sockets.sockets.get(socketId);
+      if (participantSocket) {
+        const roomId = conversation._id.toString();
+        participantSocket.join(roomId);
+        participantSocket.data.currentConversationId = roomId;
+      }
+    }
+  }
+
+  // Handle uploaded images using same pattern as user controller
+  const images =
+    files && files.length > 0
+      ? files.map((item) => `${process.env.IMAGE_URL}${item.filename}`)
+      : data.imageUrl || [];
+
+  // Save message
+  const messageData = {
+    text: data.text,
+    imageUrl: images,
+    audioUrl: data.audioUrl || "",
+    msgByUserId: new mongoose.Types.ObjectId(user.id),
+    conversationId: conversation._id,
+  };
+  const saveMessage = await messages.create(messageData);
+
+  // Update conversation last message
+  await conversations.updateOne(
+    { _id: conversation._id },
+    { lastMessage: saveMessage._id }
+  );
+
+  // Prepare populated message payload (resolve sender as User)
+  let sender = await userModal.findById(
+    saveMessage.msgByUserId,
+    "name image email"
+  );
+
+  const updatedMsg = {
+    ...saveMessage.toObject(),
+    msgByUserId: sender || { _id: saveMessage.msgByUserId },
+  };
+
+  // Emit message to room
+  io.to(conversation._id.toString()).emit("new-message", updatedMsg);
+
+  return updatedMsg;
+};
+
+/**
+ * Update a message by ID
+ */
+const updateMessageById_IntoDb = async (messageId, updateData) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const updated = await messages.findByIdAndUpdate(
+      messageId,
+      { $set: updateData },
+      { new: true, session }
+    );
+    if (!updated) {
+      throw new Error("Message not found");
+    }
+
+    await conversations.updateMany(
+      { lastMessage: messageId },
+      { $set: { lastMessage: updated._id } },
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    const io = getSocketIO();
+    const conversation = await conversations.findById(updated.conversationId);
+    if (conversation) {
+      conversation.participants.forEach((participantId) => {
+        io.to(participantId.toString()).emit("message-updated", updated);
+      });
+    }
+
+    return updated;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new Error("Error updating message");
+  }
+};
+
+/**
+ * Delete a message by ID
+ */
+const deleteMessageById_IntoDb = async (messageId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const message = await messages.findById(messageId).session(session);
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const conversationId = message.conversationId;
+    await message.deleteOne({ _id: messageId }).session(session);
+
+    const conversation = await conversations
+      .findById(conversationId)
+      .session(session);
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    if (conversation.lastMessage?.toString() === messageId.toString()) {
+      const newLastMessage = await messages
+        .findOne({ conversationId })
+        .sort({ createdAt: -1 })
+        .session(session);
+      conversation.lastMessage = newLastMessage ? newLastMessage._id : null;
+      await conversation.save({ session });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    const io = getSocketIO();
+    conversation.participants.forEach((participantId) => {
+      io.to(participantId.toString()).emit("message-deleted", {
+        messageId,
+        conversationId,
+      });
+    });
+
+    return {
+      success: true,
+      message: "Message deleted successfully",
+      messageId,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new Error("Error deleting message");
+  }
+};
+
+/**
+ * Find all messages by conversation
+ */
+const findBySpecificConversationInDb = async (conversationId, query) => {
+  try {
+    const baseQuery = messages.find({ conversationId });
+
+    const page = parseInt(query?.page, 10) || 1;
+    const limit = parseInt(query?.limit, 10) || 20;
+    const skip = (page - 1) * limit;
+
+    let q = messages.find({ conversationId }).sort({ createdAt: -1 });
+    if (query?.fields) q = q.select(query.fields.split(",").join(" "));
+    q = q.skip(skip).limit(limit);
+
+    const allmessage = await q.exec();
+    const meta = await messages.countDocuments({ conversationId });
+
+    // Populate sender info for each message (User only)
+    const populated = await Promise.all(
+      allmessage.map(async (msg) => {
+        let sender = await userModal.findById(
+          msg.msgByUserId,
+          "name image email"
+        );
+        return {
+          ...msg.toObject(),
+          msgByUserId: sender || { _id: msg.msgByUserId },
+        };
+      })
+    );
+
+    return { meta, allmessage: populated };
+  } catch (error) {
+    throw new Error("Error finding messages");
+  }
+};
+
+/**
+ * Send a single 1-to-1 message
+ */
+const single_new_message_IntoDb = async (user, data, files = null) => {
+  try {
+    console.log("=== Starting single_new_message_IntoDb ===");
+    console.log("User data:", user);
+    console.log("Message data:", data);
+
+    const senderId = user._id || user.id;
+    if (!senderId) {
+      throw new Error("Sender ID missing from token");
+    }
+    console.log("Sender ID:", senderId);
+
+    // Validate receiver ID
+    if (!data.receiverId) {
+      throw new Error("Receiver ID is required");
+    }
+    console.log("Receiver ID:", data.receiverId);
+
+    // Receiver must be a User
+    console.log("Finding receiver...");
+    const receiver = await userModal
+      .findById(data.receiverId)
+      .select("_id role name");
+    console.log("Receiver found:", receiver);
+    if (!receiver) {
+      throw new Error(`Receiver not found with ID: ${data.receiverId}`);
+    }
+
+    // Check if receiver has proper role
+    if (receiver.role !== "host" && receiver.role !== "influencer") {
+      throw new Error(
+        `Receiver must be a host or influencer. Current role: ${receiver.role}`
+      );
+    }
+    console.log("Receiver role validation passed");
+
+    let isNewConversation = false;
+    let conversation = await conversations.findOne({
+      participants: { $all: [senderId, data.receiverId] },
+    });
+    console.log("Existing conversation found:", conversation);
+
+    if (!conversation) {
+      console.log("Creating new conversation...");
+      const conversationData = {
+        participants: [senderId, data.receiverId],
+      };
+      console.log("Conversation data to create:", conversationData);
+
+      conversation = await conversations.create(conversationData);
+      isNewConversation = true;
+      console.log("New conversation created:", conversation);
+    }
+
+    // Handle uploaded images using same pattern as user controller
+    const images =
+      files && files.length > 0
+        ? files.map((item) => `${process.env.IMAGE_URL}${item.filename}`)
+        : data.imageUrl || [];
+    console.log("Images:", images);
+
+    const messageData = {
+      text: data.text?.trim() || "",
+      imageUrl: images,
+      audioUrl: data.audioUrl || "",
+      eventId: data.eventId || null,
+      msgByUserId: senderId,
+      conversationId: conversation._id,
+    };
+    console.log("Creating message with data:", messageData);
+
+    const savedMessage = await messages.create(messageData);
+    console.log("Message saved successfully:", savedMessage);
+
+    // Update conversation with last message
+    const updateResult = await conversations.updateOne(
+      { _id: conversation._id },
+      { lastMessage: savedMessage._id, updatedAt: new Date() }
+    );
+    console.log("Conversation update result:", updateResult);
+
+    // Get the full message with populated sender info
+    const fullMessage = await messages
+      .findById(savedMessage._id)
+      .populate("msgByUserId", "name image email");
+    console.log("Full message with populate:", fullMessage);
+
+    const result = {
+      success: true,
+      message: "Message sent successfully",
+      data: {
+        isNewConversation,
+        conversationId: conversation._id,
+        messageId: savedMessage._id,
+        message: fullMessage,
+      },
+    };
+    console.log("Final result:", result);
+    console.log("=== End single_new_message_IntoDb ===");
+
+    return result;
+  } catch (error) {
+    console.error("=== ERROR in single_new_message_IntoDb ===");
+    console.error("Error details:", error);
+    console.error("Error stack:", error.stack);
+    console.error("=== END ERROR ===");
+    throw error;
+  }
+};
+
+const get_my_single_specific_chatList = async (conversationId, query) => {
+  try {
+    const page = parseInt(query?.page) || 1;
+    const limit = parseInt(query?.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Find conversation first to verify it exists
+    const conversation = await conversations.findById(conversationId);
+    if (!conversation) {
+      return {
+        messages: [],
+        pagination: {
+          currentPage: page,
+          totalPages: 0,
+          totalMessages: 0,
+          messagesPerPage: limit,
+        },
+        error:
+          "Conversation not found. Please send a message first to create a conversation.",
+      };
+    }
+
+    // Get messages with pagination
+    const messagesList = await messages
+      .find({ conversationId })
+      .populate("msgByUserId", "name image email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await messages.countDocuments({ conversationId });
+
+    return {
+      messages: messagesList,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalMessages: total,
+        messagesPerPage: limit,
+      },
+    };
+  } catch (error) {
+    throw new Error("Error getting specific chat: " + error.message);
+  }
+};
+
+const get_all_conversations_for_user = async (userId, query) => {
+  try {
+    const page = parseInt(query?.page) || 1;
+    const limit = parseInt(query?.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Find all conversations where the user is a participant
+    const conversationsList = await conversations
+      .find({ participants: userId })
+      .populate("lastMessage")
+      .populate("participants", "name image email")
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await conversations.countDocuments({ participants: userId });
+
+    return {
+      conversations: conversationsList,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalConversations: total,
+        conversationsPerPage: limit,
+      },
+    };
+  } catch (error) {
+    throw new Error("Error getting conversations: " + error.message);
+  }
+};
+
+const MessageService = {
+  new_message_IntoDb,
+  updateMessageById_IntoDb,
+  deleteMessageById_IntoDb,
+  findBySpecificConversationInDb,
+  single_new_message_IntoDb,
+  get_my_single_specific_chatList,
+  get_all_conversations_for_user,
+};
+
+export default MessageService;
