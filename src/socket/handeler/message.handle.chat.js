@@ -20,13 +20,12 @@ const handleChatEvents = async (io, socket, currentUserId) => {
     }
 
     socket.join(conversationId);
-    console.log(`User ${currentUserId} joined conversation ${conversationId}`);
   });
 
   // Get conversation list
   socket.on("get-conversations", async (query) => {
     try {
-      console.log({ currentUserId, query });
+        
 
       // use ConversationService to fetch conversations
       const conversationsList = await ConversationService.getConversation(

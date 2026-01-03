@@ -8,6 +8,8 @@ export const handleSingleSendMessage = async (
 ) => {
   try {
     // Verify sender is host or influencer
+
+ 
     const userModal = (await import("../../auth/schema/auth.modal.js")).default;
     const sender = await userModal.findById(currentUserId);
     if (!sender || (sender.role !== "host" && sender.role !== "influencer")) {

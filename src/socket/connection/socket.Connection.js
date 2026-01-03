@@ -29,7 +29,7 @@ export const initializeSocket = (server) => {
   }
 
   io.on("connection", async (socket) => {
-    console.log("Client connected:", socket.id);
+
 
     // Get user ID from query parameters
     const userId = socket.handshake.query?.userId || socket.handshake.query?.id;
@@ -68,9 +68,7 @@ export const initializeSocket = (server) => {
     // Join user to their personal room
     socket.join(`user-${currentUserId}`);
 
-    console.log(
-      `User ${currentUserId} (${currentUser.role}) is online with socket ${socket.id}`
-    );
+
 
     // Find and join user's conversations
     const userConversations = await conversations
@@ -79,25 +77,25 @@ export const initializeSocket = (server) => {
       })
       .select("_id");
 
-    console.log("User conversations:", userConversations);
+
 
     userConversations.forEach((conv) => socket.join(conv._id.toString()));
 
     // Handle user online event
     socket.on("user-online", (userData) => {
       const { userId: onlineUserId, role } = userData;
-      console.log(`User ${onlineUserId} (${role}) is online`);
+      
     });
 
     // Call event handlers for chat messages
-    console.log("Handling chat events for user:", currentUserId);
+
     handleChatEvents(io, socket, currentUserId);
 
     socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
+      
       // Remove user from online map
       onlineUsers.delete(currentUserId);
-      console.log(`User ${currentUserId} is offline`);
+     
     });
   });
 

@@ -243,28 +243,26 @@ const findBySpecificConversationInDb = async (conversationId, query) => {
  */
 const single_new_message_IntoDb = async (user, data, files = null) => {
   try {
-    console.log("=== Starting single_new_message_IntoDb ===");
-    console.log("User data:", user);
-    console.log("Message data:", data);
+   
 
     const senderId = user._id || user.id;
     if (!senderId) {
       throw new Error("Sender ID missing from token");
     }
-    console.log("Sender ID:", senderId);
+ 
 
     // Validate receiver ID
     if (!data.receiverId) {
       throw new Error("Receiver ID is required");
     }
-    console.log("Receiver ID:", data.receiverId);
+    
 
     // Receiver must be a User
-    console.log("Finding receiver...");
+
     const receiver = await userModal
       .findById(data.receiverId)
       .select("_id role name");
-    console.log("Receiver found:", receiver);
+   
     if (!receiver) {
       throw new Error(`Receiver not found with ID: ${data.receiverId}`);
     }
@@ -275,24 +273,24 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
         `Receiver must be a host or influencer. Current role: ${receiver.role}`
       );
     }
-    console.log("Receiver role validation passed");
+   
 
     let isNewConversation = false;
     let conversation = await conversations.findOne({
       participants: { $all: [senderId, data.receiverId] },
     });
-    console.log("Existing conversation found:", conversation);
+
 
     if (!conversation) {
-      console.log("Creating new conversation...");
+     
       const conversationData = {
         participants: [senderId, data.receiverId],
       };
-      console.log("Conversation data to create:", conversationData);
+   
 
       conversation = await conversations.create(conversationData);
       isNewConversation = true;
-      console.log("New conversation created:", conversation);
+     
     }
 
     // Handle uploaded images using same pattern as user controller
@@ -300,7 +298,7 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
       files && files.length > 0
         ? files.map((item) => `${process.env.IMAGE_URL}${item.filename}`)
         : data.imageUrl || [];
-    console.log("Images:", images);
+    
 
     const messageData = {
       text: data.text?.trim() || "",
@@ -310,23 +308,23 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
       msgByUserId: senderId,
       conversationId: conversation._id,
     };
-    console.log("Creating message with data:", messageData);
+   
 
     const savedMessage = await messages.create(messageData);
-    console.log("Message saved successfully:", savedMessage);
+    
 
     // Update conversation with last message
     const updateResult = await conversations.updateOne(
       { _id: conversation._id },
       { lastMessage: savedMessage._id, updatedAt: new Date() }
     );
-    console.log("Conversation update result:", updateResult);
+
 
     // Get the full message with populated sender info
     const fullMessage = await messages
       .findById(savedMessage._id)
       .populate("msgByUserId", "name image email");
-    console.log("Full message with populate:", fullMessage);
+    
 
     const result = {
       success: true,
@@ -338,8 +336,7 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
         message: fullMessage,
       },
     };
-    console.log("Final result:", result);
-    console.log("=== End single_new_message_IntoDb ===");
+  
 
     return result;
   } catch (error) {

@@ -8,12 +8,18 @@ const router = express.Router();
 // Helper middleware to parse files & JSON data
 const parseFilesMiddleware = (fields) => (req, _res, next) => {
   try {
+    // Handle different JSON formats
     if (req.body.data && typeof req.body.data === "string") {
       req.body = JSON.parse(req.body.data);
+    } else if (req.body && typeof req.body === "string") {
+      req.body = JSON.parse(req.body);
     }
+    // If req.body is already an object, leave it as is
 
     next();
   } catch (error) {
+    console.error("JSON parsing error:", error);
+    console.error("Request body:", req.body);
     next(new Error("Invalid JSON data"));
   }
 };
@@ -62,6 +68,10 @@ router.post(
   "/single_new_message",
   userAuthMiddleware,
   upload.array("images", 5),
+  (req, res, next) => {
+
+    next();
+  },
   parseFilesMiddleware(),
   MessageController.single_new_message
 );
