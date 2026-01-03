@@ -28,7 +28,9 @@ router.use(baseurl, message);
 
 // 404 fallback for API
 router.use(baseurl, (req, res) => {
-  return res.status(404).send({ error: "No API Found On This Route" });
+  return res
+    .status(404)
+    .send({ error: "No matching API route found for this request" });
 });
 
 export default router;
