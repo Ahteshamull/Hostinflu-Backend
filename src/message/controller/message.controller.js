@@ -101,8 +101,13 @@ const get_my_single_specific_chatList_controller = async (req, res) => {
 };
 
 const get_all_conversations_controller = async (req, res) => {
+
+
+  const userId = req.user._id || req.user.id || req.user;
+  
+
   const result = await MessageService.get_all_conversations_for_user(
-    req.user.id,
+    userId,
     req.query
   );
 

@@ -18,8 +18,6 @@ const parseFilesMiddleware = (fields) => (req, _res, next) => {
 
     next();
   } catch (error) {
-    console.error("JSON parsing error:", error);
-    console.error("Request body:", req.body);
     next(new Error("Invalid JSON data"));
   }
 };
@@ -69,7 +67,6 @@ router.post(
   userAuthMiddleware,
   upload.array("images", 5),
   (req, res, next) => {
-
     next();
   },
   parseFilesMiddleware(),
@@ -83,16 +80,9 @@ router.get(
   MessageController.get_my_single_specific_chatList_controller
 );
 
-// localhost:5000/api/v1/message/get_single_conversation
+// localhost:5000/api/v1/message/get_single_conversation/:conversationId
 router.get(
-  "/get_single_conversation",
-  userAuthMiddleware,
-  MessageController.get_my_single_specific_chatList_controller
-);
-
-// localhost:5000/api/v1/message/find_my_single_chat_list/:conversationId
-router.get(
-  "/find_my_single_chat_list/:conversationId",
+  "/get_single_conversation/:conversationId",
   userAuthMiddleware,
   MessageController.get_my_single_specific_chatList_controller
 );

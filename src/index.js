@@ -48,6 +48,6 @@ dbConnect();
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`🔃 Server running at ${PORT}`);
+  console.log(`🛜  Server running at ${PORT}`);
   console.log(`⚡ Socket.IO server started`);
 });

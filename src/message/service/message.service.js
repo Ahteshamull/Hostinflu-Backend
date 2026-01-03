@@ -243,26 +243,22 @@ const findBySpecificConversationInDb = async (conversationId, query) => {
  */
 const single_new_message_IntoDb = async (user, data, files = null) => {
   try {
-   
-
     const senderId = user._id || user.id;
     if (!senderId) {
       throw new Error("Sender ID missing from token");
     }
- 
 
     // Validate receiver ID
     if (!data.receiverId) {
       throw new Error("Receiver ID is required");
     }
-    
 
     // Receiver must be a User
 
     const receiver = await userModal
       .findById(data.receiverId)
       .select("_id role name");
-   
+
     if (!receiver) {
       throw new Error(`Receiver not found with ID: ${data.receiverId}`);
     }
@@ -273,24 +269,19 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
         `Receiver must be a host or influencer. Current role: ${receiver.role}`
       );
     }
-   
 
     let isNewConversation = false;
     let conversation = await conversations.findOne({
       participants: { $all: [senderId, data.receiverId] },
     });
 
-
     if (!conversation) {
-     
       const conversationData = {
         participants: [senderId, data.receiverId],
       };
-   
 
       conversation = await conversations.create(conversationData);
       isNewConversation = true;
-     
     }
 
     // Handle uploaded images using same pattern as user controller
@@ -298,7 +289,6 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
       files && files.length > 0
         ? files.map((item) => `${process.env.IMAGE_URL}${item.filename}`)
         : data.imageUrl || [];
-    
 
     const messageData = {
       text: data.text?.trim() || "",
@@ -308,10 +298,8 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
       msgByUserId: senderId,
       conversationId: conversation._id,
     };
-   
 
     const savedMessage = await messages.create(messageData);
-    
 
     // Update conversation with last message
     const updateResult = await conversations.updateOne(
@@ -319,12 +307,10 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
       { lastMessage: savedMessage._id, updatedAt: new Date() }
     );
 
-
     // Get the full message with populated sender info
     const fullMessage = await messages
       .findById(savedMessage._id)
       .populate("msgByUserId", "name image email");
-    
 
     const result = {
       success: true,
@@ -336,7 +322,6 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
         message: fullMessage,
       },
     };
-  
 
     return result;
   } catch (error) {
@@ -402,14 +387,20 @@ const get_all_conversations_for_user = async (userId, query) => {
 
     // Find all conversations where the user is a participant
     const conversationsList = await conversations
-      .find({ participants: userId })
+      .find({ participants: { $in: [userId] } })
       .populate("lastMessage")
       .populate("participants", "name image email")
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await conversations.countDocuments({ participants: userId });
+   
+
+    const total = await conversations.countDocuments({
+      participants: { $in: [userId] },
+    });
+
+
 
     return {
       conversations: conversationsList,
