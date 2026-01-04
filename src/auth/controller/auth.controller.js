@@ -119,6 +119,40 @@ export const createUser = async (req, res) => {
   }
 };
 
+export const getMyProfile = async (req, res) => {
+  // User ID should be available in req.user from auth middleware
+  const userId = req.user?.id || req.user?._id;
+
+  if (!userId) {
+    return res.status(401).json({
+      error: true,
+      message: "User not authenticated",
+    });
+  }
+
+  try {
+    const user = await userModel
+      .findById(userId)
+      .select("-password -confirmPassword -refreshToken");
+    if (!user) {
+      return res.status(404).json({
+        error: true,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: true,
+      message: "Internal server error",
+    });
+  }
+};
+
 export const login = async (req, res) => {
   let { email, userName, password } = req.body || {};
 

@@ -3,6 +3,7 @@ import {
   forgotPassword,
   login,
   logout,
+  getMyProfile,
   refreshAccessToken,
   ResendOtp,
   resetPassword,
@@ -11,6 +12,7 @@ import {
   changePassword,
   currentUserLogin,
 } from "../controller/auth.controller.js";
+import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 
 const router = express.Router();
 //localhost:3000/api/v1/auth/create-user
@@ -19,6 +21,8 @@ router.post("/create-user", createUser);
 router.post("/login", login);
 //localhost:3000/api/v1/auth/logout
 router.post("/logout", logout);
+//localhost:3000/api/v1/auth/my-profile
+router.get("/my-profile", authenticateToken, getMyProfile);
 //localhost:3000/api/v1/auth/forgot-password
 router.post("/forgot-password", forgotPassword);
 //localhost:3000/api/v1/auth/change-password
