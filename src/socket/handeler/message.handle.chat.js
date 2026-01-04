@@ -25,8 +25,6 @@ const handleChatEvents = async (io, socket, currentUserId) => {
   // Get conversation list
   socket.on("get-conversations", async (query) => {
     try {
-        
-
       // use ConversationService to fetch conversations
       const conversationsList = await ConversationService.getConversation(
         currentUserId,

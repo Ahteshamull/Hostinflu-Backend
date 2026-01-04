@@ -1,4 +1,7 @@
 import { Listing } from "../../listing/schema/listing.modal.js";
+import Deal from "../../deals/schema/deal.modal.js";
+import Collaboration from "../../collaboration/schema/collaboration.modal.js";
+import User from "../../auth/schema/auth.modal.js";
 
 const globalSearch = async (req, res) => {
   try {
@@ -10,59 +13,140 @@ const globalSearch = async (req, res) => {
       location,
       minPrice,
       maxPrice,
+      searchType = "all", // all, users, listings, deals, collaborations
     } = req.query;
 
-    // Build search filter
-    let filter = { status: "verified" }; // Only show verified listings
+    const searchRegex = query ? { $regex: query, $options: "i" } : null;
+    const results = {
+      users: [],
+      listings: [],
+      deals: [],
+      collaborations: [],
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: 1,
+        total: 0,
+        limit: parseInt(limit),
+      },
+    };
 
-    // Text search in title, description, and location
-    if (query) {
-      filter.$or = [
-        { title: { $regex: query, $options: "i" } },
-        { description: { $regex: query, $options: "i" } },
-        { location: { $regex: query, $options: "i" } },
-      ];
+    // Search Users
+    if (searchType === "all" || searchType === "users") {
+      const userFilter = {};
+      if (query) {
+        userFilter.$or = [
+          { name: searchRegex },
+          { email: searchRegex },
+          { userName: searchRegex },
+          { aboutMe: searchRegex },
+          { city: searchRegex },
+          { country: searchRegex },
+        ];
+      }
+
+      const users = await User.find(userFilter)
+        .select("name email userName role city country aboutMe image")
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+      results.users = users;
     }
 
-    // Filter by property type
-    if (propertyType) {
-      filter.propertyType = propertyType;
+    // Search Listings
+    if (searchType === "all" || searchType === "listings") {
+      const listingFilter = { status: "verified" };
+
+      if (query) {
+        listingFilter.$or = [
+          { title: searchRegex },
+          { description: searchRegex },
+          { location: searchRegex },
+        ];
+      }
+
+      if (propertyType) {
+        listingFilter.propertyType = propertyType;
+      }
+
+      if (location) {
+        listingFilter.location = { $regex: location, $options: "i" };
+      }
+
+      if (minPrice || maxPrice) {
+        listingFilter.price = {};
+        if (minPrice) listingFilter.price.$gte = parseFloat(minPrice);
+        if (maxPrice) listingFilter.price.$lte = parseFloat(maxPrice);
+      }
+
+      const listings = await Listing.find(listingFilter)
+        .populate("userId", "name email")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+      results.listings = listings;
     }
 
-    // Filter by location
-    if (location) {
-      filter.location = { $regex: location, $options: "i" };
+    // Search Deals
+    if (searchType === "all" || searchType === "deals") {
+      const dealFilter = {};
+      if (query) {
+        dealFilter.$or = [
+          { description: searchRegex },
+          { addAirbnbLink: searchRegex },
+        ];
+      }
+
+      const deals = await Deal.find(dealFilter)
+        .populate("userId", "name email")
+        .populate("dealTitle", "title location")
+        .populate("selectListing", "title location")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+      results.deals = deals;
     }
 
-    // Price range filter
-    if (minPrice || maxPrice) {
-      filter.price = {};
-      if (minPrice) filter.price.$gte = parseFloat(minPrice);
-      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+    // Search Collaborations
+    if (searchType === "all" || searchType === "collaborations") {
+      const collaborationFilter = {};
+      if (query) {
+        collaborationFilter.$or = [
+          { payment: searchRegex },
+          { "socialMediaLinks.instagram": searchRegex },
+          { "socialMediaLinks.facebook": searchRegex },
+          { "socialMediaLinks.twitter": searchRegex },
+          { "socialMediaLinks.youtube": searchRegex },
+          { "socialMediaLinks.tiktok": searchRegex },
+        ];
+      }
+
+      const collaborations = await Collaboration.find(collaborationFilter)
+        .populate("userId", "name email")
+        .populate("selectInfluencerOrHost", "name email")
+        .populate("selectDeal", "description")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+      results.collaborations = collaborations;
     }
 
-    // Execute search with pagination
-    const listings = await Listing.find(filter)
-      .populate("userId", "name email")
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await Listing.countDocuments(filter);
+    // Calculate total results
+    const total =
+      results.users.length +
+      results.listings.length +
+      results.deals.length +
+      results.collaborations.length;
+    results.pagination.total = total;
+    results.pagination.totalPages = Math.ceil(total / limit);
 
     res.status(200).json({
       success: true,
       error: false,
       message: "Search completed successfully",
-      data: {
-        listings,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(total / limit),
-          total,
-          limit: parseInt(limit),
-        },
-      },
+      data: results,
     });
   } catch (error) {
     res.status(500).json({
@@ -74,55 +158,228 @@ const globalSearch = async (req, res) => {
   }
 };
 
-const getSearchSuggestions = async (req, res) => {
+const specificSearch = async (req, res) => {
   try {
-    const { query } = req.query;
+    const {
+      query: collection = "all", // users | listings | collaborations | deals | all
+      searchType: keyword = "", // actual search text
+      page = 1,
+      limit = 10,
+    } = req.query;
 
-    if (!query) {
-      return res.status(200).json({
-        success: true,
-        error: false,
-        message: "No search query provided",
-        data: { suggestions: [] },
+    // ✅ validate collection
+    const validCollections = [
+      "all",
+      "users",
+      "user", // singular form
+      "listings",
+      "listing", // singular form
+      "collaborations",
+      "collaboration", // singular form
+      "deals",
+      "deal", // singular form
+    ];
+    const actualCollection = validCollections.includes(collection)
+      ? collection
+      : "all";
+
+    // If collection is invalid, fallback to the keyword as collection if it's valid
+    if (collection !== actualCollection && validCollections.includes(keyword)) {
+      console.log(
+        `Using "${keyword}" as collection since "${collection}" is invalid`
+      );
+      actualCollection = keyword;
+    } else if (collection !== actualCollection) {
+      console.log(
+        `Invalid collection "${collection}" provided, fallback to "all"`
+      );
+    }
+
+    const searchRegex = keyword ? { $regex: keyword, $options: "i" } : null;
+
+    const results = {
+      users: [],
+      listings: [],
+      collaborations: [],
+      deals: [],
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: 1,
+        total: 0,
+        limit: parseInt(limit),
+      },
+    };
+
+    // 👤 USERS - only if collection is "users"
+    if (actualCollection === "users") {
+      const userFilter = keyword
+        ? {
+            $or: [
+              { name: searchRegex },
+              { email: searchRegex },
+              { phone: searchRegex },
+            ],
+          }
+        : {};
+
+      const users = await User.find(userFilter)
+        .select("name email phone role image createdAt")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip((page - 1) * limit)
+        .lean();
+
+      results.users = users.map((user) => ({
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "N/A",
+        role: user.role,
+        image: user.image,
+        dateAdded: user.createdAt,
+      }));
+    }
+
+    // 🏠 LISTINGS - only if collection is "listings"
+    if (actualCollection === "listings") {
+      const listingFilter = keyword
+        ? {
+            $or: [
+              { title: searchRegex },
+              { location: searchRegex },
+              { propertyType: searchRegex },
+              { status: searchRegex },
+            ],
+          }
+        : {};
+
+      const listings = await Listing.find(listingFilter)
+        .populate("userId", "name email")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip((page - 1) * limit)
+        .lean();
+
+      results.listings = listings.map((listing) => ({
+        propertyName: listing.title,
+        dateAdded: listing.createdAt,
+        propertyType: listing.propertyType,
+        status: listing.status,
+        location: listing.location,
+        owner: listing.userId?.name || "N/A",
+      }));
+    }
+
+    // 🤝 COLLABORATIONS - only if collection is "collaborations"
+    if (actualCollection === "collaborations") {
+      const collaborationFilter = keyword
+        ? {
+            $or: [{ payment: searchRegex }, { status: searchRegex }],
+          }
+        : {};
+
+      const collaborations = await Collaboration.find(collaborationFilter)
+        .populate("userId", "name email")
+        .populate("selectInfluencerOrHost", "name email")
+        .populate("selectDeal", "description")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip((page - 1) * limit)
+        .lean();
+
+      results.collaborations = collaborations.map((collab) => {
+        const duration =
+          collab.freeStay && collab.startDate && collab.endDate
+            ? `${Math.ceil(
+                (new Date(collab.endDate) - new Date(collab.startDate)) /
+                  (1000 * 60 * 60 * 24)
+              )} nights`
+            : "N/A";
+
+        return {
+          influencer:
+            collab.selectInfluencerOrHost?.name || collab.userId?.name || "N/A",
+          dealName:
+            collab.selectDeal?.description?.substring(0, 50) + "..." || "N/A",
+          duration,
+          payment: collab.payment,
+          status: collab.status,
+          startDate: collab.startDate,
+          endDate: collab.endDate,
+        };
       });
     }
 
-    const [locations, propertyTypes, titles] = await Promise.all([
-      Listing.distinct("location", { status: "verified" }),
-      Listing.distinct("propertyType", { status: "verified" }),
-      Listing.distinct("title", { status: "verified" }),
-    ]);
+    // 💼 DEALS - only if collection is "deals"
+    if (actualCollection === "deals") {
+      const dealFilter = keyword
+        ? {
+            $or: [
+              { description: searchRegex },
+              { status: searchRegex },
+              { addAirbnbLink: searchRegex },
+            ],
+          }
+        : {};
 
-    // Generate suggestions based on query
-    const suggestions = [
-      ...locations
-        .filter((loc) => loc.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 3)
-        .map((loc) => ({ type: "location", value: loc })),
-      ...propertyTypes
-        .filter((type) => type.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 3)
-        .map((type) => ({ type: "propertyType", value: type })),
-      ...titles
-        .filter((title) => title.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 2)
-        .map((title) => ({ type: "title", value: title })),
-    ];
+      const deals = await Deal.find(dealFilter)
+        .populate("userId", "name email")
+        .populate("dealTitle", "title")
+        .populate("selectListing", "title propertyType")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip((page - 1) * limit)
+        .lean();
+
+      results.deals = deals.map((deal) => {
+        let amount = "N/A";
+
+        if (
+          deal.compensation?.directPayment &&
+          deal.compensation?.paymentAmount
+        ) {
+          amount = deal.compensation.paymentAmount;
+        } else if (
+          deal.compensation?.nightCredits &&
+          deal.compensation?.numberOfNights
+        ) {
+          amount = `${deal.compensation.numberOfNights} nights`;
+        }
+
+        return {
+          name: deal.dealTitle?.title || deal.selectListing?.title || "N/A",
+          influencer: deal.userId?.name || "N/A",
+          status: deal.status,
+          amount,
+          category: deal.selectListing?.propertyType || "N/A",
+          description: deal.description?.substring(0, 100) + "...",
+          airbnbLink: deal.addAirbnbLink,
+        };
+      });
+    }
+
+    const total =
+      results.users.length +
+      results.listings.length +
+      results.collaborations.length +
+      results.deals.length;
+
+    results.pagination.total = total;
+    results.pagination.totalPages = Math.ceil(total / limit);
 
     res.status(200).json({
       success: true,
       error: false,
-      message: "Suggestions retrieved successfully",
-      data: { suggestions },
+      message: "Specific search completed successfully",
+      data: results,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       error: true,
-      message: "Error getting suggestions",
+      message: "Error during specific search",
       error: error.message,
     });
   }
 };
 
-export { globalSearch, getSearchSuggestions };
+export { globalSearch, specificSearch };
