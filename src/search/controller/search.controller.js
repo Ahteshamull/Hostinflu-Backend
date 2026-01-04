@@ -185,14 +185,8 @@ const specificSearch = async (req, res) => {
 
     // If collection is invalid, fallback to the keyword as collection if it's valid
     if (collection !== actualCollection && validCollections.includes(keyword)) {
-      console.log(
-        `Using "${keyword}" as collection since "${collection}" is invalid`
-      );
       actualCollection = keyword;
     } else if (collection !== actualCollection) {
-      console.log(
-        `Invalid collection "${collection}" provided, fallback to "all"`
-      );
     }
 
     const searchRegex = keyword ? { $regex: keyword, $options: "i" } : null;

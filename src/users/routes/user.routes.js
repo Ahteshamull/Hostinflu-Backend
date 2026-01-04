@@ -2,7 +2,8 @@ import express from "express";
 import {
   allUser,
   singleUser,
-  updateUser,
+ 
+  updateProfile,
   deleteUser,
   totalUser,
   userGrowth,
@@ -11,6 +12,7 @@ import {
   upload,
   errorCheck,
 } from "../../helper/middlewares/imageControlMiddleware.js";
+import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 const router = express.Router();
 
 //localhost:3000/api/v1/user/all-users
@@ -19,8 +21,16 @@ router.get("/all-users", allUser);
 //localhost:3000/api/v1/user/single-user/:id
 router.get("/single-user/:id", singleUser);
 
-//localhost:3000/api/v1/user/update-user/:id
-router.patch("/update-user/:id", upload.single("image"), errorCheck, updateUser);
+
+
+//localhost:3000/api/v1/user/update-profile - Update own profile (gets ID from token)
+router.patch(
+  "/update-profile",
+  authenticateToken,
+  upload.single("image"),
+  errorCheck,
+  updateProfile
+);
 
 //localhost:3000/api/v1/user/delete-user/:id
 router.delete("/delete-user/:id", deleteUser);

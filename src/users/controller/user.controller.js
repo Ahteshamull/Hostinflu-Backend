@@ -77,9 +77,27 @@ export const singleUser = async (req, res) => {
   }
 };
 
-export const updateUser = async (req, res) => {
+export const updateProfile = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Get user ID from token (set by auth middleware)
+    // Handle different possible field names from JWT token
+  
+    const userId =
+      req.user?.id || req.user?.userId || req.user?._id || req.user?.sub;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User ID not found in token",
+        debug: {
+          user: req.user,
+          availableFields: Object.keys(req.user || {}),
+        },
+      });
+    }
+
+
+
     const {
       name,
       userName,
@@ -96,20 +114,26 @@ export const updateUser = async (req, res) => {
       image,
     } = req.body;
 
-    // Validate user ID
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "User ID is required",
-      });
-    }
-
     // Check if user exists
-    const existingUser = await userModel.findById(id);
+
+    const existingUser = await userModel.findById(userId);
+
     if (!existingUser) {
+      // Try to find if there are any users in the database
+      const totalUsers = await userModel.countDocuments();
+
+
       return res.status(404).json({
         success: false,
         message: "User not found",
+        debug: {
+          userId: userId,
+          totalUsersInDb: totalUsers,
+          suggestion:
+            totalUsers === 0
+              ? "Database appears to be empty. Users may need to be created."
+              : "User may have been deleted or token may be from a different database.",
+        },
       });
     }
 
@@ -118,7 +142,7 @@ export const updateUser = async (req, res) => {
       // Check for case-insensitive email uniqueness
       const emailExists = await userModel.findOne({
         email: email.toLowerCase(),
-        _id: { $ne: id },
+        _id: { $ne: userId },
       });
       if (emailExists) {
         return res.status(400).json({
@@ -161,7 +185,7 @@ export const updateUser = async (req, res) => {
       // Check for uniqueness
       const userNameExists = await userModel.findOne({
         userName: normalizedUserName,
-        _id: { $ne: id },
+        _id: { $ne: userId },
       });
       if (userNameExists) {
         return res.status(400).json({
@@ -265,27 +289,27 @@ export const updateUser = async (req, res) => {
     if (!hasChanges) {
       return res.status(200).json({
         success: true,
-        message: "No changes detected - user data is already up to date",
+        message: "No changes detected - profile data is already up to date",
         data: existingUser,
       });
     }
 
     // Update user
     const updatedUser = await userModel.findByIdAndUpdate(
-      id,
+      userId,
       { $set: updateData },
       { new: true, runValidators: true }
     );
 
     return res.status(200).json({
       success: true,
-      message: "User updated successfully",
+      message: "Profile updated successfully",
       data: updatedUser,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to update user",
+      message: "Failed to update profile",
       error: error.message,
     });
   }
