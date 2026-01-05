@@ -1,4 +1,5 @@
 import Deal from "../schema/deal.modal.js";
+import userModel from "../../auth/schema/auth.modal.js";
 
 const createDeal = async (req, res) => {
   try {
@@ -56,6 +57,12 @@ const createDeal = async (req, res) => {
 
     const savedDeal = await newDeal.save();
 
+    // Add deal ID to user's deals array and increment total
+    await userModel.findByIdAndUpdate(userId, {
+      $push: { deals: savedDeal._id },
+      $inc: { dealsTotal: 1 },
+    });
+
     res.status(201).json({
       success: true,
       error: false,
@@ -69,6 +76,67 @@ const createDeal = async (req, res) => {
       success: false,
       error: true,
       message: "Error creating deal",
+      error: error.message,
+    });
+  }
+};
+
+export const completeDeal = async (req, res) => {
+  try {
+    const { dealId } = req.body;
+
+    // Get userId from token
+    const userId = req.user?.id || req.user?.userId || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "User ID not found in token",
+        error: "Authentication required",
+      });
+    }
+
+    if (!dealId) {
+      return res.status(400).json({
+        message: "Deal ID is required",
+        error: "Invalid request",
+      });
+    }
+
+    // Check if deal exists and belongs to user
+    const deal = await Deal.findOne({ _id: dealId, userId });
+    if (!deal) {
+      return res.status(404).json({
+        message: "Deal not found or you don't have permission",
+        error: "Deal not found",
+      });
+    }
+
+    // Update deal status to completed
+    await Deal.findByIdAndUpdate(dealId, {
+      status: "completed",
+      completedAt: new Date(),
+    });
+
+    // Add deal ID to user's completeDeals array and increment total
+    await userModel.findByIdAndUpdate(userId, {
+      $push: { completeDeals: dealId },
+      $inc: { completeDealsTotal: 1 },
+    });
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Deal marked as completed successfully",
+      data: {
+        dealId,
+        completedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error completing deal",
       error: error.message,
     });
   }

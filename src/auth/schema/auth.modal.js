@@ -99,6 +99,47 @@ const userSchema = new Schema(
       ],
       default: [],
     },
+    deals: {
+      type: [String],
+      default: [],
+    },
+    dealsTotal: {
+      type: Number,
+      default: 0,
+    },
+    completeDeals: {
+      type: [String],
+      default: [],
+    },
+    completeDealsTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    listings: {
+      type: [String],
+      default: [],
+    },
+    listingsTotal: {
+      type: Number,
+      default: 0,
+    },
+    collaborations: {
+      type: [String],
+      default: [],
+    },
+    collaborationsTotal: {
+      type: Number,
+      default: 0,
+    },
+    responseRate: {
+      type: Number,
+      default: 0,
+    },
+    avgResponseTime: {
+      type: Number, // in minutes
+      default: 0,
+    },
   },
   {
     timestamps: true,

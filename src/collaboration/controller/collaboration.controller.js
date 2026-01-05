@@ -1,5 +1,6 @@
 import Collaborations from "../schema/collaboration.modal.js";
 import { createCollaborationNotification } from "../../notification/controller/notification.controller.js";
+import userModel from "../../auth/schema/auth.modal.js";
 
 export const createCollaboration = async (req, res) => {
   try {
@@ -58,6 +59,12 @@ export const createCollaboration = async (req, res) => {
     });
 
     const savedCollaboration = await newCollaboration.save();
+
+    // Add collaboration ID to user's collaborations array and increment total
+    await userModel.findByIdAndUpdate(userId, {
+      $push: { collaborations: savedCollaboration._id },
+      $inc: { collaborationsTotal: 1 },
+    });
 
     // Send notification to the receiver
     try {
@@ -607,8 +614,18 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
     // Initialize all 12 months with 0 collaborations
     const monthlyData = [];
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
 
     for (let i = 1; i <= 12; i++) {

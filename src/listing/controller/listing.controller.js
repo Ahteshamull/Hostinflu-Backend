@@ -5,6 +5,7 @@ import {
 } from "../../notification/service/notification.service.js";
 import fs from "fs";
 import path from "path";
+import userModel from "../../auth/schema/auth.modal.js";
 
 const createListing = async (req, res) => {
   try {
@@ -57,6 +58,12 @@ const createListing = async (req, res) => {
     });
 
     const savedListing = await newListing.save();
+
+    // Add listing ID to user's listings array and increment total
+    await userModel.findByIdAndUpdate(userId, {
+      $push: { listings: savedListing._id },
+      $inc: { listingsTotal: 1 },
+    });
 
     // Send notification to admin
     await notifyAdminOnListingCreated(savedListing._id, userId, title);
