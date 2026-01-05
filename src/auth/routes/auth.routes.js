@@ -46,7 +46,7 @@ router.post("/current-user-login", currentUserLogin);
 router.patch(
   "/setup-profile",
   authenticateToken,
-  upload.single("profilePhoto"),
+  upload.single("image"),
   errorCheck,
   setUpProfile
 );

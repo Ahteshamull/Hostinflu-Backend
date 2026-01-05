@@ -88,6 +88,15 @@ const userSchema = new Schema(
     },
     nicheTags: {
       type: [String],
+      enum: [
+        "Tech",
+        "Fashion",
+        "Fitness",
+        "Beauty",
+        "Travel",
+        "Lifestyle",
+        "Food",
+      ],
       default: [],
     },
   },

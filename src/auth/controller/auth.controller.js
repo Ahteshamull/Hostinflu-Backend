@@ -6,6 +6,8 @@ import otpService from "../../helper/helpers/otpService.js";
 import PasswordReset from "../schema/passwordReset.modal.js";
 import sendOtp from "../../helper/helpers/sendOtp.js";
 import { notifyAdminOnUserCreated } from "../../notification/service/notification.service.js";
+import fs from "fs";
+import path from "path";
 
 export const createUser = async (req, res) => {
   // Handle form data where fields might be in different locations
@@ -680,9 +682,28 @@ export const setUpProfile = async (req, res) => {
     user.name = fullName;
     user.fullAddress = location;
 
+    // Generate username if not present
+    if (!user.userName) {
+      user.userName =
+        fullName
+          .toLowerCase()
+          .replace(/\s+/g, "_")
+          .replace(/[^a-z0-9_]/g, "") +
+        "_" +
+        Date.now().toString().slice(-6);
+    }
+
     // Handle profile photo upload if present
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
     if (imagePath) {
+      // Delete old image if it exists
+      if (user.image) {
+        const oldImagePath = path.join(process.cwd(), user.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      // Update with new image path
       user.image = imagePath;
     }
 
@@ -716,8 +737,13 @@ export const setUpProfile = async (req, res) => {
         user.bio = bio;
       }
 
-      if (nicheTags && Array.isArray(nicheTags)) {
-        user.nicheTags = nicheTags;
+      // Handle nicheTags - convert string to array if needed
+      if (nicheTags) {
+        if (typeof nicheTags === "string") {
+          user.nicheTags = [nicheTags];
+        } else if (Array.isArray(nicheTags)) {
+          user.nicheTags = nicheTags;
+        }
       }
     }
 
@@ -728,7 +754,7 @@ export const setUpProfile = async (req, res) => {
       id: user._id,
       name: user.name,
       email: user.email,
-      userName: user.userName,
+      fullName: user.name,
       role: user.role,
       image: user.image,
       fullAddress: user.fullAddress,
