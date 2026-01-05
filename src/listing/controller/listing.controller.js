@@ -204,7 +204,7 @@ const updateListing = async (req, res) => {
       // Set new images
       finalImages = req.files.map((file) => `/uploads/${file.filename}`);
     } else {
-      // If no new images, keep existing images
+
       finalImages = existingListing.images || [];
     }
 
