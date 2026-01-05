@@ -11,8 +11,13 @@ import {
   verifyOtp,
   changePassword,
   currentUserLogin,
+  setUpProfile,
 } from "../controller/auth.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
+import {
+  upload,
+  errorCheck,
+} from "../../helper/middlewares/imageControlMiddleware.js";
 
 const router = express.Router();
 //localhost:3000/api/v1/auth/create-user
@@ -37,4 +42,13 @@ router.post("/reset-password", resetPassword);
 router.post("/refresh-token", refreshAccessToken);
 //localhost:3000/api/v1/auth/current-user-login
 router.post("/current-user-login", currentUserLogin);
+//localhost:3000/api/v1/auth/setup-profile
+router.patch(
+  "/setup-profile",
+  authenticateToken,
+  upload.single("profilePhoto"),
+  errorCheck,
+  setUpProfile
+);
+
 export default router;

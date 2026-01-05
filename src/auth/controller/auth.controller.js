@@ -653,3 +653,107 @@ export const currentUserLogin = async (req, res) => {
     return res.status(401).json({ error: true, message: "Invalid token" });
   }
 };
+
+export const setUpProfile = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        error: true,
+        message: "User not authenticated",
+      });
+    }
+
+    const { fullName, location, linkAirbnbAccount, bio, nicheTags } = req.body;
+
+    // Find user and update profile
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        error: true,
+        message: "User not found",
+      });
+    }
+
+    // Update common profile fields
+    user.name = fullName;
+    user.fullAddress = location;
+
+    // Handle profile photo upload if present
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+    if (imagePath) {
+      user.image = imagePath;
+    }
+
+    // Handle role-specific fields
+    if (user.role === "host") {
+      // Host-specific validations and fields
+      if (!fullName || !location) {
+        return res.status(400).json({
+          error: true,
+          message: "Full name and location are required for host profile",
+        });
+      }
+
+      // Handle Airbnb account linking for hosts
+      if (linkAirbnbAccount) {
+        // This would typically involve OAuth flow with Airbnb
+        // For now, we'll just mark that the user wants to link
+        user.airbnbAccountLinked = false; // Would be updated after successful linking
+      }
+    } else if (user.role === "influencer") {
+      // Influencer-specific validations and fields
+      if (!fullName) {
+        return res.status(400).json({
+          error: true,
+          message: "Full name is required for influencer profile",
+        });
+      }
+
+      // Update influencer-specific fields
+      if (bio) {
+        user.bio = bio;
+      }
+
+      if (nicheTags && Array.isArray(nicheTags)) {
+        user.nicheTags = nicheTags;
+      }
+    }
+
+    await user.save();
+
+    // Prepare response data based on role
+    const responseData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      userName: user.userName,
+      role: user.role,
+      image: user.image,
+      fullAddress: user.fullAddress,
+    };
+
+    // Add role-specific fields to response
+    if (user.role === "host") {
+      responseData.airbnbAccountLinked = user.airbnbAccountLinked || false;
+    } else if (user.role === "influencer") {
+      responseData.bio = user.bio;
+      responseData.nicheTags = user.nicheTags;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `${
+        user.role.charAt(0).toUpperCase() + user.role.slice(1)
+      } profile setup completed successfully`,
+      data: responseData,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: true,
+      message: "Internal server error",
+      details: error.message,
+    });
+  }
+};

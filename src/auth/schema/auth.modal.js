@@ -79,6 +79,17 @@ const userSchema = new Schema(
     refreshToken: {
       type: String,
     },
+    airbnbAccountLinked: {
+      type: Boolean,
+      default: false,
+    },
+    bio: {
+      type: String,
+    },
+    nicheTags: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,
