@@ -42,7 +42,7 @@ export const createCollaboration = async (req, res) => {
 
  
     if (userRole === "host") {
-      // Host selects an influencer
+   
     } else if (userRole === "influencer") {
       // Influencer selects a host
     }
