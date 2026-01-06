@@ -42,9 +42,9 @@ export const createCollaboration = async (req, res) => {
 
  
     if (userRole === "host") {
-   
+   //this is for host
     } else if (userRole === "influencer") {
-     
+     //this is for influencer
     }
 
     const newCollaboration = new Collaborations({
