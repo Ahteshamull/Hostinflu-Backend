@@ -176,6 +176,99 @@ export const getSingleCollaboration = async (req, res) => {
   }
 };
 
+export const deleteCollaboration = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Collaboration ID is required",
+      });
+    }
+
+    const collaboration = await Collaborations.findByIdAndDelete(id);
+
+    if (!collaboration) {
+      return res.status(404).json({
+        success: false,
+        error: true,
+        message: "Collaboration not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Collaboration deleted successfully",
+      data: {
+        collaboration,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error deleting collaboration",
+      error: error.message,
+    });
+  }
+};
+
+export const getMyAllCollaborations = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user?.userId;
+    const userRole = req.user?.role;
+    const { page = 1, limit = 10 } = req.query;
+
+    if (!userId || !userRole) {
+      return res.status(401).json({
+        message: "User ID or role not found in token",
+      });
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Find collaborations where the user is either the creator or the selected influencer/host
+    const collaborations = await Collaborations.find({
+      $or: [
+        { userId: userId }, // User created the collaboration
+        { selectInfluencerOrHost: userId }, // User is selected as influencer/host
+      ],
+    })
+      .populate("userId", "name email")
+      .populate("selectInfluencerOrHost", "name email")
+      .populate("selectDeal", "dealTitle description")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip(skip);
+
+    const total = await Collaborations.countDocuments({
+      $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
+    });
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "My collaborations retrieved successfully",
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+      data: {
+        collaborations,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving my collaborations",
+      error: error.message,
+    });
+  }
+};
+
 export const updateCollaboration = async (req, res) => {
   try {
     const { id } = req.params;

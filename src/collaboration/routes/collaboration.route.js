@@ -12,6 +12,8 @@ import {
   userPersonalCompleteContents,
   userPersonalEarnStar,
   userPersonalCollaborationsGrowth,
+  deleteCollaboration,
+  getMyAllCollaborations,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -76,5 +78,24 @@ router.get(
   authenticateToken,
   userPersonalCollaborationsGrowth
 );
+
+//localhost:3000/api/v1/collaboration/delete-collaboration/:id
+router.delete(
+  "/delete-collaboration/:id",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  deleteCollaboration
+);
+
+//localhost:3000/api/v1/collaboration/get-my-all-collaborations
+router.get(
+  "/get-my-all-collaborations",
+  authenticateToken,
+  getMyAllCollaborations
+);
+
+
+
+
 
 export default router;
