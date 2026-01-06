@@ -4,7 +4,7 @@ import {
   getAllListings,
   getSingleListing,
   updateListing,
-  getMyListings,
+  getMyAllListings,
   deleteListing,
   adminAcceptListing,
   totalListing,
@@ -75,7 +75,7 @@ router.get("/personal-listings-growth", authenticateToken, personalListingsGrowt
 router.delete("/delete-listing/:id", authenticateToken, requireHostRole, deleteListing);  
 
 // localhost:3000/api/v1/listing/my-listings
-router.get("/my-listings", authenticateToken, getMyListings);
+router.get("/my-listings", authenticateToken, getMyAllListings);
 
 
 

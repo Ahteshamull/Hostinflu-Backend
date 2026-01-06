@@ -120,19 +120,28 @@ const getAllListings = async (req, res) => {
   }
 };
 
-const getMyListings = async (req, res) => {
+const getMyAllListings = async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
 
-    const listings = await Listing.find({ userId: id }).populate(
-      "userId",
-      "name email"
-    );
+    const skip = (page - 1) * limit;
+
+    const listings = await Listing.find({ userId })
+      .populate("userId")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip(skip);
+
+    const total = await Listing.countDocuments({ userId });
 
     res.status(200).json({
       success: true,
       error: false,
       message: "Listings retrieved successfully",
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
       data: {
         listings,
       },
@@ -257,7 +266,6 @@ const updateListing = async (req, res) => {
       // Set new images
       finalImages = req.files.map((file) => `/uploads/${file.filename}`);
     } else {
-
       finalImages = existingListing.images || [];
     }
 
@@ -465,7 +473,7 @@ export {
   getAllListings,
   getSingleListing,
   updateListing,
-  getMyListings,
+  getMyAllListings,
   deleteListing,
   adminAcceptListing,
   totalListing,
