@@ -26,10 +26,10 @@ const deliverableSchema = new Schema(
 
 const dealSchema = new Schema(
   {
-    dealTitle: {
-      type: Schema.Types.ObjectId,
-      ref: "Listing",
-      required: true,
+    title: {
+        type: Schema.Types.ObjectId,
+        ref: "Listing",
+        required: true,
     },
 
     description: {
@@ -38,11 +38,6 @@ const dealSchema = new Schema(
       trim: true,
     },
 
-    selectListing: {
-      type: Schema.Types.ObjectId,
-      ref: "Listing",
-      required: true,
-    },
 
     addAirbnbLink: {
       type: String,

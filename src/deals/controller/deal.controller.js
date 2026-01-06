@@ -4,9 +4,8 @@ import userModel from "../../auth/schema/auth.modal.js";
 const createDeal = async (req, res) => {
   try {
     const {
-      dealTitle,
+      title,
       description,
-      selectListing,
       addAirbnbLink,
       inTimeAndDate,
       outTimeAndDate,
@@ -44,9 +43,8 @@ const createDeal = async (req, res) => {
     }
 
     const newDeal = new Deal({
-      dealTitle,
+      title,
       description,
-      selectListing,
       addAirbnbLink,
       inTimeAndDate,
       outTimeAndDate,
