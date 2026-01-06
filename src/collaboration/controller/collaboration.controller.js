@@ -40,7 +40,7 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-    // Role-based validation
+ 
     if (userRole === "host") {
       // Host selects an influencer
     } else if (userRole === "influencer") {
