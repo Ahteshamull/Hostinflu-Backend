@@ -218,6 +218,77 @@ const getSingleDeal = async (req, res) => {
   }
 };
 
+const getMyAllDeals = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { page = 1, limit = 10, status } = req.query;
+
+    const skip = (page - 1) * limit;
+    const filter = { userId };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const deals = await Deal.find(filter)
+      .populate("dealTitle", "title location images")
+      .populate("selectListing", "title location images")
+      .populate("userId", "name email")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip(skip);
+
+    const total = await Deal.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Deals retrieved successfully",
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+      data: {
+        deals,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error retrieving deals",
+      error: error.message,
+    });
+  }
+};
+
+const deleteDeal = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedDeal = await Deal.findByIdAndDelete(id);
+
+    if (!deletedDeal) {
+      return res.status(404).json({
+        message: "Deal not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Deal deleted successfully",
+      data: {
+        deal: deletedDeal,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error deleting deal",
+      error: error.message,
+    });
+  }
+};
+
 const updateDeal = async (req, res) => {
   try {
     const { id } = req.params;
@@ -387,7 +458,9 @@ export {
   createDeal,
   getAllDeals,
   getSingleDeal,
+  getMyAllDeals,
   updateDeal,
+  deleteDeal,
   totalDeal,
   userPersonalTotalDeals,
   userPersonalDealsGrowth,

@@ -7,6 +7,8 @@ import {
   totalDeal,
   userPersonalTotalDeals,
   userPersonalDealsGrowth,
+  getMyAllDeals,
+  deleteDeal,
 } from "../controller/deal.controller.js";
 import {
   authenticateToken,
@@ -35,6 +37,12 @@ router.get("/user-personal-total-deals", authenticateToken, userPersonalTotalDea
 
 // localhost:3000/api/v1/deal/user-personal-deals-growth
 router.get("/user-personal-deals-growth", authenticateToken, userPersonalDealsGrowth);
+
+// localhost:3000/api/v1/deal/my-all-deals
+router.get("/my-all-deals", authenticateToken, getMyAllDeals);
+
+// localhost:3000/api/v1/deal/delete-deal/:id
+router.delete("/delete-deal/:id", authenticateToken, requireHostRole, deleteDeal);
 
 
 
