@@ -120,6 +120,59 @@ const getAllListings = async (req, res) => {
   }
 };
 
+const getMyListings = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const listings = await Listing.find({ userId: id }).populate(
+      "userId",
+      "name email"
+    );
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Listings retrieved successfully",
+      data: {
+        listings,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error retrieving listings",
+      error: error.message,
+    });
+  }
+};
+
+const deleteListing = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const listing = await Listing.findByIdAndDelete(id);
+
+    if (!listing) {
+      return res.status(404).json({
+        message: "Listing not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Listing deleted successfully",
+      data: {
+        listing,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error deleting listing",
+      error: error.message,
+    });
+  }
+};
+
 const getSingleListing = async (req, res) => {
   try {
     const { id } = req.params;
@@ -412,6 +465,8 @@ export {
   getAllListings,
   getSingleListing,
   updateListing,
+  getMyListings,
+  deleteListing,
   adminAcceptListing,
   totalListing,
   personalTotalListings,
