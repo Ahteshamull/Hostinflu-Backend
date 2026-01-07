@@ -143,9 +143,59 @@ export const getMyProfile = async (req, res) => {
       });
     }
 
+    // Import models to filter out deleted/rejected items
+    const Deal = (await import("../../deals/schema/deal.modal.js")).default;
+    const Listing = (await import("../../listing/schema/listing.modal.js"))
+      .Listing;
+    const Collaboration = (
+      await import("../../collaboration/schema/collaboration.modal.js")
+    ).default;
+
+    // Filter out deleted/rejected deals
+    let activeDeals = [];
+    if (user.deals && user.deals.length > 0) {
+      const existingDeals = await Deal.find({
+        _id: { $in: user.deals },
+        status: { $ne: "rejected" },
+      }).select("_id");
+      activeDeals = existingDeals.map((deal) => deal._id.toString());
+    }
+
+    // Filter out deleted/rejected listings
+    let activeListings = [];
+    if (user.listings && user.listings.length > 0) {
+      const existingListings = await Listing.find({
+        _id: { $in: user.listings },
+        status: { $ne: "rejected" },
+      }).select("_id");
+      activeListings = existingListings.map((listing) =>
+        listing._id.toString()
+      );
+    }
+
+    // Filter out deleted/rejected collaborations
+    let activeCollaborations = [];
+    if (user.collaborations && user.collaborations.length > 0) {
+      const existingCollaborations = await Collaboration.find({
+        _id: { $in: user.collaborations },
+        status: { $ne: "rejected" },
+      }).select("_id");
+      activeCollaborations = existingCollaborations.map((collab) =>
+        collab._id.toString()
+      );
+    }
+
+    // Update user object with filtered arrays
+    const filteredUser = {
+      ...user.toObject(),
+      deals: activeDeals,
+      listings: activeListings,
+      collaborations: activeCollaborations,
+    };
+
     return res.status(200).json({
       success: true,
-      data: user,
+      data: filteredUser,
     });
   } catch (error) {
     return res.status(500).json({
