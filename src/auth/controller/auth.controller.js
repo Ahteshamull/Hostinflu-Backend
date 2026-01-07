@@ -185,12 +185,15 @@ export const getMyProfile = async (req, res) => {
       );
     }
 
-    // Update user object with filtered arrays
+    // Update user object with filtered arrays and totals
     const filteredUser = {
       ...user.toObject(),
       deals: activeDeals,
+      dealsTotal: activeDeals.length,
       listings: activeListings,
+      listingsTotal: activeListings.length,
       collaborations: activeCollaborations,
+      collaborationsTotal: activeCollaborations.length,
     };
 
     return res.status(200).json({
