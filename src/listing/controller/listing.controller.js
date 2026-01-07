@@ -421,7 +421,6 @@ const personalListingsGrowth = async (req, res) => {
       },
     ]);
 
-    // Initialize all 12 months with 0 count
     const monthlyData = [];
     const months = [
       "Jan",
