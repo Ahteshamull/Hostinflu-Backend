@@ -398,7 +398,7 @@ const personalListingsGrowth = async (req, res) => {
     const year = parseInt(req.query.year) || new Date().getFullYear();
 
     // Create date range for the specified year
-    const startDate = new Date(year, 0, 1); // January 1st
+    const startDate = new Date(year, 0, 1); 
     const endDate = new Date(year, 11, 31); // December 31st
 
     // Aggregate listings by month for the specified user and year
