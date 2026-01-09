@@ -11,6 +11,8 @@ import cors from "cors";
 import { initializeSocket } from "./socket/connection/socket.Connection.js";
 
 const app = express();
+
+//socket server
 const server = createServer(app);
 
 const PORT = process.env.PORT || 5000;
