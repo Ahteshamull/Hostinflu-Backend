@@ -74,6 +74,7 @@ const dealSchema = new Schema(
         default: false,
       },
 
+      
       paymentAmount: {
         type: String,
         required: function () {
@@ -81,7 +82,14 @@ const dealSchema = new Schema(
         },
       },
     },
-
+    
+    guestCount: {
+       type: Number,
+      min: 1,
+      required: function () {
+        return this.compensation?.nightCredits === true;
+      },
+    },
     // ✅ Deliverables (multiple allowed)
     deliverables: {
       type: [deliverableSchema],

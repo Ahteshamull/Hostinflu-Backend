@@ -11,6 +11,7 @@ const createDeal = async (req, res) => {
       outTimeAndDate,
       compensation,
       deliverables,
+      guestCount,
     } = req.body;
 
     // Get userId from token
@@ -48,7 +49,10 @@ const createDeal = async (req, res) => {
       addAirbnbLink,
       inTimeAndDate,
       outTimeAndDate,
-      compensation,
+      guestCount,
+      compensation: {
+        ...compensation,
+      },
       deliverables,
       userId,
     });
@@ -228,8 +232,7 @@ const getMyAllDeals = async (req, res) => {
     }
 
     const deals = await Deal.find(filter)
-      .populate("dealTitle", "title location images")
-      .populate("selectListing", "title location images")
+      .populate("title", "title location images")
       .populate("userId", "name email")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
