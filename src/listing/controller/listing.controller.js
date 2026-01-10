@@ -13,6 +13,7 @@ const createListing = async (req, res) => {
       title,
       description,
       location,
+      addAirbnbLink,
       propertyType,
       amenities,
       customAmenities,
@@ -50,6 +51,7 @@ const createListing = async (req, res) => {
       title,
       description,
       location,
+      addAirbnbLink,
       propertyType,
       images,
       amenities: parsedAmenities,
@@ -397,8 +399,8 @@ const personalListingsGrowth = async (req, res) => {
     const userId = req.user._id;
     const year = parseInt(req.query.year) || new Date().getFullYear();
 
-    const startDate = new Date(year, 0, 1); 
-    const endDate = new Date(year, 11, 31); 
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31);
 
     const monthlyListings = await Listing.aggregate([
       {
