@@ -150,8 +150,7 @@ const getAllDeals = async (req, res) => {
     }
 
     const deals = await Deal.find(filter)
-      .populate("dealTitle", "title")
-      .populate("selectListing", "title location")
+      .populate("title", "title location")
       .populate("userId", "name email")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
