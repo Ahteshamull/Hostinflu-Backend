@@ -27,9 +27,9 @@ const deliverableSchema = new Schema(
 const dealSchema = new Schema(
   {
     title: {
-        type: Schema.Types.ObjectId,
-        ref: "Listing",
-        required: true,
+      type: Schema.Types.ObjectId,
+      ref: "Listing",
+      required: true,
     },
 
     description: {
@@ -37,7 +37,6 @@ const dealSchema = new Schema(
       required: true,
       trim: true,
     },
-
 
     addAirbnbLink: {
       type: String,
@@ -74,7 +73,6 @@ const dealSchema = new Schema(
         default: false,
       },
 
-      
       paymentAmount: {
         type: String,
         required: function () {
@@ -82,9 +80,9 @@ const dealSchema = new Schema(
         },
       },
     },
-    
+
     guestCount: {
-       type: Number,
+      type: Number,
       min: 1,
       required: function () {
         return this.compensation?.nightCredits === true;

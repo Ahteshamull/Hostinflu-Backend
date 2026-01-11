@@ -1,7 +1,9 @@
+import mongoose from "mongoose";
 import Deal from "../schema/deal.modal.js";
+import { Listing } from "../../listing/schema/listing.modal.js";
 import userModel from "../../auth/schema/auth.modal.js";
 
-const createDeal = async (req, res) => {
+export const createDeal = async (req, res) => {
   try {
     const {
       title,
@@ -14,69 +16,108 @@ const createDeal = async (req, res) => {
       guestCount,
     } = req.body;
 
-    // Get userId from token
-    const userId = req.user?.id || req.user?.userId || req.user?._id;
+    // ✅ Get userId safely from token
+    const userId = req.user?._id || req.user?.id || req.user?.userId;
 
     if (!userId) {
       return res.status(401).json({
-        message: "User ID not found in token",
-        error: "Authentication required",
+        success: false,
+        message: "Authentication required",
       });
     }
 
-    // Validate compensation
+    // ✅ Validate title (Listing ID)
+    if (!title || !mongoose.Types.ObjectId.isValid(title)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid listing ID is required",
+      });
+    }
+
+    // ✅ Check listing exists
+    const listing = await Listing.findById(title);
+    if (!listing) {
+      return res.status(404).json({
+        success: false,
+        message: "Listing not found",
+      });
+    }
+
+    // ✅ Validate compensation
     if (
       !compensation ||
       (!compensation.nightCredits && !compensation.directPayment)
     ) {
       return res.status(400).json({
+        success: false,
         message: "At least one compensation type is required",
-        error: "Invalid compensation",
       });
     }
 
-    // Validate deliverables
-    if (!deliverables || deliverables.length === 0) {
+    // ✅ Night credits validation
+    if (compensation.nightCredits === true) {
+      if (!compensation.numberOfNights || compensation.numberOfNights < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Number of nights is required for night credits",
+        });
+      }
+
+      if (!guestCount || guestCount < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Guest count is required for night credits",
+        });
+      }
+    }
+
+    // ✅ Direct payment validation
+    if (compensation.directPayment === true) {
+      if (!compensation.paymentAmount) {
+        return res.status(400).json({
+          success: false,
+          message: "Payment amount is required for direct payment",
+        });
+      }
+    }
+
+    // ✅ Validate deliverables
+    if (!Array.isArray(deliverables) || deliverables.length === 0) {
       return res.status(400).json({
+        success: false,
         message: "At least one deliverable is required",
-        error: "Invalid deliverables",
       });
     }
 
-    const newDeal = new Deal({
+    // ✅ Create deal
+    const newDeal = await Deal.create({
       title,
       description,
       addAirbnbLink,
       inTimeAndDate,
       outTimeAndDate,
       guestCount,
-      compensation: {
-        ...compensation,
-      },
+      compensation,
       deliverables,
       userId,
     });
 
-    const savedDeal = await newDeal.save();
-
-    // Add deal ID to user's deals array and increment total
+    // ✅ Update user deal stats
     await userModel.findByIdAndUpdate(userId, {
-      $push: { deals: savedDeal._id },
+      $push: { deals: newDeal._id },
       $inc: { dealsTotal: 1 },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      error: false,
       message: "Deal created successfully",
       data: {
-        deal: savedDeal,
+        deal: newDeal,
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: true,
       message: "Error creating deal",
       error: error.message,
     });
@@ -191,8 +232,7 @@ const getSingleDeal = async (req, res) => {
     const { id } = req.params;
 
     const deal = await Deal.findById(id)
-      .populate("dealTitle", "title")
-      .populate("selectListing", "title location images")
+      .populate("title", "title location images")
       .populate("userId", "name email");
 
     if (!deal) {
@@ -299,8 +339,7 @@ const updateDeal = async (req, res) => {
       new: true,
       runValidators: true,
     })
-      .populate("dealTitle", "title")
-      .populate("selectListing", "title location")
+      .populate("title", "title location")
       .populate("userId", "name email");
 
     if (!updatedDeal) {
@@ -456,7 +495,6 @@ const userPersonalDealsGrowth = async (req, res) => {
 };
 
 export {
-  createDeal,
   getAllDeals,
   getSingleDeal,
   getMyAllDeals,
