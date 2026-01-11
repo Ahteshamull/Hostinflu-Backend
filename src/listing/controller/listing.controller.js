@@ -146,10 +146,10 @@ const getAllListings = async (req, res) => {
 const getMyAllListings = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { page = 1, limit = 10 } = req.query;
+    const { currentPage = 1, limit = 10 } = req.query;
 
     // Convert to numbers and validate
-    const pageNum = parseInt(page, 10);
+    const pageNum = parseInt(currentPage, 10);
     const limitNum = parseInt(limit, 10);
 
     if (isNaN(pageNum) || pageNum < 1) {
@@ -184,6 +184,7 @@ const getMyAllListings = async (req, res) => {
       message: "Listings retrieved successfully",
       totalPages: Math.ceil(total / limitNum),
       currentPage: pageNum,
+      limit: limitNum,
       total,
       data: {
         listings,

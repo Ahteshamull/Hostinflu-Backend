@@ -146,7 +146,7 @@ export const completeDeal = async (req, res) => {
 
 const getAllDeals = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { currentPage = 1, limit = 10, status } = req.query;
     const filter = {};
 
     if (status) {
@@ -158,7 +158,7 @@ const getAllDeals = async (req, res) => {
       .populate("userId", "name email")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .skip((currentPage - 1) * limit);
 
     const total = await Deal.countDocuments(filter);
 
@@ -168,7 +168,7 @@ const getAllDeals = async (req, res) => {
       message: "Deals retrieved successfully",
       data: {
         pagination: {
-          currentPage: parseInt(page),
+          currentPage: parseInt(currentPage),
           totalPages: Math.ceil(total / limit),
           total,
           limit: parseInt(limit),
@@ -222,9 +222,9 @@ const getSingleDeal = async (req, res) => {
 const getMyAllDeals = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { page = 1, limit = 10, status } = req.query;
+    const { currentPage = 1, limit = 10, status } = req.query;
 
-    const skip = (page - 1) * limit;
+    const skip = (currentPage - 1) * limit;
     const filter = { userId };
 
     if (status) {
@@ -245,7 +245,8 @@ const getMyAllDeals = async (req, res) => {
       error: false,
       message: "Deals retrieved successfully",
       totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      currentPage: parseInt(currentPage),
+      limit: parseInt(limit),
       total,
       data: {
         deals,
