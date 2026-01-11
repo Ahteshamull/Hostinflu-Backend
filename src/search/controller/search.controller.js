@@ -99,8 +99,7 @@ const globalSearch = async (req, res) => {
 
       const deals = await Deal.find(dealFilter)
         .populate("userId", "name email")
-        .populate("dealTitle", "title location")
-        .populate("selectListing", "title location")
+        .populate("title", "title location")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
