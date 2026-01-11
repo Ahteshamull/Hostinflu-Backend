@@ -140,6 +140,9 @@ const userSchema = new Schema(
       type: Number, // in minutes
       default: 0,
     },
+    dateOfBirth: {
+      type: String,
+    },
   },
   {
     timestamps: true,

@@ -112,6 +112,7 @@ export const updateProfile = async (req, res) => {
       fullAddress,
       aboutMe,
       image,
+   
     } = req.body;
 
     // Check if user exists
