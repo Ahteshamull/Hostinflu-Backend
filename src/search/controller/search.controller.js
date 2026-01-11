@@ -54,13 +54,15 @@ const globalSearch = async (req, res) => {
 
     // Search Listings
     if (searchType === "all" || searchType === "listings") {
-      const listingFilter = { status: "verified" };
+      const listingFilter = {};
 
       if (query) {
         listingFilter.$or = [
           { title: searchRegex },
           { description: searchRegex },
           { location: searchRegex },
+          { propertyType: searchRegex },
+          { customAmenities: searchRegex },
         ];
       }
 
