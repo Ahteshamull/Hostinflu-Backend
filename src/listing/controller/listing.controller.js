@@ -84,7 +84,28 @@ const createListing = async (req, res) => {
 
 const getAllListings = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, propertyType } = req.query;
+    const { currentPage = 1, limit = 10, status, propertyType } = req.query;
+
+    // Convert to numbers and validate
+    const pageNum = parseInt(currentPage, 10);
+    const limitNum = parseInt(limit, 10);
+
+    if (isNaN(pageNum) || pageNum < 1) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Invalid page number",
+      });
+    }
+
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Invalid limit number (must be between 1 and 100)",
+      });
+    }
+
     const filter = {};
 
     if (status) {
@@ -98,8 +119,8 @@ const getAllListings = async (req, res) => {
     const listings = await Listing.find(filter)
       .populate("userId", "name email")
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .limit(limitNum)
+      .skip((pageNum - 1) * limitNum);
 
     const total = await Listing.countDocuments(filter);
 
@@ -107,8 +128,8 @@ const getAllListings = async (req, res) => {
       success: true,
       error: false,
       message: "Listings retrieved successfully",
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
       total,
       data: {
         listings,
@@ -127,12 +148,32 @@ const getMyAllListings = async (req, res) => {
     const userId = req.user._id;
     const { page = 1, limit = 10 } = req.query;
 
-    const skip = (page - 1) * limit;
+    // Convert to numbers and validate
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    if (isNaN(pageNum) || pageNum < 1) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Invalid page number",
+      });
+    }
+
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Invalid limit number (must be between 1 and 100)",
+      });
+    }
+
+    const skip = (pageNum - 1) * limitNum;
 
     const listings = await Listing.find({ userId })
       .populate("userId")
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
+      .limit(limitNum)
       .skip(skip);
 
     const total = await Listing.countDocuments({ userId });
@@ -141,8 +182,8 @@ const getMyAllListings = async (req, res) => {
       success: true,
       error: false,
       message: "Listings retrieved successfully",
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
       total,
       data: {
         listings,
