@@ -224,14 +224,7 @@ const specificSearch = async (req, res) => {
         .skip((page - 1) * limit)
         .lean();
 
-      results.users = users.map((user) => ({
-        name: user.name,
-        email: user.email,
-        phone: user.phone || "N/A",
-        role: user.role,
-        image: user.image,
-        dateAdded: user.createdAt,
-      }));
+      results.users = users;
     }
 
     // 🏠 LISTINGS - only if collection is "listings"
@@ -254,14 +247,7 @@ const specificSearch = async (req, res) => {
         .skip((page - 1) * limit)
         .lean();
 
-      results.listings = listings.map((listing) => ({
-        propertyName: listing.title,
-        dateAdded: listing.createdAt,
-        propertyType: listing.propertyType,
-        status: listing.status,
-        location: listing.location,
-        owner: listing.userId?.name || "N/A",
-      }));
+      results.listings = listings;
     }
 
     // 🤝 COLLABORATIONS - only if collection is "collaborations"
