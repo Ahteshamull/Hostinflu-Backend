@@ -101,7 +101,8 @@ export const getAllCollaboration = async (req, res) => {
     }
 
     const collaborations = await Collaborations.find(filter)
-      .populate("selectInfluencerOrHost", "name email")
+      .populate("selectInfluencerOrHost", "name email role")
+      .populate("userId", "name email role")
       .populate("selectDeal", "dealTitle")
       .sort({ createdAt: -1 })
       .limit(limit * 1)

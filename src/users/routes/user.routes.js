@@ -5,8 +5,7 @@ import {
  
   updateProfile,
   deleteUser,
-  totalUser,
-  userGrowth,
+
 } from "../controller/user.controller.js";
 import {
   upload,
@@ -35,10 +34,6 @@ router.patch(
 //localhost:3000/api/v1/user/delete-user/:id
 router.delete("/delete-user/:id", deleteUser);
 
-//localhost:3000/api/v1/user/total-users
-router.get("/total-users", totalUser);
 
-//localhost:3000/api/v1/user/user-growth
-router.get("/user-growth", userGrowth);
 
 export default router;
