@@ -393,27 +393,6 @@ const adminAcceptListing = async (req, res) => {
   }
 };
 
-const totalListing = async (req, res) => {
-  try {
-    const total = await Listing.countDocuments();
-    res.status(200).json({
-      success: true,
-      error: false,
-      message: "Total listings retrieved successfully",
-      data: {
-        total,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: true,
-      message: "Error retrieving total listings",
-      error: error.message,
-    });
-  }
-};
-
 const personalTotalListings = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -517,7 +496,6 @@ export {
   getMyAllListings,
   deleteListing,
   adminAcceptListing,
-  totalListing,
   personalTotalListings,
   personalListingsGrowth,
 };

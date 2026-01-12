@@ -412,26 +412,7 @@ export const updateCollaboration = async (req, res) => {
   }
 };
 
-export const totalCollaboration = async (req, res) => {
-  try {
-    const total = await Collaborations.countDocuments();
-    res.status(200).json({
-      success: true,
-      error: false,
-      message: "Total collaborations retrieved successfully",
-      data: {
-        totalCollaborations: total,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: true,
-      message: "Error retrieving total collaborations",
-      error: error.message,
-    });
-  }
-};
+
 
 export const activeCollaborations = async (req, res) => {
   try {

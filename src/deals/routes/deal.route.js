@@ -4,7 +4,7 @@ import {
   getAllDeals,
   getSingleDeal,
   updateDeal,
-  totalDeal,
+
   userPersonalTotalDeals,
   userPersonalDealsGrowth,
   getMyAllDeals,
@@ -29,8 +29,6 @@ router.get("/get-single-deal/:id", getSingleDeal);
 // localhost:3000/api/v1/deal/update-deal/:id - Update deal
 router.put("/update-deal/:id", authenticateToken, requireHostRole, updateDeal);
 
-// localhost:3000/api/v1/deal/total-deals
-router.get("/total-deals", totalDeal);
 
 // localhost:3000/api/v1/deal/user-personal-total-deals
 router.get("/user-personal-total-deals", authenticateToken, userPersonalTotalDeals);

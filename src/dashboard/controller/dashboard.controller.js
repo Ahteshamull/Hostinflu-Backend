@@ -1,91 +1,48 @@
-export const totalUser = async (req, res) => {
+import userModel from "../../auth/schema/auth.modal.js";
+import Collaborations from "../../collaboration/schema/collaboration.modal.js";
+import { Listing } from "../../listing/schema/listing.modal.js";
+import Deal from "../../deals/schema/deal.modal.js";
+
+export const dashboard = async (req, res) => {
   try {
-    // Get total count of users
-    const totalUsers = await userModel.countDocuments({});
-
-    return res.status(200).json({
-      success: true,
-      message: "Total users retrieved successfully",
-      data: {
-        totalUsers,
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to retrieve total users",
-      error: error.message,
-    });
-  }
-};
-
-export const userGrowth = async (req, res) => {
-  try {
-    const year = parseInt(req.query.year) || new Date().getFullYear();
-
-    // Create date range for the specified year
-    const startDate = new Date(year, 0, 1); // January 1st
-    const endDate = new Date(year, 11, 31); // December 31st
-
-    // Aggregate users by month for the specified year
-    const monthlyGrowth = await userModel.aggregate([
-      {
-        $match: {
-          createdAt: {
-            $gte: startDate,
-            $lte: endDate,
-          },
-        },
-      },
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: { _id: 1 },
-      },
+    // Get all total counts in parallel
+    const [
+      totalUsers,
+      totalCollaborations,
+      totalListings,
+      totalDeals,
+      recentUsers,
+    ] = await Promise.all([
+      userModel.countDocuments({}),
+      Collaborations.countDocuments({}),
+      Listing.countDocuments({}),
+      Deal.countDocuments({}),
+      userModel
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select("name email role createdAt"),
     ]);
 
-    // Initialize all 12 months with 0 count
-    const monthlyData = [];
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-
-    for (let i = 1; i <= 12; i++) {
-      const monthData = monthlyGrowth.find((item) => item._id === i);
-      monthlyData.push({
-        month: months[i - 1],
-        monthNumber: i,
-        count: monthData ? monthData.count : 0,
-      });
-    }
-
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
-      message: "User growth data retrieved successfully",
+      error: false,
+      message: "Dashboard data retrieved successfully",
       data: {
-        year,
-        monthlyData,
+        totals: {
+          users: totalUsers,
+          collaborations: totalCollaborations,
+          listings: totalListings,
+          deals: totalDeals,
+        },
+        recentUsers,
       },
     });
   } catch (error) {
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: "Failed to retrieve user growth data",
+      error: true,
+      message: "Error retrieving dashboard data",
       error: error.message,
     });
   }

@@ -7,7 +7,6 @@ import {
   getMyAllListings,
   deleteListing,
   adminAcceptListing,
-  totalListing,
   personalTotalListings,
   personalListingsGrowth,
 } from "../controller/listing.controller.js";
@@ -60,24 +59,29 @@ router.put(
   adminAcceptListing
 );
 
-
-
-// localhost:3000/api/v1/listing/total-listings
-router.get("/total-listings", totalListing);
-
 // localhost:3000/api/v1/listing/personal-total-listings
-router.get("/personal-total-listings", authenticateToken, personalTotalListings);
+router.get(
+  "/personal-total-listings",
+  authenticateToken,
+  personalTotalListings
+);
 
 // localhost:3000/api/v1/listing/personal-listings-growth
-router.get("/personal-listings-growth", authenticateToken, personalListingsGrowth);
+router.get(
+  "/personal-listings-growth",
+  authenticateToken,
+  personalListingsGrowth
+);
 
 // localhost:3000/api/v1/listing/delete-listing/:id
-router.delete("/delete-listing/:id", authenticateToken, requireHostRole, deleteListing);  
+router.delete(
+  "/delete-listing/:id",
+  authenticateToken,
+  requireHostRole,
+  deleteListing
+);
 
 // localhost:3000/api/v1/listing/my-listings
 router.get("/my-listings", authenticateToken, getMyAllListings);
-
-
-
 
 export default router;

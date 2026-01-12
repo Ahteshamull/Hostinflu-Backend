@@ -5,7 +5,7 @@ import {
   getAllCollaboration,
   getSingleCollaboration,
   updateCollaboration,
-  totalCollaboration,
+
   activeCollaborations,
   completedCollaborations,
   userPersonalTotalCollaborations,
@@ -42,8 +42,6 @@ router.put(
   updateCollaboration
 );
 
-//localhost:3000/api/v1/collaboration/total-collaborations
-router.get("/total-collaborations", totalCollaboration);
 
 //localhost:3000/api/v1/collaboration/active-collaborations
 router.get("/active-collaborations", activeCollaborations);

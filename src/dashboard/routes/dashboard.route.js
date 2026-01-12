@@ -1,5 +1,14 @@
-//localhost:3000/api/v1/user/total-users
-router.get("/total-users", totalUser);
+import express from "express";
+import {
+  dashboard,
+} from "../controller/dashboard.controller.js";
 
-//localhost:3000/api/v1/user/user-growth
-router.get("/user-growth", userGrowth);
+const router = express.Router();
+
+// Main dashboard endpoint - returns all data
+// localhost:3000/api/v1/dashboard/
+router.get("/", dashboard);
+
+
+
+export default router;
