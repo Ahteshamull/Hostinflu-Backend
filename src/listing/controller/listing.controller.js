@@ -243,7 +243,7 @@ const getSingleListing = async (req, res) => {
       error: false,
       message: "Listing retrieved successfully",
       data: {
-        listing,
+        listing: [listing],
       },
     });
   } catch (error) {

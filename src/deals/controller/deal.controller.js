@@ -246,7 +246,7 @@ const getSingleDeal = async (req, res) => {
       error: false,
       message: "Deal retrieved successfully",
       data: {
-        deal,
+        deal: [deal],
       },
     });
   } catch (error) {
