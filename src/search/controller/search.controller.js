@@ -290,36 +290,11 @@ const specificSearch = async (req, res) => {
 
       const deals = await Deal.find(dealFilter)
         .populate("userId")
-        .populate("dealTitle")
-        .populate("selectListing")
+        .populate("title")
         .sort({ createdAt: -1 })
         .lean();
 
-      results.deals = deals.map((deal) => {
-        let amount = "N/A";
-
-        if (
-          deal.compensation?.directPayment &&
-          deal.compensation?.paymentAmount
-        ) {
-          amount = deal.compensation.paymentAmount;
-        } else if (
-          deal.compensation?.nightCredits &&
-          deal.compensation?.numberOfNights
-        ) {
-          amount = `${deal.compensation.numberOfNights} nights`;
-        }
-
-        return {
-          name: deal.dealTitle?.title || deal.selectListing?.title || "N/A",
-          influencer: deal.userId?.name || "N/A",
-          status: deal.status,
-          amount,
-          category: deal.selectListing?.propertyType || "N/A",
-          description: deal.description?.substring(0, 100) + "...",
-          airbnbLink: deal.addAirbnbLink,
-        };
-      });
+      results.deals = deals;
     }
 
     res.status(200).json({
