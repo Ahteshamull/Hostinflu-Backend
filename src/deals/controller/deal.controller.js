@@ -196,7 +196,7 @@ const getAllDeals = async (req, res) => {
 
     const deals = await Deal.find(filter)
       .populate("title", "title location")
-      .populate("userId", "name email")
+      .populate("userId")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((currentPage - 1) * limit);
@@ -233,7 +233,7 @@ const getSingleDeal = async (req, res) => {
 
     const deal = await Deal.findById(id)
       .populate("title", "title location images")
-      .populate("userId", "name email");
+      .populate("userId");
 
     if (!deal) {
       return res.status(404).json({
@@ -273,7 +273,7 @@ const getMyAllDeals = async (req, res) => {
 
     const deals = await Deal.find(filter)
       .populate("title", "title location images")
-      .populate("userId", "name email")
+      .populate("userId")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip(skip);

@@ -81,7 +81,7 @@ const globalSearch = async (req, res) => {
       }
 
       const listings = await Listing.find(listingFilter)
-        .populate("userId", "name email")
+        .populate("userId")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -100,7 +100,7 @@ const globalSearch = async (req, res) => {
       }
 
       const deals = await Deal.find(dealFilter)
-        .populate("userId", "name email")
+        .populate("userId")
         .populate("title", "title location")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -124,9 +124,9 @@ const globalSearch = async (req, res) => {
       }
 
       const collaborations = await Collaboration.find(collaborationFilter)
-        .populate("userId", "name email")
-        .populate("selectInfluencerOrHost", "name email")
-        .populate("selectDeal", "description")
+        .populate("userId")
+        .populate("selectInfluencerOrHost")
+        .populate("selectDeal")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -241,7 +241,7 @@ const specificSearch = async (req, res) => {
         : {};
 
       const listings = await Listing.find(listingFilter)
-        .populate("userId", "name email")
+        .populate("userId")
         .sort({ createdAt: -1 })
         .limit(limit)
         .skip((page - 1) * limit)
@@ -259,9 +259,9 @@ const specificSearch = async (req, res) => {
         : {};
 
       const collaborations = await Collaboration.find(collaborationFilter)
-        .populate("userId", "name email")
-        .populate("selectInfluencerOrHost", "name email")
-        .populate("selectDeal", "description")
+        .populate("userId")
+        .populate("selectInfluencerOrHost")
+        .populate("selectDeal")
         .sort({ createdAt: -1 })
         .limit(limit)
         .skip((page - 1) * limit)
@@ -303,9 +303,9 @@ const specificSearch = async (req, res) => {
         : {};
 
       const deals = await Deal.find(dealFilter)
-        .populate("userId", "name email")
-        .populate("dealTitle", "title")
-        .populate("selectListing", "title propertyType")
+        .populate("userId")
+        .populate("dealTitle")
+        .populate("selectListing")
         .sort({ createdAt: -1 })
         .limit(limit)
         .skip((page - 1) * limit)

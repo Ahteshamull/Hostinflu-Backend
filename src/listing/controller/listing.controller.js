@@ -117,7 +117,7 @@ const getAllListings = async (req, res) => {
     }
 
     const listings = await Listing.find(filter)
-      .populate("userId", "name email")
+      .populate("userId")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip((pageNum - 1) * limitNum);
