@@ -164,8 +164,6 @@ const specificSearch = async (req, res) => {
     const {
       query: collection = "all", // users | listings | collaborations | deals | all
       searchType: keyword = "", // actual search text
-      page = 1,
-      limit = 10,
     } = req.query;
 
     // ✅ validate collection
@@ -197,12 +195,6 @@ const specificSearch = async (req, res) => {
       listings: [],
       collaborations: [],
       deals: [],
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: 1,
-        total: 0,
-        limit: parseInt(limit),
-      },
     };
 
     // 👤 USERS - only if collection is "users"
@@ -220,8 +212,6 @@ const specificSearch = async (req, res) => {
       const users = await User.find(userFilter)
         .select("name email phone role image createdAt")
         .sort({ createdAt: -1 })
-        .limit(limit)
-        .skip((page - 1) * limit)
         .lean();
 
       results.users = users;
@@ -243,8 +233,6 @@ const specificSearch = async (req, res) => {
       const listings = await Listing.find(listingFilter)
         .populate("userId")
         .sort({ createdAt: -1 })
-        .limit(limit)
-        .skip((page - 1) * limit)
         .lean();
 
       results.listings = listings;
@@ -263,8 +251,6 @@ const specificSearch = async (req, res) => {
         .populate("selectInfluencerOrHost")
         .populate("selectDeal")
         .sort({ createdAt: -1 })
-        .limit(limit)
-        .skip((page - 1) * limit)
         .lean();
 
       results.collaborations = collaborations.map((collab) => {
@@ -307,8 +293,6 @@ const specificSearch = async (req, res) => {
         .populate("dealTitle")
         .populate("selectListing")
         .sort({ createdAt: -1 })
-        .limit(limit)
-        .skip((page - 1) * limit)
         .lean();
 
       results.deals = deals.map((deal) => {
@@ -337,15 +321,6 @@ const specificSearch = async (req, res) => {
         };
       });
     }
-
-    const total =
-      results.users.length +
-      results.listings.length +
-      results.collaborations.length +
-      results.deals.length;
-
-    results.pagination.total = total;
-    results.pagination.totalPages = Math.ceil(total / limit);
 
     res.status(200).json({
       success: true,
