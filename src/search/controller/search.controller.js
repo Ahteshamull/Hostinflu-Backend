@@ -197,63 +197,78 @@ const specificSearch = async (req, res) => {
       deals: [],
     };
 
-    // 👤 USERS - only if collection is "users"
-    if (actualCollection === "users") {
-      const userFilter = keyword
-        ? {
-            $or: [
-              { name: searchRegex },
-              { email: searchRegex },
-              { phone: searchRegex },
-            ],
-          }
-        : {};
-
-      const users = await User.find(userFilter)
+    // 👤 USERS - search if collection is "users" or "all"
+    if (actualCollection === "users" || actualCollection === "all") {
+      const users = await User.find({})
         .select("name email phone role image createdAt")
         .sort({ createdAt: -1 })
         .lean();
 
-      results.users = users;
+      // Filter users in JavaScript after population
+      const filteredUsers = users.filter((user) => {
+        if (!keyword) return true;
+
+        const searchTerm = keyword.toLowerCase();
+
+        return (
+          (user.name && user.name.toLowerCase().includes(searchTerm)) ||
+          (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+          (user.phone && user.phone.toLowerCase().includes(searchTerm))
+        );
+      });
+
+      results.users = filteredUsers;
     }
 
-    // 🏠 LISTINGS - only if collection is "listings"
-    if (actualCollection === "listings") {
-      const listingFilter = keyword
-        ? {
-            $or: [
-              { title: searchRegex },
-              { location: searchRegex },
-              { propertyType: searchRegex },
-              { status: searchRegex },
-            ],
-          }
-        : {};
-
-      const listings = await Listing.find(listingFilter)
+    // 🏠 LISTINGS - search if collection is "listings" or "all"
+    if (actualCollection === "listings" || actualCollection === "all") {
+      const listings = await Listing.find({})
         .populate("userId")
         .sort({ createdAt: -1 })
         .lean();
 
-      results.listings = listings;
+      // Filter listings in JavaScript after population
+      const filteredListings = listings.filter((listing) => {
+        if (!keyword) return true;
+
+        const searchTerm = keyword.toLowerCase();
+
+        return (
+          (listing.title && listing.title.toLowerCase().includes(searchTerm)) ||
+          (listing.location &&
+            listing.location.toLowerCase().includes(searchTerm)) ||
+          (listing.propertyType &&
+            listing.propertyType.toLowerCase().includes(searchTerm)) ||
+          (listing.status && listing.status.toLowerCase().includes(searchTerm))
+        );
+      });
+
+      results.listings = filteredListings;
     }
 
-    // 🤝 COLLABORATIONS - only if collection is "collaborations"
-    if (actualCollection === "collaborations") {
-      const collaborationFilter = keyword
-        ? {
-            $or: [{ payment: searchRegex }, { status: searchRegex }],
-          }
-        : {};
-
-      const collaborations = await Collaboration.find(collaborationFilter)
+    // 🤝 COLLABORATIONS - search if collection is "collaborations" or "all"
+    if (actualCollection === "collaborations" || actualCollection === "all") {
+      const collaborations = await Collaboration.find({})
         .populate("userId")
         .populate("selectInfluencerOrHost")
         .populate("selectDeal")
         .sort({ createdAt: -1 })
         .lean();
 
-      results.collaborations = collaborations.map((collab) => {
+      // Filter collaborations in JavaScript after population
+      const filteredCollaborations = collaborations.filter((collab) => {
+        if (!keyword) return true;
+
+        const searchTerm = keyword.toLowerCase();
+
+        return (
+          (collab.payment &&
+            collab.payment.toLowerCase().includes(searchTerm)) ||
+          (collab.status && collab.status.toLowerCase().includes(searchTerm))
+        );
+      });
+
+      results.collaborations = filteredCollaborations.map((collab) => {
         const duration =
           collab.freeStay && collab.startDate && collab.endDate
             ? `${Math.ceil(
@@ -276,25 +291,34 @@ const specificSearch = async (req, res) => {
       });
     }
 
-    // 💼 DEALS - only if collection is "deals"
-    if (actualCollection === "deals") {
-      const dealFilter = keyword
-        ? {
-            $or: [
-              { description: searchRegex },
-              { status: searchRegex },
-              { addAirbnbLink: searchRegex },
-            ],
-          }
-        : {};
-
-      const deals = await Deal.find(dealFilter)
+    // DEALS - search if collection is "deals" or "all"
+    if (actualCollection === "deals" || actualCollection === "all") {
+      // First get all deals, then filter in JavaScript
+      const deals = await Deal.find({})
         .populate("userId")
         .populate("title")
         .sort({ createdAt: -1 })
         .lean();
 
-      results.deals = deals;
+      // Filter deals in JavaScript after population
+      const filteredDeals = deals.filter((deal) => {
+        if (!keyword) return true;
+
+        const searchTerm = keyword.toLowerCase();
+
+        return (
+          (deal.description &&
+            deal.description.toLowerCase().includes(searchTerm)) ||
+          (deal.status && deal.status.toLowerCase().includes(searchTerm)) ||
+          (deal.addAirbnbLink &&
+            deal.addAirbnbLink.toLowerCase().includes(searchTerm)) ||
+          (deal.title &&
+            deal.title.title &&
+            deal.title.title.toLowerCase().includes(searchTerm))
+        );
+      });
+
+      results.deals = filteredDeals;
     }
 
     res.status(200).json({
