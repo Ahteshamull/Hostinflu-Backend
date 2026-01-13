@@ -12,15 +12,19 @@ const authenticateToken = (req, res, next) => {
     });
   }
 
-  jwt.verify(token, process.env.PRV_TOKEN, (err, user) => {
-    if (err) {
-      return res.status(403).json({
-        message: "Invalid or expired token",
-      });
+  jwt.verify(
+    token,
+    process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN,
+    (err, user) => {
+      if (err) {
+        return res.status(403).json({
+          message: "Invalid or expired token",
+        });
+      }
+      req.user = user;
+      next();
     }
-    req.user = user;
-    next();
-  });
+  );
 };
 
 // Middleware to check if user has specific role

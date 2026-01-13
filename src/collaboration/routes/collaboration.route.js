@@ -5,7 +5,6 @@ import {
   getAllCollaboration,
   getSingleCollaboration,
   updateCollaboration,
-
   activeCollaborations,
   completedCollaborations,
   userPersonalTotalCollaborations,
@@ -14,6 +13,7 @@ import {
   userPersonalCollaborationsGrowth,
   deleteCollaboration,
   getMyAllCollaborations,
+  negotiationCollaboration,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -41,7 +41,6 @@ router.put(
   requireHostOrInfluencerRole,
   updateCollaboration
 );
-
 
 //localhost:3000/api/v1/collaboration/active-collaborations
 router.get("/active-collaborations", activeCollaborations);
@@ -92,8 +91,12 @@ router.get(
   getMyAllCollaborations
 );
 
-
-
-
+//localhost:3000/api/v1/collaboration/negotiate-collaboration/:collaborationId
+router.put(
+  "/negotiate-collaboration/:collaborationId",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  negotiationCollaboration
+);
 
 export default router;

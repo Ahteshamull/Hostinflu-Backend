@@ -412,8 +412,6 @@ export const updateCollaboration = async (req, res) => {
   }
 };
 
-
-
 export const activeCollaborations = async (req, res) => {
   try {
     const active = await Collaborations.countDocuments({ status: "active" });
@@ -726,6 +724,121 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
       success: false,
       error: true,
       message: "Error retrieving user personal collaborations growth",
+      error: error.message,
+    });
+  }
+};
+
+export const negotiationCollaboration = async (req, res) => {
+  try {
+    const { collaborationId } = req.params;
+    const {
+      payment,
+      content,
+      additionalRequirements,
+      startDate,
+      endDate,
+      status,
+      negotiationMessage,
+    } = req.body;
+
+    // Find collaboration without population first for authorization check
+    const collaboration = await Collaborations.findById(collaborationId);
+
+    if (!collaboration) {
+      return res.status(404).json({
+        success: false,
+        error: true,
+        message: "Collaboration not found",
+      });
+    }
+
+    // Check if current user is either the collaboration creator (host) or the selected influencer
+    // Both host and influencer can negotiate
+    const currentUserId = req.user?._id || req.user?.id;
+    const isHost = collaboration.userId.toString() === currentUserId;
+    const isInfluencer =
+      collaboration.selectInfluencerOrHost?.toString() === currentUserId;
+
+    console.log("Debug - Current User ID:", currentUserId);
+    console.log(
+      "Debug - Collaboration User ID:",
+      collaboration.userId.toString()
+    );
+    console.log(
+      "Debug - Selected Influencer ID:",
+      collaboration.selectInfluencerOrHost?.toString()
+    );
+    console.log("Debug - Is Host:", isHost);
+    console.log("Debug - Is Influencer:", isInfluencer);
+
+    if (!isHost && !isInfluencer) {
+      return res.status(403).json({
+        success: false,
+        error: true,
+        message: "You are not authorized to negotiate this collaboration",
+      });
+    }
+
+    // Now populate for the rest of the function
+    await collaboration.populate("userId");
+    await collaboration.populate("selectInfluencerOrHost");
+    await collaboration.populate("selectDeal");
+
+    // Create negotiation history if it doesn't exist
+    if (!collaboration.negotiationHistory) {
+      collaboration.negotiationHistory = [];
+    }
+
+    // Add current state to negotiation history before updating
+    collaboration.negotiationHistory.push({
+      updatedBy: currentUserId,
+      updatedAt: new Date(),
+      previousState: {
+        payment: collaboration.payment,
+        content: collaboration.content,
+        additionalRequirements: collaboration.additionalRequirements,
+        startDate: collaboration.startDate,
+        endDate: collaboration.endDate,
+        status: collaboration.status,
+      },
+      message: negotiationMessage || "Negotiation update",
+    });
+
+    // Update the collaboration with new values
+    if (payment !== undefined) collaboration.payment = payment;
+    if (content !== undefined) collaboration.content = content;
+    if (additionalRequirements !== undefined)
+      collaboration.additionalRequirements = additionalRequirements;
+    if (startDate !== undefined) collaboration.startDate = startDate;
+    if (endDate !== undefined) collaboration.endDate = endDate;
+    if (status !== undefined) collaboration.status = status;
+
+    // Mark as negotiated if status is not already set
+    if (!collaboration.status) {
+      collaboration.status = "negotiating";
+    }
+
+    // Save the updated collaboration
+    await collaboration.save();
+
+    // Return the updated collaboration with all populated data
+    const updatedCollaboration = await Collaborations.findById(collaborationId)
+      .populate("userId", "name email")
+      .populate("selectInfluencerOrHost", "name email")
+      .populate("selectDeal", "description");
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "Collaboration negotiated successfully",
+      data: updatedCollaboration,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error negotiating collaboration",
       error: error.message,
     });
   }
