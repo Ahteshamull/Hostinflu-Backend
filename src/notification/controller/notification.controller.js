@@ -54,12 +54,19 @@ const getCollaborationNotifications = async (req, res) => {
       type: "collaboration_request",
       receiverId: userId, // Only show notifications for this user
     };
+    const filter2 = {
+      type: "negotiation",
+      receiverId: userId, // Only show notifications for this user
+    };
 
     if (isRead !== undefined) {
       filter.isRead = isRead === "true";
+      filter2.isRead = isRead === "true";
     }
 
-    const notifications = await Notification.find(filter)
+    const notifications = await Notification.find({
+      $or: [filter, filter2],
+    })
       .populate("collaborationId", "selectDeal payment")
       .populate("createdBy", "name email")
       .populate("receiverId", "name email")
@@ -67,7 +74,9 @@ const getCollaborationNotifications = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    const total = await Notification.countDocuments(filter);
+    const total = await Notification.countDocuments({
+      $or: [filter, filter2],
+    });
 
     res.status(200).json({
       success: true,
@@ -184,7 +193,36 @@ const createCollaborationNotification = async (
 
     return savedNotification;
   } catch (error) {
-    console.error("Error creating collaboration notification:", error);
+    
+    throw error;
+  }
+};
+
+// Create negotiation notifications for both parties
+const createNegotiationNotification = async (
+  recipientId,
+  collaborationId,
+  senderName,
+  message
+) => {
+  try {
+    // Create notification for negotiation action
+    const notification = new Notification({
+      type: "negotiation",
+      title: "Collaboration Negotiation Update",
+      message: `${senderName}: ${message}`,
+      collaborationId: collaborationId,
+      receiverId: recipientId,
+      isRead: false,
+      createdAt: new Date(),
+    });
+
+    const savedNotification = await notification.save();
+  
+
+    return savedNotification;
+  } catch (error) {
+   
     throw error;
   }
 };

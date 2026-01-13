@@ -10,6 +10,7 @@ import {
 import { upload } from "../../helper/middlewares/imageControlMiddleware.js";
 import superAdminMiddleware from "../../helper/middlewares/superAdminMiddleware.js";
 import adminMiddleware from "../../helper/middlewares/authmiddleware.js";
+import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ router.put(
 router.delete("/delete-admin/:id", superAdminMiddleware, deleteAdmin);
 
 //localhost:3000/api/v1/admin/all-admins
-router.get("/all-admins", adminMiddleware, allAdmin);
+router.get("/all-admins", authenticateToken, allAdmin);
 
 //localhost:3000/api/v1/admin/single-admin/:id
 router.get("/single-admin/:id", adminMiddleware, singleAdmin);

@@ -14,6 +14,8 @@ import {
   deleteCollaboration,
   getMyAllCollaborations,
   negotiationCollaboration,
+  acceptCollaboration,
+  rejectCollaboration,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -97,6 +99,22 @@ router.put(
   authenticateToken,
   requireHostOrInfluencerRole,
   negotiationCollaboration
+);
+
+//localhost:3000/api/v1/collaboration/accept-collaboration/:collaborationId
+router.put(
+  "/accept-collaboration/:collaborationId",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  acceptCollaboration
+);
+
+//localhost:3000/api/v1/collaboration/reject-collaboration/:collaborationId
+router.put(
+  "/reject-collaboration/:collaborationId",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  rejectCollaboration
 );
 
 export default router;
