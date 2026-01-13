@@ -13,9 +13,9 @@ import {
   userPersonalCollaborationsGrowth,
   deleteCollaboration,
   getMyAllCollaborations,
-  negotiationCollaboration,
-  acceptCollaboration,
-  rejectCollaboration,
+  createNegotiationCollaboration,
+  allNegotiationCollaborations,
+  updateNegotiateStatus,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -93,28 +93,28 @@ router.get(
   getMyAllCollaborations
 );
 
-//localhost:3000/api/v1/collaboration/negotiate-collaboration/:collaborationId
+//localhost:3000/api/v1/collaboration/create-negotiation/:collaborationId
 router.put(
-  "/negotiate-collaboration/:collaborationId",
+  "/create-negotiation/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,
-  negotiationCollaboration
+  createNegotiationCollaboration
 );
 
-//localhost:3000/api/v1/collaboration/accept-collaboration/:collaborationId
+//localhost:3000/api/v1/collaboration/update-negotiation-status/:collaborationId
 router.put(
-  "/accept-collaboration/:collaborationId",
+  "/update-negotiation-status/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,
-  acceptCollaboration
+  updateNegotiateStatus
 );
 
-//localhost:3000/api/v1/collaboration/reject-collaboration/:collaborationId
-router.put(
-  "/reject-collaboration/:collaborationId",
+//localhost:3000/api/v1/collaboration/all-negotiations
+router.get(
+  "/all-negotiations",
   authenticateToken,
   requireHostOrInfluencerRole,
-  rejectCollaboration
+  allNegotiationCollaborations
 );
 
 export default router;

@@ -19,7 +19,7 @@ const router = express.Router();
 //localhost:3000/api/v1/admin/create-admin
 router.post(
   "/create-admin",
-  superAdminMiddleware,
+  authenticateToken,
   upload.single("image"),
   createAdmin
 );
@@ -41,6 +41,6 @@ router.delete("/delete-admin/:id", superAdminMiddleware, deleteAdmin);
 router.get("/all-admins", authenticateToken, allAdmin);
 
 //localhost:3000/api/v1/admin/single-admin/:id
-router.get("/single-admin/:id", adminMiddleware, singleAdmin);
+router.get("/single-admin/:id", authenticateToken, singleAdmin);
 
 export default router;
