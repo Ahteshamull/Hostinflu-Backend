@@ -59,8 +59,20 @@ const collaborationSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "accepted", "rejected", "completed"],
+      enum: ["pending", "negotiating", "accepted", "rejected", "completed"],
       default: "pending",
+    },
+
+    negotiationStatus: {
+      type: String,
+      enum: ["pending", "accepted", "rejected"],
+      default: "pending",
+    },
+
+    rejectReason: {
+      type: String,
+      trim: true,
+      default: "",
     },
 
     // 📱 Social Media Links (only for influencers)

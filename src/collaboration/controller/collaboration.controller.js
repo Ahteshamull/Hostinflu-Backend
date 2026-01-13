@@ -811,30 +811,29 @@ export const createNegotiationCollaboration = async (req, res) => {
     collaboration.negotiationHistory.push({
       updatedBy: currentUserId,
       updatedAt: new Date(),
-      previousState: {
-        payment: collaboration.payment,
-        content: collaboration.content,
-        additionalRequirements: collaboration.additionalRequirements,
-        startDate: collaboration.startDate,
-        endDate: collaboration.endDate,
-        status: collaboration.status,
+      proposedChanges: {
+        payment: payment !== undefined ? payment : collaboration.payment,
+        content: content !== undefined ? content : collaboration.content,
+        additionalRequirements:
+          additionalRequirements !== undefined
+            ? additionalRequirements
+            : collaboration.additionalRequirements,
+        startDate:
+          startDate !== undefined ? startDate : collaboration.startDate,
+        endDate: endDate !== undefined ? endDate : collaboration.endDate,
+        status: status !== undefined ? status : collaboration.status,
       },
       message: negotiationMessage || "Negotiation update",
+      action: "proposed",
     });
 
-    // Update collaboration with new values
-    if (payment !== undefined) collaboration.payment = payment;
-    if (content !== undefined) collaboration.content = content;
-    if (additionalRequirements !== undefined)
-      collaboration.additionalRequirements = additionalRequirements;
-    if (startDate !== undefined) collaboration.startDate = startDate;
-    if (endDate !== undefined) collaboration.endDate = endDate;
-    if (status !== undefined) collaboration.status = status;
-
-    // Mark as negotiated if status is not already set
-    if (!collaboration.status) {
+    // Mark as negotiating if status is not already set
+    if (!collaboration.status || collaboration.status === "pending") {
       collaboration.status = "negotiating";
     }
+
+    // DO NOT update the main collaboration fields - only track proposals
+    // Remove the direct field updates that were changing the original data
 
     await collaboration.save();
 
@@ -962,11 +961,34 @@ export const allNegotiationCollaborations = async (req, res) => {
 export const updateNegotiateStatus = async (req, res) => {
   try {
     const { collaborationId } = req.params;
-    const { status, reason } = req.body;
+    const { status, reason, rejectReason } = req.body;
     const userId = req.user?._id || req.user?.id;
 
-    // Find negotiation
+ 
+
+    // Handle case where status might have leading space in key
+    const actualStatus = status || req.body[" status"] || req.body.status;
+    const actualReason =
+      rejectReason || reason || req.body[" reason"] || req.body.reason;
+
+
+    // Validate that status is provided
+    if (!actualStatus) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Status is required in request body",
+        debug: {
+          body: req.body,
+          headers: req.headers,
+          availableKeys: Object.keys(req.body),
+        },
+      });
+    }
+
+    // Find negotiation (without population first for authorization check)
     const negotiation = await Collaborations.findById(collaborationId);
+
     if (!negotiation) {
       return res.status(404).json({
         success: false,
@@ -975,7 +997,7 @@ export const updateNegotiateStatus = async (req, res) => {
       });
     }
 
-    // Check if user is involved in this negotiation
+    // Check if user is involved in this negotiation (check raw IDs)
     if (
       negotiation.userId.toString() !== userId &&
       negotiation.selectInfluencerOrHost.toString() !== userId
@@ -987,6 +1009,11 @@ export const updateNegotiateStatus = async (req, res) => {
       });
     }
 
+    // Now populate for the rest of the function
+    await negotiation.populate("userId", "name email");
+    await negotiation.populate("selectInfluencerOrHost", "name email");
+    await negotiation.populate("selectDeal", "description");
+
     // Create negotiation history if it doesn't exist
     if (!negotiation.negotiationHistory) {
       negotiation.negotiationHistory = [];
@@ -997,25 +1024,64 @@ export const updateNegotiateStatus = async (req, res) => {
       updatedBy: userId,
       updatedAt: new Date(),
       action:
-        status === "rejected"
+        actualStatus === "rejected"
           ? "rejected"
-          : status === "accepted" || status === "accept"
+          : actualStatus === "accepted" || actualStatus === "accept"
           ? "accepted"
           : "updated",
       message:
-        status === "rejected"
+        actualStatus === "rejected"
           ? "Negotiation rejected"
-          : status === "accepted" || status === "accept"
+          : actualStatus === "accepted" || actualStatus === "accept"
           ? "Negotiation accepted"
           : "Status updated",
       reason:
-        reason || (status === "rejected" ? "No reason provided" : undefined),
+        actualReason ||
+        (actualStatus === "rejected" ? "No reason provided" : undefined),
+      // Save previous state when rejecting
+      previousState:
+        actualStatus === "rejected"
+          ? {
+              payment: negotiation.payment,
+              content: negotiation.content,
+              additionalRequirements: negotiation.additionalRequirements,
+              startDate: negotiation.startDate,
+              endDate: negotiation.endDate,
+              status: negotiation.status,
+              negotiationStatus: negotiation.negotiationStatus,
+            }
+          : undefined,
     });
 
-    // Update status (convert "accept" to "accepted")
-    const finalStatus = status === "accept" ? "accepted" : status;
-    negotiation.status = finalStatus;
+    // Update negotiation status (convert "accept" to "accepted")
+    const finalStatus = actualStatus === "accept" ? "accepted" : actualStatus;
+
+
+    // Only update negotiationStatus and rejectReason, preserve all other data
+    negotiation.set("negotiationStatus", finalStatus);
+    negotiation.negotiationStatus = finalStatus;
+
+    // If rejected, save the reason in the separate rejectReason field
+    if (finalStatus === "rejected") {
+
+      negotiation.rejectReason = actualReason || "No reason provided";
+     
+    }
+
+    // For rejection, DO NOT update any other collaboration fields
+    // For acceptance, you can update the fields if needed
+
     await negotiation.save();
+
+
+    // Explicitly ensure negotiationStatus is included in response (after save)
+    const response_data = negotiation.toObject();
+    response_data.negotiationStatus = negotiation.negotiationStatus;
+
+    // Populate the updated negotiation
+    await negotiation.populate("userId", "name email");
+    await negotiation.populate("selectInfluencerOrHost", "name email");
+    await negotiation.populate("selectDeal", "description");
 
     // Send notification to other party
     try {
@@ -1032,9 +1098,9 @@ export const updateNegotiateStatus = async (req, res) => {
         notificationRecipientId,
         collaborationId,
         updaterName,
-        status === "rejected"
-          ? `Rejected: ${reason || "No reason provided"}`
-          : status === "accepted" || status === "accept"
+        actualStatus === "rejected"
+          ? `Rejected: ${actualReason || "No reason provided"}`
+          : actualStatus === "accepted" || actualStatus === "accept"
           ? "Accepted collaboration"
           : "Updated negotiation status"
       );
@@ -1046,7 +1112,7 @@ export const updateNegotiateStatus = async (req, res) => {
       success: true,
       error: false,
       message: "Negotiation status updated successfully",
-      data: negotiation,
+      data: response_data,
     });
   } catch (error) {
     res.status(500).json({
