@@ -143,6 +143,34 @@ const userSchema = new Schema(
     dateOfBirth: {
       type: String,
     },
+    redeemStars: {
+      type: [
+        {
+          collaborationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Collaboration",
+            required: true,
+          },
+          stars: {
+            type: Number,
+            required: true,
+          },
+          createdAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
+    },
+    totalReviews: {
+      type: Number,
+      default: 0,
+    },
+    status: {
+      type: String,
+      default: "active",
+    },
   },
   {
     timestamps: true,

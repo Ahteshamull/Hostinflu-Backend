@@ -92,6 +92,24 @@ export const createCollaboration = async (req, res) => {
     await userModel.findByIdAndUpdate(userId, {
       $push: { collaborations: savedCollaboration._id },
       $inc: { collaborationsTotal: 1 },
+      // Add redeem stars as object with collaborationId and stars
+      $push: {
+        redeemStars: {
+          collaborationId: savedCollaboration._id,
+          stars: numberOfNights,
+        },
+      },
+    });
+
+    // Also add redeem stars to the target user (selectInfluencerOrHost)
+    await userModel.findByIdAndUpdate(selectInfluencerOrHost, {
+      // Add redeem stars as object with collaborationId and stars
+      $push: {
+        redeemStars: {
+          collaborationId: savedCollaboration._id,
+          stars: numberOfNights,
+        },
+      },
     });
 
     // Send notification to the receiver
@@ -964,13 +982,10 @@ export const updateNegotiateStatus = async (req, res) => {
     const { status, reason, rejectReason } = req.body;
     const userId = req.user?._id || req.user?.id;
 
- 
-
     // Handle case where status might have leading space in key
     const actualStatus = status || req.body[" status"] || req.body.status;
     const actualReason =
       rejectReason || reason || req.body[" reason"] || req.body.reason;
-
 
     // Validate that status is provided
     if (!actualStatus) {
@@ -1056,23 +1071,19 @@ export const updateNegotiateStatus = async (req, res) => {
     // Update negotiation status (convert "accept" to "accepted")
     const finalStatus = actualStatus === "accept" ? "accepted" : actualStatus;
 
-
     // Only update negotiationStatus and rejectReason, preserve all other data
     negotiation.set("negotiationStatus", finalStatus);
     negotiation.negotiationStatus = finalStatus;
 
     // If rejected, save the reason in the separate rejectReason field
     if (finalStatus === "rejected") {
-
       negotiation.rejectReason = actualReason || "No reason provided";
-     
     }
 
     // For rejection, DO NOT update any other collaboration fields
     // For acceptance, you can update the fields if needed
 
     await negotiation.save();
-
 
     // Explicitly ensure negotiationStatus is included in response (after save)
     const response_data = negotiation.toObject();

@@ -11,6 +11,7 @@ import deal from "../deals/routes/index.js";
 import collaboration from "../collaboration/routes/index.js";
 import message from "../message/routes/index.js";
 import dashboard from "../dashboard/routes/index.js";
+import redeem from "../redeem/routes/index.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
@@ -27,6 +28,7 @@ router.use(baseurl, deal);
 router.use(baseurl, collaboration);
 router.use(baseurl, message);
 router.use(baseurl, dashboard);
+router.use(baseurl, redeem);
 
 // 404 fallback for API
 router.use(baseurl, (req, res) => {
