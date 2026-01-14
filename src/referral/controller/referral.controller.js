@@ -104,6 +104,12 @@ export const getMyReferrals = async (req, res) => {
     // Get user's referral code
     const user = await userModel.findById(userId, "referralCode referralCount");
 
+    // Also find users who were referred by this user (from user schema)
+    const referredUsers = await userModel
+      .find({ referredBy: userId })
+      .select("name email role createdAt")
+      .sort({ createdAt: -1 });
+
     res.status(200).json({
       success: true,
       message: "Referrals retrieved successfully",
@@ -116,6 +122,7 @@ export const getMyReferrals = async (req, res) => {
           createdAt: referral.createdAt,
           referredUser: referral.referredUser,
         })),
+        referredUsers: referredUsers, // Users who signed up using this referral code
       },
     });
   } catch (error) {
