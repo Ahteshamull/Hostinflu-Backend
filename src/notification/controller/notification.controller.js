@@ -198,34 +198,6 @@ const createCollaborationNotification = async (
   }
 };
 
-// Create negotiation notifications for both parties
-const createNegotiationNotification = async (
-  recipientId,
-  collaborationId,
-  senderName,
-  message
-) => {
-  try {
-    // Create notification for negotiation action
-    const notification = new Notification({
-      type: "negotiation",
-      title: "Collaboration Negotiation Update",
-      message: `${senderName}: ${message}`,
-      collaborationId: collaborationId,
-      receiverId: recipientId,
-      isRead: false,
-      createdAt: new Date(),
-    });
-
-    const savedNotification = await notification.save();
-  
-
-    return savedNotification;
-  } catch (error) {
-   
-    throw error;
-  }
-};
 
 export {
   listNotifications,

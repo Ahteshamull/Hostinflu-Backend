@@ -59,7 +59,7 @@ const collaborationSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "negotiating", "accepted", "rejected", "completed"],
+      enum: ["pending", "negotiating", "accepted", "rejected","ongoing", "completed"],
       default: "pending",
     },
 
