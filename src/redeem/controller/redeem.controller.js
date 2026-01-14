@@ -2,8 +2,6 @@ import Redeem from "../schema/redeem.modal.js";
 import userModel from "../../auth/schema/auth.modal.js";
 import Collaborations from "../../collaboration/schema/collaboration.modal.js";
 
-
-
 export const getUserRedeemStars = async (req, res) => {
   try {
     // Get user ID from token
@@ -20,8 +18,8 @@ export const getUserRedeemStars = async (req, res) => {
     const user = await userModel.findById(userId).populate({
       path: "redeemStars.collaborationId",
       populate: [
-        { path: "userId", select: "name email" },
-        { path: "selectInfluencerOrHost", select: "name email" },
+        { path: "userId", select: "name email role" },
+        { path: "selectInfluencerOrHost", select: "name email role" },
         { path: "selectDeal", select: "description" },
       ],
     });
@@ -59,6 +57,7 @@ export const getUserRedeemStars = async (req, res) => {
                   _id: item.collaborationId.userId._id,
                   name: item.collaborationId.userId.name,
                   email: item.collaborationId.userId.email,
+                  role: item.collaborationId.userId.role,
                 }
               : null,
             // Target user info
@@ -67,6 +66,7 @@ export const getUserRedeemStars = async (req, res) => {
                   _id: item.collaborationId.selectInfluencerOrHost._id,
                   name: item.collaborationId.selectInfluencerOrHost.name,
                   email: item.collaborationId.selectInfluencerOrHost.email,
+                  role: item.collaborationId.selectInfluencerOrHost.role,
                 }
               : null,
             // Deal info
