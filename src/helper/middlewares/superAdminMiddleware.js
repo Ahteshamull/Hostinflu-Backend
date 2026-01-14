@@ -35,7 +35,7 @@ const superAdminMiddleware = async (req, res, next) => {
       } else {
         return res.status(403).json({
           success: false,
-          message: "Only Super Admin can create admins",
+          message: "Only Super Admin can perform this action",
         });
       }
     } catch (err) {

@@ -40,7 +40,7 @@ router.put(
 router.put("/change-password", authenticateToken, adminChangePassword);
 
 //localhost:3000/api/v1/admin/delete-admin/:id
-router.delete("/delete-admin/:id", authenticateToken, deleteAdmin);
+router.delete("/delete-admin/:id", authenticateToken,superAdminMiddleware, deleteAdmin);
 
 //localhost:3000/api/v1/admin/all-admins
 router.get("/all-admins", authenticateToken, allAdmin);
