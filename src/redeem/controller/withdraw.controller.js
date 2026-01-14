@@ -47,8 +47,9 @@ export const withdrawRedeemStars = async (req, res) => {
       });
     }
 
-    // Create notification for the collaboration withdrawal
+    // Create notifications for both parties
     try {
+      // Notification for the user who is withdrawing (influencer)
       await Notification.create({
         type: "withdraw",
         title: "Stars Withdrawn",
@@ -62,6 +63,23 @@ export const withdrawRedeemStars = async (req, res) => {
         isRead: false,
         createdAt: new Date(),
       });
+
+      // Notification for the host (collaboration creator)
+      const hostId =
+        redeemStarEntry.collaborationId.userId?._id ||
+        redeemStarEntry.collaborationId.userId;
+
+      if (hostId && hostId.toString() !== userId) {
+        await Notification.create({
+          type: "withdraw",
+          title: "Stars Withdrawn by Influencer",
+          message: `An influencer withdrew ${redeemStarEntry.stars} stars from your collaboration`,
+          collaborationId: redeemStarEntry.collaborationId._id,
+          receiverId: hostId,
+          isRead: false,
+          createdAt: new Date(),
+        });
+      }
     } catch (notificationError) {
       console.error("Error creating notification:", notificationError);
     }
