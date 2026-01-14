@@ -27,10 +27,11 @@ router.post(
 //localhost:3000/api/v1/admin/admin-login
 router.post("/admin-login", adminLogin);
 
-//localhost:3000/api/v1/admin/update-admin-personal-info/:id
+//localhost:3000/api/v1/admin/update-admin-personal-info
 router.put(
-  "/update-admin-personal-info/:id",
+  "/update-admin-personal-info",
   upload.single("image"),
+  authenticateToken,
   updateAdminPersonalInfo
 );
 

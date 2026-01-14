@@ -173,7 +173,8 @@ const adminLogin = async (req, res) => {
 const updateAdminPersonalInfo = async (req, res) => {
   try {
     const { name, phone } = req.body;
-    const adminId = req.params.id;
+    // Get admin ID from authenticated token instead of URL parameter
+    const adminId = req.user?._id || req.user?.id;
 
     // Find admin by ID
     const admin = await Admin.findById(adminId);
