@@ -129,7 +129,7 @@ const adminLogin = async (req, res) => {
     if (!isPasswordMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message: " Password or Email does not match",
       });
     }
 
@@ -166,6 +166,80 @@ const adminLogin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Server error during login",
+    });
+  }
+};
+
+const adminChangePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ error: true, message: "Authentication required" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    let decoded;
+    try {
+      decoded = jwt.verify(
+        token,
+        process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN
+      );
+    } catch (err) {
+      return res.status(401).json({ error: true, message: "Invalid token" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res
+        .status(400)
+        .json({ error: true, message: "Passwords do not match" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({
+          error: true,
+          message: "Password must be at least 6 characters",
+        });
+    }
+
+    // Get admin ID from authenticated token
+    const adminId = req.user?._id || req.user?.id;
+
+    // Find admin by ID
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ error: true, message: "Admin not found" });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      admin.password
+    );
+    if (!isCurrentPasswordValid) {
+      return res
+        .status(400)
+        .json({ error: true, message: "Current password is incorrect" });
+    }
+
+    // Update password
+    admin.password = await bcrypt.hash(newPassword, 10);
+    await admin.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error while updating admin",
     });
   }
 };
@@ -321,6 +395,7 @@ export {
   createAdmin,
   adminLogin,
   updateAdminPersonalInfo,
+  adminChangePassword,
   deleteAdmin,
   allAdmin,
   singleAdmin,

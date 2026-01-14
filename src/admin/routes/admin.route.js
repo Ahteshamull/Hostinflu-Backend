@@ -3,6 +3,7 @@ import {
   createAdmin,
   adminLogin,
   updateAdminPersonalInfo,
+  adminChangePassword,
   deleteAdmin,
   allAdmin,
   singleAdmin,
@@ -34,6 +35,9 @@ router.put(
   authenticateToken,
   updateAdminPersonalInfo
 );
+
+//localhost:3000/api/v1/admin/change-password
+router.put("/change-password", authenticateToken, adminChangePassword);
 
 //localhost:3000/api/v1/admin/delete-admin/:id
 router.delete("/delete-admin/:id", authenticateToken, deleteAdmin);
