@@ -171,6 +171,9 @@ const userSchema = new Schema(
       type: String,
       default: "active",
     },
+    referralCode: { type: String, unique: true },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    referralCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,
