@@ -1,5 +1,6 @@
 import userModel from "../../auth/schema/auth.modal.js";
 import Notification from "../../notification/schema/notification.modal.js";
+import Collaborations from "../../collaboration/schema/collaboration.modal.js";
 
 export const withdrawRedeemStars = async (req, res) => {
   try {
@@ -47,6 +48,18 @@ export const withdrawRedeemStars = async (req, res) => {
       });
     }
 
+    // Get the full collaboration data with populated user info
+    const collaboration = await Collaborations.findById(collaborationId)
+      .populate("userId", "name email")
+      .populate("selectInfluencerOrHost", "name email");
+
+    if (!collaboration) {
+      return res.status(404).json({
+        success: false,
+        message: "Collaboration not found",
+      });
+    }
+
     // Create notifications for both parties
     try {
       // Notification for the user who is withdrawing (influencer)
@@ -56,25 +69,23 @@ export const withdrawRedeemStars = async (req, res) => {
         message: `You withdrew ${
           redeemStarEntry.stars
         } stars from collaboration with ${
-          redeemStarEntry.collaborationId.userId?.name || "Host"
+          collaboration.userId?.name || "Host"
         }`,
-        collaborationId: redeemStarEntry.collaborationId._id,
+        collaborationId: collaboration._id,
         receiverId: userId,
         isRead: false,
         createdAt: new Date(),
       });
 
       // Notification for the host (collaboration creator)
-      const hostId =
-        redeemStarEntry.collaborationId.userId?._id ||
-        redeemStarEntry.collaborationId.userId;
+      const hostId = collaboration.userId?._id || collaboration.userId;
 
       if (hostId && hostId.toString() !== userId) {
         await Notification.create({
           type: "withdraw",
           title: "Stars Withdrawn by Influencer",
           message: `An influencer withdrew ${redeemStarEntry.stars} stars from your collaboration`,
-          collaborationId: redeemStarEntry.collaborationId._id,
+          collaborationId: collaboration._id,
           receiverId: hostId,
           isRead: false,
           createdAt: new Date(),
