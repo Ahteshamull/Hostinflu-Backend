@@ -53,18 +53,20 @@ export const createCollaboration = async (req, res) => {
 
     // Validate role-based collaboration rules
     if (userRole === "host") {
-      // Host can only create collaborations for influencers
-      if (selectedUser.role !== "influencer") {
+      // Host can create collaborations for anyone
+      if (!["host", "influencer"].includes(selectedUser.role)) {
         return res.status(400).json({
-          message: "Host can only create collaborations for influencers",
+          message:
+            "Host can only create collaborations for hosts or influencers",
           error: "Invalid collaboration target",
         });
       }
     } else if (userRole === "influencer") {
-      // Influencer can only create collaborations for hosts
-      if (selectedUser.role !== "host") {
+      // Influencer can create collaborations for anyone
+      if (!["host", "influencer"].includes(selectedUser.role)) {
         return res.status(400).json({
-          message: "Influencer can only create collaborations for hosts",
+          message:
+            "Influencer can only create collaborations for hosts or influencers",
           error: "Invalid collaboration target",
         });
       }

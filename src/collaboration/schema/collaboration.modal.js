@@ -68,6 +68,11 @@ const collaborationSchema = new mongoose.Schema(
       enum: ["pending", "accepted", "rejected"],
       default: "pending",
     },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed"],
+      default: "pending",
+    },
 
     rejectReason: {
       type: String,
@@ -102,6 +107,7 @@ const collaborationSchema = new mongoose.Schema(
         trim: true,
         default: "",
       },
+
     },
   },
   {
