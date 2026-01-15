@@ -295,8 +295,8 @@ export const getMyAllCollaborations = async (req, res) => {
     if (userRole === "host") {
       // Host: Show collaborations they created
       collaborations = await Collaborations.find({ userId: userId })
-        .populate("userId", "name email")
-        .populate("selectInfluencerOrHost", "name email")
+        .populate("userId", "name email role")
+        .populate("selectInfluencerOrHost", "name email role")
         .populate("selectDeal", "dealTitle description")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -308,8 +308,8 @@ export const getMyAllCollaborations = async (req, res) => {
       collaborations = await Collaborations.find({
         selectInfluencerOrHost: userId,
       })
-        .populate("userId", "name email")
-        .populate("selectInfluencerOrHost", "name email")
+        .populate("userId", "name email role")
+        .populate("selectInfluencerOrHost", "name email role")
         .populate("selectDeal", "dealTitle description")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -323,8 +323,8 @@ export const getMyAllCollaborations = async (req, res) => {
       collaborations = await Collaborations.find({
         $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
       })
-        .populate("userId", "name email")
-        .populate("selectInfluencerOrHost", "name email")
+        .populate("userId", "name email role")
+        .populate("selectInfluencerOrHost", "name email role")
         .populate("selectDeal", "dealTitle description")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -907,6 +907,9 @@ export const createNegotiationCollaboration = async (req, res) => {
     if (!collaboration.status || collaboration.status === "pending") {
       collaboration.status = "negotiating";
     }
+
+    // Also update negotiationStatus to reflect active negotiation
+    collaboration.negotiationStatus = "pending";
 
     // Also set to pending if it's being negotiated
     if (
