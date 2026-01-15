@@ -965,7 +965,6 @@ export const createNegotiationCollaboration = async (req, res) => {
   }
 };
 
-// Helper function to create negotiation notifications
 const createNegotiationNotification = async (
   recipientId,
   collaborationId,
