@@ -16,6 +16,7 @@ import {
   createNegotiationCollaboration,
   allNegotiationCollaborations,
   updateNegotiateStatus,
+  acceptOrRejectCollaboration,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -115,6 +116,14 @@ router.get(
   authenticateToken,
   requireHostOrInfluencerRole,
   allNegotiationCollaborations
+);
+
+//localhost:3000/api/v1/collaboration/accept-or-reject-collaboration/:collaborationId
+router.put(
+  "/accept-or-reject-collaboration/:collaborationId",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  acceptOrRejectCollaboration
 );
 
 export default router;

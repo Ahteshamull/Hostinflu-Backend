@@ -84,6 +84,7 @@ export const createCollaboration = async (req, res) => {
       startDate,
       endDate,
       userId, // This is the creator's ID
+      status: "pending", // Set initial status to pending
     });
 
     const savedCollaboration = await newCollaboration.save();
@@ -277,22 +278,69 @@ export const getMyAllCollaborations = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    // Find collaborations where the user is either the creator or the selected influencer/host
-    const collaborations = await Collaborations.find({
-      $or: [
-        { userId: userId }, // User created the collaboration
-        { selectInfluencerOrHost: userId }, // User is selected as influencer/host
-      ],
-    })
-      .populate("userId", "name email")
-      .populate("selectInfluencerOrHost", "name email")
-      .populate("selectDeal", "dealTitle description")
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip(skip);
+    // Find collaborations based on user role
+    let collaborations;
+    let total;
 
-    const total = await Collaborations.countDocuments({
-      $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
+    if (userRole === "host") {
+      // Host: Show collaborations they created
+      collaborations = await Collaborations.find({ userId: userId })
+        .populate("userId", "name email")
+        .populate("selectInfluencerOrHost", "name email")
+        .populate("selectDeal", "dealTitle description")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip(skip);
+
+      total = await Collaborations.countDocuments({ userId: userId });
+    } else if (userRole === "influencer") {
+      // Influencer: Show collaborations where they are selected
+      collaborations = await Collaborations.find({
+        selectInfluencerOrHost: userId,
+      })
+        .populate("userId", "name email")
+        .populate("selectInfluencerOrHost", "name email")
+        .populate("selectDeal", "dealTitle description")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip(skip);
+
+      total = await Collaborations.countDocuments({
+        selectInfluencerOrHost: userId,
+      });
+    } else {
+      // Other roles: Show both types
+      collaborations = await Collaborations.find({
+        $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
+      })
+        .populate("userId", "name email")
+        .populate("selectInfluencerOrHost", "name email")
+        .populate("selectDeal", "dealTitle description")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip(skip);
+
+      total = await Collaborations.countDocuments({
+        $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
+      });
+    }
+
+    // Add action permissions to each collaboration
+    const collaborationsWithActions = collaborations.map((collab) => {
+      const isCreator = collab.userId._id.toString() === userId;
+      const isSelectedUser =
+        collab.selectInfluencerOrHost._id.toString() === userId;
+
+      return {
+        ...collab.toObject(),
+        canAccept: isSelectedUser && collab.status === "pending",
+        canReject: isSelectedUser && collab.status === "pending",
+        canNegotiate: isSelectedUser && collab.status === "pending",
+        canWithdraw:
+          isCreator &&
+          (collab.status === "pending" || collab.status === "negotiating"),
+        role: isCreator ? "creator" : "selected",
+      };
     });
 
     res.status(200).json({
@@ -303,7 +351,7 @@ export const getMyAllCollaborations = async (req, res) => {
       currentPage: page,
       total,
       data: {
-        collaborations,
+        collaborations: collaborationsWithActions,
       },
     });
   } catch (error) {
@@ -850,6 +898,14 @@ export const createNegotiationCollaboration = async (req, res) => {
       collaboration.status = "negotiating";
     }
 
+    // Also set to pending if it's being negotiated
+    if (
+      collaboration.status === "active" ||
+      collaboration.status === "accepted"
+    ) {
+      collaboration.status = "pending";
+    }
+
     // DO NOT update the main collaboration fields - only track proposals
     // Remove the direct field updates that were changing the original data
 
@@ -1130,6 +1186,100 @@ export const updateNegotiateStatus = async (req, res) => {
       success: false,
       error: true,
       message: "Error updating negotiation status",
+      error: error.message,
+    });
+  }
+};
+
+export const acceptOrRejectCollaboration = async (req, res) => {
+  try {
+    const { collaborationId } = req.params;
+    const { action, reason } = req.body;
+    const userId = req.user?._id || req.user?.id;
+
+    if (!collaborationId) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Collaboration ID is required",
+      });
+    }
+
+    if (!action || !["accept", "reject"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Action must be 'accept' or 'reject'",
+      });
+    }
+
+    const collaboration = await Collaborations.findById(collaborationId);
+    if (!collaboration) {
+      return res.status(404).json({
+        success: false,
+        error: true,
+        message: "Collaboration not found",
+      });
+    }
+
+    // Verify user is selected influencer/host
+    if (
+      collaboration.selectInfluencerOrHost?.toString() !== userId.toString() &&
+      collaboration.userId?.toString() !== userId.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: true,
+        message: "You are not authorized to accept/reject this collaboration",
+      });
+    }
+
+    // Update collaboration status
+    if (action === "accept") {
+      collaboration.status = "accepted";
+      collaboration.negotiationStatus = "accepted";
+    } else if (action === "reject") {
+      collaboration.status = "rejected";
+      collaboration.negotiationStatus = "rejected";
+      collaboration.rejectReason = reason || "No reason provided";
+    }
+
+    await collaboration.save();
+
+    // Send notification to other party
+    try {
+      const notificationRecipientId =
+        collaboration.userId.toString() === userId
+          ? collaboration.selectInfluencerOrHost
+          : collaboration.userId;
+      const updaterName =
+        collaboration.userId.toString() === userId
+          ? collaboration.userId?.name || "Host"
+          : collaboration.selectInfluencerOrHost?.name || "Influencer";
+
+      await createNegotiationNotification(
+        notificationRecipientId,
+        collaborationId,
+        updaterName,
+        action === "reject"
+          ? `Rejected: ${reason || "No reason provided"}`
+          : "Accepted collaboration"
+      );
+    } catch (notificationError) {
+      // Continue with response even if notification fails
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: `Collaboration ${action}ed successfully`,
+      data: collaboration,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error updating collaboration status",
       error: error.message,
     });
   }
