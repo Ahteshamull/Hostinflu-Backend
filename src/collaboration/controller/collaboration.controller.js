@@ -51,6 +51,14 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
+    // Check if user is trying to create collaboration with themselves
+    if (userId.toString() === selectInfluencerOrHost.toString()) {
+      return res.status(400).json({
+        message: "You cannot create collaboration with yourself",
+        error: "Invalid collaboration target",
+      });
+    }
+
     // Validate role-based collaboration rules
     if (userRole === "host") {
       // Host can create collaborations for anyone
