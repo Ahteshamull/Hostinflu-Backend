@@ -42,7 +42,7 @@ const collaborationSchema = new mongoose.Schema(
       },
     },
 
-    // 📅 Dates
+   
     startDate: {
       type: Date,
       required: function () {
