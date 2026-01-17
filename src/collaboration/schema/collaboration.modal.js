@@ -27,13 +27,13 @@ const collaborationSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // 🏨 Free Stay
+    
     freeStay: {
       type: Boolean,
       default: false,
     },
 
-    // 🌙 Nights
+    
     numberOfNights: {
       type: Number,
       min: 1,
