@@ -20,7 +20,7 @@ const collaborationSchema = new mongoose.Schema(
       required: [true, "Select Deal is required"],
     },
 
-    // 💰 Payment (ALWAYS REQUIRED)
+   
     payment: {
       type: String,
       required: [true, "Payment amount is required"],
