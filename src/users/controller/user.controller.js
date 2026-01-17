@@ -161,7 +161,6 @@ export const updateProfile = async (req, res) => {
      
       const normalizedUserName = userName.toLowerCase().trim();
 
-      // Validate userName format - only lowercase letters, numbers, and underscore
       if (!/^[a-z0-9_]+$/.test(normalizedUserName)) {
         return res.status(400).json({
           success: false,
@@ -170,7 +169,6 @@ export const updateProfile = async (req, res) => {
         });
       }
 
-      // Validate minimum length
       if (normalizedUserName.length < 5) {
         return res.status(400).json({
           success: false,
@@ -178,7 +176,6 @@ export const updateProfile = async (req, res) => {
         });
       }
 
-      // Validate maximum length
       if (normalizedUserName.length > 20) {
         return res.status(400).json({
           success: false,
@@ -186,7 +183,7 @@ export const updateProfile = async (req, res) => {
         });
       }
 
-      // Check for uniqueness
+
       const userNameExists = await userModel.findOne({
         userName: normalizedUserName,
         _id: { $ne: userId },
