@@ -80,7 +80,7 @@ const collaborationSchema = new mongoose.Schema(
       default: "",
     },
 
-    // 📱 Social Media Links (only for influencers)
+   
     socialMediaLinks: {
       instagram: {
         type: String,
