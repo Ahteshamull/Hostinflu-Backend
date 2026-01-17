@@ -7,13 +7,20 @@ export const allUser = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const { role } = req.query; // Get role from query params
 
-    // Get total count of users
-    const totalUsers = await userModel.countDocuments({});
+    // Build filter object
+    let filter = {};
+    if (role) {
+      filter.role = role; // Filter by role if provided
+    }
 
-    // Get users with pagination
+    // Get total count of users with filter
+    const totalUsers = await userModel.countDocuments(filter);
+
+    // Get users with pagination and filter
     const users = await userModel
-      .find({})
+      .find(filter)
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }); // Sort by newest first
@@ -81,7 +88,7 @@ export const updateProfile = async (req, res) => {
   try {
     // Get user ID from token (set by auth middleware)
     // Handle different possible field names from JWT token
-  
+
     const userId =
       req.user?.id || req.user?.userId || req.user?._id || req.user?.sub;
 
@@ -95,8 +102,6 @@ export const updateProfile = async (req, res) => {
         },
       });
     }
-
-
 
     const {
       name,
@@ -112,7 +117,6 @@ export const updateProfile = async (req, res) => {
       fullAddress,
       aboutMe,
       image,
-   
     } = req.body;
 
     // Check if user exists
@@ -122,7 +126,6 @@ export const updateProfile = async (req, res) => {
     if (!existingUser) {
       // Try to find if there are any users in the database
       const totalUsers = await userModel.countDocuments();
-
 
       return res.status(404).json({
         success: false,
@@ -360,5 +363,3 @@ export const deleteUser = async (req, res) => {
     });
   }
 };
-
-
