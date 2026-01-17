@@ -156,9 +156,9 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    // If userName is being updated, check if it's already used by another user
+    
     if (userName && userName.toLowerCase().trim() !== existingUser.userName) {
-      // Convert to lowercase for validation and storage
+     
       const normalizedUserName = userName.toLowerCase().trim();
 
       // Validate userName format - only lowercase letters, numbers, and underscore
