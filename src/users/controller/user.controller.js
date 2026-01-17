@@ -328,7 +328,6 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // Check if user exists
     const existingUser = await userModel.findById(id);
     if (!existingUser) {
       return res.status(404).json({
@@ -337,7 +336,7 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // Delete user's image if it exists
+    
     if (existingUser.image) {
       const imagePath = path.join(process.cwd(), existingUser.image);
       if (fs.existsSync(imagePath)) {
@@ -345,7 +344,6 @@ export const deleteUser = async (req, res) => {
       }
     }
 
-    // Delete user from database
     await userModel.findByIdAndDelete(id);
 
     return res.status(200).json({
