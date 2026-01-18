@@ -20,46 +20,16 @@ const collaborationSchema = new mongoose.Schema(
       required: [true, "Select Deal is required"],
     },
 
-   
-    payment: {
-      type: String,
-      required: [true, "Payment amount is required"],
-      trim: true,
-    },
-
-    
-    freeStay: {
-      type: Boolean,
-      default: false,
-    },
-
-    
-    numberOfNights: {
-      type: Number,
-      min: 1,
-      required: function () {
-        return this.freeStay === true;
-      },
-    },
-
-   
-    startDate: {
-      type: Date,
-      required: function () {
-        return this.freeStay === true;
-      },
-    },
-
-    endDate: {
-      type: Date,
-      required: function () {
-        return this.freeStay === true;
-      },
-    },
-
     status: {
       type: String,
-      enum: ["pending", "negotiating", "accepted", "rejected","ongoing", "completed"],
+      enum: [
+        "pending",
+        "negotiating",
+        "accepted",
+        "rejected",
+        "ongoing",
+        "completed",
+      ],
       default: "pending",
     },
 
@@ -80,7 +50,6 @@ const collaborationSchema = new mongoose.Schema(
       default: "",
     },
 
-   
     socialMediaLinks: {
       instagram: {
         type: String,
@@ -107,12 +76,11 @@ const collaborationSchema = new mongoose.Schema(
         trim: true,
         default: "",
       },
-
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export default mongoose.model("Collaboration", collaborationSchema);

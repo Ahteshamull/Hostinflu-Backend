@@ -34,13 +34,6 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-    if (!payment) {
-      return res.status(400).json({
-        message: "Payment amount is required",
-        error: "Invalid request",
-      });
-    }
-
     // Get the selected user's role to validate cross-role collaboration
     const selectedUser = await userModel.findById(selectInfluencerOrHost);
 
@@ -160,7 +153,7 @@ export const getAllCollaboration = async (req, res) => {
     const collaborations = await Collaborations.find(filter)
       .populate("selectInfluencerOrHost", "name email role")
       .populate("userId", "name email role")
-      .populate("selectDeal", "dealTitle")
+      .populate("selectDeal")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -304,7 +297,10 @@ export const getMyAllCollaborations = async (req, res) => {
       collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
         .populate("selectInfluencerOrHost", "name email role")
-        .populate("selectDeal", "dealTitle description")
+        .populate(
+          "selectDeal",
+          "dealTitle description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+        )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip(skip);
@@ -316,7 +312,10 @@ export const getMyAllCollaborations = async (req, res) => {
       collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
         .populate("selectInfluencerOrHost", "name email role")
-        .populate("selectDeal", "dealTitle description")
+        .populate(
+          "selectDeal",
+          "dealTitle description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+        )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip(skip);
@@ -328,7 +327,10 @@ export const getMyAllCollaborations = async (req, res) => {
       collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
         .populate("selectInfluencerOrHost", "name email role")
-        .populate("selectDeal", "dealTitle description")
+        .populate(
+          "selectDeal",
+          "dealTitle description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+        )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip(skip);

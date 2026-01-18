@@ -21,7 +21,7 @@ const deliverableSchema = new Schema(
       min: 1,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const dealSchema = new Schema(
@@ -106,7 +106,7 @@ const dealSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export default mongoose.model("Deal", dealSchema);
