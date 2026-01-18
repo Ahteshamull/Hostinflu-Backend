@@ -7,25 +7,22 @@ export const allUser = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { role } = req.query; // Get role from query params
+    const { role } = req.query; 
 
-    // Build filter object
+
     let filter = {};
     if (role) {
-      filter.role = role; // Filter by role if provided
+      filter.role = role;
     }
 
-    // Get total count of users with filter
     const totalUsers = await userModel.countDocuments(filter);
 
-    // Get users with pagination and filter
     const users = await userModel
       .find(filter)
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 }); // Sort by newest first
+      .sort({ createdAt: -1 }); 
 
-    // Calculate pagination info
     const totalPages = Math.ceil(totalUsers / limit);
 
     return res.status(200).json({
@@ -52,7 +49,6 @@ export const singleUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validate user ID
     if (!id) {
       return res.status(400).json({
         success: false,
@@ -60,7 +56,6 @@ export const singleUser = async (req, res) => {
       });
     }
 
-    // Find user by ID
     const user = await userModel.findById(id);
 
     if (!user) {
@@ -86,9 +81,6 @@ export const singleUser = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    // Get user ID from token (set by auth middleware)
-    // Handle different possible field names from JWT token
-
     const userId =
       req.user?.id || req.user?.userId || req.user?._id || req.user?.sub;
 
@@ -119,12 +111,9 @@ export const updateProfile = async (req, res) => {
       image,
     } = req.body;
 
-    // Check if user exists
-
     const existingUser = await userModel.findById(userId);
 
     if (!existingUser) {
-      // Try to find if there are any users in the database
       const totalUsers = await userModel.countDocuments();
 
       return res.status(404).json({
@@ -141,9 +130,7 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    // If email is being updated, check if it's already used by another user
     if (email && email !== existingUser.email) {
-      // Check for case-insensitive email uniqueness
       const emailExists = await userModel.findOne({
         email: email.toLowerCase(),
         _id: { $ne: userId },
@@ -196,11 +183,9 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    // Prepare update object - only include fields that are actually different
     const updateData = {};
     let hasChanges = false;
 
-    // Basic Information
     if (name !== undefined && name !== existingUser.name) {
       updateData.name = name;
       hasChanges = true;
@@ -237,7 +222,6 @@ export const updateProfile = async (req, res) => {
       hasChanges = true;
     }
 
-    // Location Information
     if (country !== undefined && country !== existingUser.country) {
       updateData.country = country;
       hasChanges = true;
@@ -268,14 +252,13 @@ export const updateProfile = async (req, res) => {
       hasChanges = true;
     }
 
-    // Handle image update (from request body or file upload)
-    if (image !== undefined && image !== existingUser.image) {
+      if (image !== undefined && image !== existingUser.image) {
       updateData.image = image;
       hasChanges = true;
     }
 
     if (req.file) {
-      // Delete old image if it exists
+ 
       if (existingUser.image) {
         const oldImagePath = path.join(process.cwd(), existingUser.image);
         if (fs.existsSync(oldImagePath)) {
@@ -286,7 +269,6 @@ export const updateProfile = async (req, res) => {
       hasChanges = true;
     }
 
-    // Check if there are any actual changes
     if (!hasChanges) {
       return res.status(200).json({
         success: true,
@@ -295,7 +277,7 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    // Update user
+
     const updatedUser = await userModel.findByIdAndUpdate(
       userId,
       { $set: updateData },
