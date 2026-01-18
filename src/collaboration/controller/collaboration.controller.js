@@ -278,7 +278,7 @@ export const getMyAllCollaborations = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, status } = req.query;
 
     if (!userId || !userRole) {
       return res.status(401).json({
@@ -291,10 +291,17 @@ export const getMyAllCollaborations = async (req, res) => {
     // Find collaborations based on user role
     let collaborations;
     let total;
+    let filter = {};
+
+    // Add status filter if provided
+    if (status) {
+      filter.status = status;
+    }
 
     if (userRole === "host") {
       // Host: Show collaborations they created
-      collaborations = await Collaborations.find({ userId: userId })
+      filter.userId = userId;
+      collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
         .populate("selectInfluencerOrHost", "name email role")
         .populate("selectDeal", "dealTitle description")
@@ -302,12 +309,11 @@ export const getMyAllCollaborations = async (req, res) => {
         .limit(limit * 1)
         .skip(skip);
 
-      total = await Collaborations.countDocuments({ userId: userId });
+      total = await Collaborations.countDocuments(filter);
     } else if (userRole === "influencer") {
       // Influencer: Show collaborations where they are selected
-      collaborations = await Collaborations.find({
-        selectInfluencerOrHost: userId,
-      })
+      filter.selectInfluencerOrHost = userId;
+      collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
         .populate("selectInfluencerOrHost", "name email role")
         .populate("selectDeal", "dealTitle description")
@@ -315,14 +321,11 @@ export const getMyAllCollaborations = async (req, res) => {
         .limit(limit * 1)
         .skip(skip);
 
-      total = await Collaborations.countDocuments({
-        selectInfluencerOrHost: userId,
-      });
+      total = await Collaborations.countDocuments(filter);
     } else {
       // Other roles: Show both types
-      collaborations = await Collaborations.find({
-        $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
-      })
+      filter.$or = [{ userId: userId }, { selectInfluencerOrHost: userId }];
+      collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
         .populate("selectInfluencerOrHost", "name email role")
         .populate("selectDeal", "dealTitle description")
@@ -330,9 +333,7 @@ export const getMyAllCollaborations = async (req, res) => {
         .limit(limit * 1)
         .skip(skip);
 
-      total = await Collaborations.countDocuments({
-        $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
-      });
+      total = await Collaborations.countDocuments(filter);
     }
 
     // Add action permissions to each collaboration
@@ -494,7 +495,7 @@ export const updateCollaboration = async (req, res) => {
     const updatedCollaboration = await Collaborations.findByIdAndUpdate(
       id,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .populate("selectInfluencerOrHost", "name email")
       .populate("selectDeal", "dealTitle");
@@ -725,7 +726,7 @@ export const userPersonalEarnStar = async (req, res) => {
     // Calculate total night credits for the year
     const totalNightCredits = monthlyData.reduce(
       (total, month) => total + month.nightCredits,
-      0
+      0,
     );
 
     res.status(200).json({
@@ -937,7 +938,7 @@ export const createNegotiationCollaboration = async (req, res) => {
         notificationRecipientId,
         collaborationId,
         negotiatorName,
-        negotiationMessage || "New negotiation proposal"
+        negotiationMessage || "New negotiation proposal",
       );
     } catch (notificationError) {
       // Continue with response even if notification fails
@@ -969,7 +970,7 @@ const createNegotiationNotification = async (
   recipientId,
   collaborationId,
   senderName,
-  message
+  message,
 ) => {
   try {
     // Create notification for negotiation action
@@ -1110,14 +1111,14 @@ export const updateNegotiateStatus = async (req, res) => {
         actualStatus === "rejected"
           ? "rejected"
           : actualStatus === "accepted" || actualStatus === "accept"
-          ? "accepted"
-          : "updated",
+            ? "accepted"
+            : "updated",
       message:
         actualStatus === "rejected"
           ? "Negotiation rejected"
           : actualStatus === "accepted" || actualStatus === "accept"
-          ? "Negotiation accepted"
-          : "Status updated",
+            ? "Negotiation accepted"
+            : "Status updated",
       reason:
         actualReason ||
         (actualStatus === "rejected" ? "No reason provided" : undefined),
@@ -1180,8 +1181,8 @@ export const updateNegotiateStatus = async (req, res) => {
         actualStatus === "rejected"
           ? `Rejected: ${actualReason || "No reason provided"}`
           : actualStatus === "accepted" || actualStatus === "accept"
-          ? "Accepted collaboration"
-          : "Updated negotiation status"
+            ? "Accepted collaboration"
+            : "Updated negotiation status",
       );
     } catch (notificationError) {
       // Continue with response even if notification fails
@@ -1213,7 +1214,7 @@ export const acceptOrRejectCollaboration = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: true,
-        message: "Collaboration ID is required",
+        message: "Collaboration ID is needed",
       });
     }
 
@@ -1230,7 +1231,7 @@ export const acceptOrRejectCollaboration = async (req, res) => {
       return res.status(404).json({
         success: false,
         error: true,
-        message: "Collaboration not found",
+        message: "Collaboration not available",
       });
     }
 
@@ -1275,7 +1276,7 @@ export const acceptOrRejectCollaboration = async (req, res) => {
         updaterName,
         action === "reject"
           ? `Rejected: ${reason || "No reason provided"}`
-          : "Accepted collaboration"
+          : "Accepted collaboration",
       );
     } catch (notificationError) {
       // Continue with response even if notification fails
