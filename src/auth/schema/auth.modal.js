@@ -93,6 +93,21 @@ const userSchema = new Schema(
       type: String,
     },
 
+    isFounderMember: {
+      type: Boolean,
+      default: true, // First 50 members are true by default
+    },
+
+    isNoMember: {
+      type: Number,
+      default: 0,
+    },
+
+    totalUsersAtRegistration: {
+      type: Number,
+      default: 0,
+    },
+
     nicheTags: {
       type: [String],
       enum: [

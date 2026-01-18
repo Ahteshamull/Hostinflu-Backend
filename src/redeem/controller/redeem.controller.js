@@ -70,7 +70,10 @@ export const getUserRedeemStars = async (req, res) => {
       populate: [
         { path: "userId", select: "name email role" },
         { path: "selectInfluencerOrHost", select: "name email role" },
-        { path: "selectDeal", select: "description" },
+        {
+          path: "selectDeal",
+          select: "dealTitle description compensation status",
+        },
       ],
     });
 
@@ -83,7 +86,7 @@ export const getUserRedeemStars = async (req, res) => {
 
     // Filter only valid redeem stars (with collaborationId and stars)
     const validRedeemStars = user.redeemStars.filter(
-      (item) => item.collaborationId && item.stars
+      (item) => item.collaborationId && item.stars,
     );
 
     // Format the response
@@ -145,7 +148,7 @@ export const getUserRedeemStars = async (req, res) => {
         redeemStars: formattedRedeemStars,
         totalStars: formattedRedeemStars.reduce(
           (sum, item) => sum + item.stars,
-          0
+          0,
         ),
       },
     });

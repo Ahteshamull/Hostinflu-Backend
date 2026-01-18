@@ -80,7 +80,17 @@ export const singleUser = async (req, res) => {
         path: "redeemStars",
         populate: {
           path: "collaborationId",
-          select: "status negotiationStatus paymentStatus",
+          populate: [
+            { path: "userId", select: "name email role image _id" },
+            {
+              path: "selectInfluencerOrHost",
+              select: "name email role image _id",
+            },
+            {
+              path: "selectDeal",
+              
+            },
+          ],
         },
       });
 

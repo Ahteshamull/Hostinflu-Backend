@@ -88,6 +88,11 @@ export const createUser = async (req, res) => {
   }
 
   try {
+    // Check total users to determine if this is a founder member
+    const totalUsers = await userModel.countDocuments();
+    const isFounderMember = totalUsers < 50; // First 50 users are founder members 👑
+    const isNoMember = totalUsers >= 50; // Users 50+ are no members
+
     bcrypt.hash(password, 10, async function (err, hash) {
       if (err) {
         return res.status(500).send({
@@ -102,6 +107,9 @@ export const createUser = async (req, res) => {
           password: hash,
           confirmPassword: hash,
           role,
+          isFounderMember, // 👑 Founder Member for first 50 users
+          isNoMember,
+          totalUsersAtRegistration: totalUsers, // Save total users count at registration
         });
 
         await user.save();
@@ -109,10 +117,16 @@ export const createUser = async (req, res) => {
         // Send notification to admin about new user registration
         await notifyAdminOnUserCreated(user._id, user.name, user.email);
 
+        // Populate user data with collaborations
+        const populatedUser = await userModel
+          .findById(user._id)
+          .populate("collaborations")
+          .populate("redeemStars.collaborationId");
+
         return res.status(201).send({
           success: true,
           message: "User Created Successfully",
-          data: user,
+          data: populatedUser,
         });
       }
     });
@@ -169,7 +183,7 @@ export const getMyProfile = async (req, res) => {
         status: { $ne: "rejected" },
       }).select("_id");
       activeListings = existingListings.map((listing) =>
-        listing._id.toString()
+        listing._id.toString(),
       );
     }
 
@@ -181,7 +195,7 @@ export const getMyProfile = async (req, res) => {
         status: { $ne: "rejected" },
       }).select("_id");
       activeCollaborations = existingCollaborations.map((collab) =>
-        collab._id.toString()
+        collab._id.toString(),
       );
     }
 
@@ -226,7 +240,7 @@ export const login = async (req, res) => {
   // 🔑 Find user by email OR username (SAFE QUERY)
   const existingUser = await userModel.findOne({
     $or: [email ? { email } : null, userName ? { userName } : null].filter(
-      Boolean
+      Boolean,
     ),
   });
 
@@ -248,9 +262,8 @@ export const login = async (req, res) => {
   }
 
   // Generate access and refresh tokens
-  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
-    existingUser
-  );
+  const { accessToken, refreshToken } =
+    await generateAccessAndRefreshToken(existingUser);
 
   const loginUserInfo = {
     id: existingUser._id,
@@ -293,7 +306,7 @@ export const logout = async (req, res) => {
     try {
       const decoded = jwt.verify(
         refreshToken,
-        process.env.REFRESH_TOKEN_SECRET || process.env.PRV_TOKEN
+        process.env.REFRESH_TOKEN_SECRET || process.env.PRV_TOKEN,
       );
       await userModel.findByIdAndUpdate(decoded._id, {
         $unset: { refreshToken: 1 },
@@ -383,7 +396,7 @@ export const verifyOtp = async (req, res) => {
       purpose: "password-reset",
     },
     process.env.RESET_TOKEN_SECRET || "secret123",
-    { expiresIn: "10m" }
+    { expiresIn: "10m" },
   );
 
   return res.json({
@@ -430,7 +443,7 @@ export const resetPassword = async (req, res) => {
   try {
     decoded = jwt.verify(
       resetToken,
-      process.env.RESET_TOKEN_SECRET || "secret123"
+      process.env.RESET_TOKEN_SECRET || "secret123",
     );
   } catch (err) {
     return res
@@ -458,7 +471,7 @@ export const resetPassword = async (req, res) => {
   try {
     await sendOtp.sendPasswordResetConfirmation(
       user.email,
-      user.name || "User"
+      user.name || "User",
     );
   } catch (emailError) {
     console.error("Password reset email failed:", emailError);
@@ -537,7 +550,7 @@ const generateAccessAndRefreshToken = async (user) => {
       role: user.role,
     },
     process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN,
-    { expiresIn: "1d" }
+    { expiresIn: "1d" },
   );
 
   const refreshToken = jwt.sign(
@@ -546,7 +559,7 @@ const generateAccessAndRefreshToken = async (user) => {
       role: user.role,
     },
     process.env.REFRESH_TOKEN_SECRET || process.env.PRV_TOKEN,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 
   // Save refresh token to user
@@ -569,7 +582,7 @@ export const refreshAccessToken = async (req, res) => {
   try {
     const decodedToken = jwt.verify(
       incomingRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET || process.env.PRV_TOKEN
+      process.env.REFRESH_TOKEN_SECRET || process.env.PRV_TOKEN,
     );
 
     const user = await userModel.findById(decodedToken?._id);
@@ -628,7 +641,7 @@ export const changePassword = async (req, res) => {
   try {
     decoded = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN
+      process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN,
     );
   } catch (err) {
     return res.status(401).json({ error: true, message: "Invalid token" });
@@ -654,7 +667,7 @@ export const changePassword = async (req, res) => {
   // Verify current password
   const isCurrentPasswordValid = await bcrypt.compare(
     currentPassword,
-    user.password
+    user.password,
   );
   if (!isCurrentPasswordValid) {
     return res
@@ -686,7 +699,7 @@ export const currentUserLogin = async (req, res) => {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN
+      process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN,
     );
 
     const user = await userModel.findById(decoded._id);
