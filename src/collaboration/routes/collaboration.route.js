@@ -87,7 +87,7 @@ router.delete(
   deleteCollaboration
 );
 
-//localhost:3000/api/v1/collaboration/get-my-all-collaborations
+//localhost:3000/api/v1/collaboration/get-my-all-collaborations?status=pending
 router.get(
   "/get-my-all-collaborations",
   authenticateToken,
