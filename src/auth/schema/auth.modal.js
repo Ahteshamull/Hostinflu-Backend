@@ -86,6 +86,13 @@ const userSchema = new Schema(
     bio: {
       type: String,
     },
+    addAsocialMediaLink: {
+      type: String,
+    },
+    addYourSocialFollowers: {
+      type: String,
+    },
+
     nicheTags: {
       type: [String],
       enum: [
@@ -177,7 +184,7 @@ const userSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export default mongoose.model("User", userSchema);
