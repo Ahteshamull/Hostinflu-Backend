@@ -10,7 +10,7 @@ import {
 /**
  * Create a new message
  */
-const new_message_IntoDb = async (user, data, files = null) => {
+const new_message_IntoDb = async (user, data, files = null, req = null) => {
   if (!user?.id) {
     throw new Error("User ID not found in token");
   }
@@ -65,10 +65,22 @@ const new_message_IntoDb = async (user, data, files = null) => {
   }
 
   // Handle uploaded images using same pattern as user controller
-  const images =
-    files && files.length > 0
-      ? files.map((item) => `${process.env.IMAGE_URL}${item.filename}`)
-      : data.imageUrl || [];
+  // Handle uploaded images with type
+  let images = [];
+  if (files && files.length > 0) {
+    images = files.map((file) => ({
+      url: `/uploads/${file.filename}`,
+      type: file.mimetype?.startsWith("image/")
+        ? "image"
+        : file.mimetype?.startsWith("video/")
+          ? "video"
+          : file.mimetype?.startsWith("audio/")
+            ? "audio"
+            : "file",
+      filename: file.filename,
+      size: file.size,
+    }));
+  }
 
   // Save message
   const messageData = {
@@ -83,13 +95,13 @@ const new_message_IntoDb = async (user, data, files = null) => {
   // Update conversation last message
   await conversations.updateOne(
     { _id: conversation._id },
-    { lastMessage: saveMessage._id }
+    { lastMessage: saveMessage._id },
   );
 
   // Prepare populated message payload (resolve sender as User)
   let sender = await userModal.findById(
     saveMessage.msgByUserId,
-    "name image email"
+    "name image email",
   );
 
   const updatedMsg = {
@@ -114,7 +126,7 @@ const updateMessageById_IntoDb = async (messageId, updateData) => {
     const updated = await messages.findByIdAndUpdate(
       messageId,
       { $set: updateData },
-      { new: true, session }
+      { new: true, session },
     );
     if (!updated) {
       throw new Error("Message not found");
@@ -123,7 +135,7 @@ const updateMessageById_IntoDb = async (messageId, updateData) => {
     await conversations.updateMany(
       { lastMessage: messageId },
       { $set: { lastMessage: updated._id } },
-      { session }
+      { session },
     );
 
     await session.commitTransaction();
@@ -223,13 +235,13 @@ const findBySpecificConversationInDb = async (conversationId, query) => {
       allmessage.map(async (msg) => {
         let sender = await userModal.findById(
           msg.msgByUserId,
-          "name image email"
+          "name image email",
         );
         return {
           ...msg.toObject(),
           msgByUserId: sender || { _id: msg.msgByUserId },
         };
-      })
+      }),
     );
 
     return { meta, allmessage: populated };
@@ -266,7 +278,7 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
     // Check if receiver has proper role
     if (receiver.role !== "host" && receiver.role !== "influencer") {
       throw new Error(
-        `Receiver must be a host or influencer. Current role: ${receiver.role}`
+        `Receiver must be a host or influencer. Current role: ${receiver.role}`,
       );
     }
 
@@ -285,10 +297,22 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
     }
 
     // Handle uploaded images using same pattern as user controller
-    const images =
-      files && files.length > 0
-        ? files.map((item) => `${process.env.IMAGE_URL}${item.filename}`)
-        : data.imageUrl || [];
+    // Handle uploaded images with type
+    let images = [];
+    if (files && files.length > 0) {
+      images = files.map((file) => ({
+        url: `/uploads/${file.filename}`,
+        type: file.mimetype?.startsWith("image/")
+          ? "image"
+          : file.mimetype?.startsWith("video/")
+            ? "video"
+            : file.mimetype?.startsWith("audio/")
+              ? "audio"
+              : "file",
+        filename: file.filename,
+        size: file.size,
+      }));
+    }
 
     const messageData = {
       text: data.text?.trim() || "",
@@ -304,7 +328,7 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
     // Update conversation with last message
     const updateResult = await conversations.updateOne(
       { _id: conversation._id },
-      { lastMessage: savedMessage._id, updatedAt: new Date() }
+      { lastMessage: savedMessage._id, updatedAt: new Date() },
     );
 
     // Get the full message with populated sender info
@@ -394,13 +418,9 @@ const get_all_conversations_for_user = async (userId, query) => {
       .skip(skip)
       .limit(limit);
 
-   
-
     const total = await conversations.countDocuments({
       participants: { $in: [userId] },
     });
-
-
 
     return {
       conversations: conversationsList,

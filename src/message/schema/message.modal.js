@@ -1,5 +1,28 @@
 import { Schema, model } from "mongoose";
 
+const fileSchema = new Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["image", "video", "audio", "file"],
+      default: "image",
+    },
+    filename: {
+      type: String,
+      required: true,
+    },
+    size: {
+      type: Number,
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
 const messageSchema = new Schema(
   {
     text: {
@@ -7,7 +30,7 @@ const messageSchema = new Schema(
       default: "",
     },
     imageUrl: {
-      type: [String],
+      type: [fileSchema],
       default: [],
     },
     audioUrl: {
@@ -34,7 +57,7 @@ const messageSchema = new Schema(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 const messages = model("messages", messageSchema);

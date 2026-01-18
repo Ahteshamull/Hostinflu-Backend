@@ -2,10 +2,8 @@ import express from "express";
 import {
   allUser,
   singleUser,
- 
   updateProfile,
   deleteUser,
-
 } from "../controller/user.controller.js";
 import {
   upload,
@@ -20,20 +18,16 @@ router.get("/all-users", allUser);
 //localhost:3000/api/v1/user/single-user/:id
 router.get("/single-user/:id", singleUser);
 
-
-
 //localhost:3000/api/v1/user/update-profile - Update own profile (gets ID from token)
 router.patch(
   "/update-profile",
   authenticateToken,
   upload.single("image"),
   errorCheck,
-  updateProfile
+  updateProfile,
 );
 
 //localhost:3000/api/v1/user/delete-user/:id
 router.delete("/delete-user/:id", deleteUser);
-
-
 
 export default router;
