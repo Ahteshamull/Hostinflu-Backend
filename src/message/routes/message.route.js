@@ -14,7 +14,6 @@ const parseFilesMiddleware = (fields) => (req, _res, next) => {
     } else if (req.body && typeof req.body === "string") {
       req.body = JSON.parse(req.body);
     }
-    // If req.body is already an object, leave it as is
 
     next();
   } catch (error) {
