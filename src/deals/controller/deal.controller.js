@@ -164,6 +164,7 @@ export const completeDeal = async (req, res) => {
     await userModel.findByIdAndUpdate(userId, {
       $push: { completeDeals: dealId },
       $inc: { completeDealsTotal: 1 },
+      $inc: { completedCollaborationsCount: 1 }, // Add completed collaborations count
     });
 
     res.status(200).json({

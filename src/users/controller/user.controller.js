@@ -7,8 +7,7 @@ export const allUser = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { role } = req.query; 
-
+    const { role } = req.query;
 
     let filter = {};
     if (role) {
@@ -21,7 +20,7 @@ export const allUser = async (req, res) => {
       .find(filter)
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 }); 
+      .sort({ createdAt: -1 });
 
     const totalPages = Math.ceil(totalUsers / limit);
 
@@ -56,7 +55,34 @@ export const singleUser = async (req, res) => {
       });
     }
 
-    const user = await userModel.findById(id);
+    const user = await userModel
+      .findById(id)
+      .populate({
+        path: "collaborations",
+        populate: [
+          { path: "userId", select: "name email role" },
+          { path: "selectInfluencerOrHost", select: "name email role" },
+          {
+            path: "selectDeal",
+            select: "dealTitle description compensation status",
+          },
+        ],
+      })
+      .populate({
+        path: "deals",
+        populate: { path: "title", select: "title description" },
+      })
+      .populate({
+        path: "listings",
+        select: "title description price status",
+      })
+      .populate({
+        path: "redeemStars",
+        populate: {
+          path: "collaborationId",
+          select: "status negotiationStatus paymentStatus",
+        },
+      });
 
     if (!user) {
       return res.status(404).json({
@@ -65,10 +91,31 @@ export const singleUser = async (req, res) => {
       });
     }
 
+    // Calculate completed collaborations count from both collaborations and redeemStars
+    const completedFromCollaborations = user.collaborations.filter(
+      (collab) => collab.status === "completed",
+    );
+
+    const completedFromRedeemStars = user.redeemStars.filter(
+      (redeemStar) =>
+        redeemStar.collaborationId &&
+        redeemStar.collaborationId.status === "completed",
+    );
+
+    // Use the higher count between the two sources
+    const completedCollaborationsCount = Math.max(
+      completedFromCollaborations.length,
+      completedFromRedeemStars.length,
+    );
+
+    // Add completed collaborations count to user data
+    const userData = user.toObject();
+    userData.completedCollaborationsCount = completedCollaborationsCount;
+
     return res.status(200).json({
       success: true,
       message: "User retrieved successfully",
-      data: user,
+      data: userData,
     });
   } catch (error) {
     return res.status(500).json({
@@ -109,6 +156,8 @@ export const updateProfile = async (req, res) => {
       fullAddress,
       aboutMe,
       image,
+      addAsocialMediaLink,
+      addYourSocialFollowers,
     } = req.body;
 
     const existingUser = await userModel.findById(userId);
@@ -143,9 +192,7 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    
     if (userName && userName.toLowerCase().trim() !== existingUser.userName) {
-     
       const normalizedUserName = userName.toLowerCase().trim();
 
       if (!/^[a-z0-9_]+$/.test(normalizedUserName)) {
@@ -169,7 +216,6 @@ export const updateProfile = async (req, res) => {
           message: "Username must not exceed 20 characters",
         });
       }
-
 
       const userNameExists = await userModel.findOne({
         userName: normalizedUserName,
@@ -252,13 +298,31 @@ export const updateProfile = async (req, res) => {
       hasChanges = true;
     }
 
-      if (image !== undefined && image !== existingUser.image) {
+    if (image !== undefined && image !== existingUser.image) {
       updateData.image = image;
       hasChanges = true;
     }
 
+    // Only allow social media updates for influencers
+    if (existingUser.role === "influencer") {
+      if (
+        addAsocialMediaLink !== undefined &&
+        addAsocialMediaLink !== existingUser.addAsocialMediaLink
+      ) {
+        updateData.addAsocialMediaLink = addAsocialMediaLink;
+        hasChanges = true;
+      }
+
+      if (
+        addYourSocialFollowers !== undefined &&
+        addYourSocialFollowers !== existingUser.addYourSocialFollowers
+      ) {
+        updateData.addYourSocialFollowers = addYourSocialFollowers;
+        hasChanges = true;
+      }
+    }
+
     if (req.file) {
- 
       if (existingUser.image) {
         const oldImagePath = path.join(process.cwd(), existingUser.image);
         if (fs.existsSync(oldImagePath)) {
@@ -277,11 +341,10 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-
     const updatedUser = await userModel.findByIdAndUpdate(
       userId,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     return res.status(200).json({
@@ -318,7 +381,6 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    
     if (existingUser.image) {
       const imagePath = path.join(process.cwd(), existingUser.image);
       if (fs.existsSync(imagePath)) {
