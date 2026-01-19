@@ -2,7 +2,6 @@ import userModel from "../../auth/schema/auth.modal.js";
 import fs from "fs";
 import path from "path";
 import Collaborations from "../../collaboration/schema/collaboration.modal.js";
-import { Listing } from "../../listing/schema/listing.modal.js";
 
 export const allUser = async (req, res) => {
   try {
