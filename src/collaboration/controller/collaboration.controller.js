@@ -1353,48 +1353,4 @@ export const getCollaborationsByUser = async (req, res) => {
   }
 };
 
-export const getCompletedCollaborationsByUser = async (req, res) => {
-  try {
-    const { userId } = req.params;
 
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "User ID is required",
-      });
-    }
-
-    const completedCollaborations = await Collaborations.find({
-      $or: [
-        { userId: userId, status: "completed" },
-        { selectInfluencerOrHost: userId, status: "completed" },
-      ],
-    })
-      .populate("selectInfluencerOrHost", "name email role")
-      .populate("userId", "name email role")
-      .populate({
-        path: "selectDeal",
-        populate: {
-          path: "selectListing",
-          model: "Listing",
-          select:
-            "title description images location propertyType amenities customAmenities",
-          strictPopulate: false,
-        },
-      })
-      .sort({ updatedAt: -1 });
-
-    return res.status(200).json({
-      success: true,
-      message: "Completed collaborations retrieved successfully",
-      count: completedCollaborations.length,
-      data: completedCollaborations,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to retrieve completed collaborations",
-      error: error.message,
-    });
-  }
-};

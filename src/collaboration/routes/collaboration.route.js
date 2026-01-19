@@ -17,7 +17,6 @@ import {
   allNegotiationCollaborations,
   updateNegotiateStatus,
   acceptOrRejectCollaboration,
-  getCompletedCollaborationsByUser,
   getCollaborationsByUser,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
@@ -128,11 +127,7 @@ router.put(
   acceptOrRejectCollaboration,
 );
 
-//localhost:3000/api/v1/collaboration/get-complete-collaboration-user/:userId
-router.get(
-  "/get-complete-collaboration-user/:userId",
-  getCompletedCollaborationsByUser,
-);
+
 
 //localhost:3000/api/v1/collaboration/get-collaboration-user/:userId?status=complete
 router.get("/get-collaboration-user/:userId", getCollaborationsByUser);

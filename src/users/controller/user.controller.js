@@ -172,10 +172,7 @@ export const singleUser = async (req, res) => {
           negotiating: buildStatus("negotiating"),
           accepted: buildStatus("accepted"),
           ongoing: buildStatus("ongoing"),
-          completed: {
-            ...buildStatus("completed"),
-            details: completedCollaborations,
-          },
+          completed: buildStatus("completed"),
           rejected: buildStatus("rejected"),
         },
       },
