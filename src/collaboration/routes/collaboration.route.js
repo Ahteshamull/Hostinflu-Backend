@@ -17,6 +17,8 @@ import {
   allNegotiationCollaborations,
   updateNegotiateStatus,
   acceptOrRejectCollaboration,
+  getCompletedCollaborationsByUser,
+  getCollaborationsByUser,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -28,7 +30,7 @@ router.post(
   "/create-collaboration",
   authenticateToken,
   requireHostOrInfluencerRole,
-  createCollaboration
+  createCollaboration,
 );
 
 //localhost:3000/api/v1/collaboration/get-all-collaboration (user only)
@@ -42,7 +44,7 @@ router.put(
   "/update-collaboration/:id",
   authenticateToken,
   requireHostOrInfluencerRole,
-  updateCollaboration
+  updateCollaboration,
 );
 
 //localhost:3000/api/v1/collaboration/active-collaborations
@@ -55,28 +57,28 @@ router.get("/completed-collaborations", completedCollaborations);
 router.get(
   "/user-personal-total-collaborations",
   authenticateToken,
-  userPersonalTotalCollaborations
+  userPersonalTotalCollaborations,
 );
 
 //localhost:3000/api/v1/collaboration/user-personal-completed-contents
 router.get(
   "/user-personal-completed-contents",
   authenticateToken,
-  userPersonalCompleteContents
+  userPersonalCompleteContents,
 );
 
 //localhost:3000/api/v1/collaboration/user-personal-earn-stars
 router.get(
   "/user-personal-earn-stars",
   authenticateToken,
-  userPersonalEarnStar
+  userPersonalEarnStar,
 );
 
 //localhost:3000/api/v1/collaboration/user-personal-collaborations-growth
 router.get(
   "/user-personal-collaborations-growth",
   authenticateToken,
-  userPersonalCollaborationsGrowth
+  userPersonalCollaborationsGrowth,
 );
 
 //localhost:3000/api/v1/collaboration/delete-collaboration/:id
@@ -84,14 +86,14 @@ router.delete(
   "/delete-collaboration/:id",
   authenticateToken,
   requireHostOrInfluencerRole,
-  deleteCollaboration
+  deleteCollaboration,
 );
 
 //localhost:3000/api/v1/collaboration/get-my-all-collaborations?status=pending
 router.get(
   "/get-my-all-collaborations",
   authenticateToken,
-  getMyAllCollaborations
+  getMyAllCollaborations,
 );
 
 //localhost:3000/api/v1/collaboration/create-negotiation/:collaborationId
@@ -99,7 +101,7 @@ router.put(
   "/create-negotiation/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,
-  createNegotiationCollaboration
+  createNegotiationCollaboration,
 );
 
 //localhost:3000/api/v1/collaboration/update-negotiation-status/:collaborationId
@@ -107,7 +109,7 @@ router.put(
   "/update-negotiation-status/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,
-  updateNegotiateStatus
+  updateNegotiateStatus,
 );
 
 //localhost:3000/api/v1/collaboration/all-negotiations
@@ -115,7 +117,7 @@ router.get(
   "/all-negotiations",
   authenticateToken,
   requireHostOrInfluencerRole,
-  allNegotiationCollaborations
+  allNegotiationCollaborations,
 );
 
 //localhost:3000/api/v1/collaboration/accept-or-reject-collaboration/:collaborationId
@@ -123,7 +125,16 @@ router.put(
   "/accept-or-reject-collaboration/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,
-  acceptOrRejectCollaboration
+  acceptOrRejectCollaboration,
 );
+
+//localhost:3000/api/v1/collaboration/get-complete-collaboration-user/:userId
+router.get(
+  "/get-complete-collaboration-user/:userId",
+  getCompletedCollaborationsByUser,
+);
+
+//localhost:3000/api/v1/collaboration/get-collaboration-user/:userId?status=complete
+router.get("/get-collaboration-user/:userId", getCollaborationsByUser);
 
 export default router;
