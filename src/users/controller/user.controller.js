@@ -1,6 +1,8 @@
 import userModel from "../../auth/schema/auth.modal.js";
 import fs from "fs";
 import path from "path";
+import Collaborations from "../../collaboration/schema/collaboration.modal.js";
+import { Listing } from "../../listing/schema/listing.modal.js";
 
 export const allUser = async (req, res) => {
   try {
@@ -55,140 +57,187 @@ export const singleUser = async (req, res) => {
       });
     }
 
-    const user = await userModel
+    const userData = await userModel
       .findById(id)
+      .select("-password -confirmPassword -refreshToken")
       .populate({
         path: "collaborations",
         populate: [
-          { path: "userId", select: "name email role" },
-          { path: "selectInfluencerOrHost", select: "name email role" },
+          {
+            path: "selectInfluencerOrHost",
+            select: "name email role",
+          },
           {
             path: "selectDeal",
-            select: "dealTitle description compensation status images _id",
+            select:
+              "description compensation addAirbnbLink inTimeAndDate outTimeAndDate guestCount deliverables status",
+            populate: {
+              path: "selectListing",
+              model: "Listing",
+              select:
+                "title description images location propertyType amenities customAmenities",
+              strictPopulate: false,
+            },
+          },
+          {
+            path: "userId",
+            select: "name email role",
           },
         ],
-      })
-      .populate({
-        path: "deals",
-        populate: {
-          path: "title",
-          select: "title description compensation status images location",
-        },
-      })
-      .populate({
-        path: "listings",
-        populate: { path: "title", select: "title description price status" },
-      })
-      .populate({
-        path: "redeemStars",
-        populate: {
-          path: "collaborationId",
-          populate: [
-            { path: "userId", select: "name email role image _id" },
-            {
-              path: "selectInfluencerOrHost",
-              select: "name email role image _id",
-            },
-            {
-              path: "selectDeal",
-              populate: {
-                path: "title",
-                select: "title description compensation status images _id",
-              },
-              select: "status negotiationStatus paymentStatus",
-            },
-          ],
-        },
       });
 
-    if (!user) {
+    // Get collaboration statistics
+    const collaborationStats = await Collaborations.aggregate([
+      {
+        $match: {
+          $or: [
+            { userId: userData._id },
+            { selectInfluencerOrHost: userData._id },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+          totalCompensation: { $sum: "$payment" },
+          totalNights: { $sum: "$numberOfNights" },
+          avgCompensation: { $avg: "$payment" },
+          avgNights: { $avg: "$numberOfNights" },
+        },
+      },
+    ]);
+
+    // Get detailed completed collaboration information
+    const completedCollaborationsDetails = await Collaborations.find({
+      $or: [
+        { userId: userData._id, status: "completed" },
+        { selectInfluencerOrHost: userData._id, status: "completed" },
+      ],
+    })
+      .populate("selectInfluencerOrHost", "name email role")
+      .populate({
+        path: "selectDeal",
+        populate: {
+          path: "selectListing",
+          model: "Listing",
+          select:
+            "title description images location propertyType amenities customAmenities",
+          strictPopulate: false,
+        },
+      })
+      .populate("userId", "name email role")
+      .select(
+        "status payment numberOfNights createdAt updatedAt selectInfluencerOrHost selectDeal userId",
+      );
+
+    // Debug: Log the first completed collaboration to see what's populated
+  
+
+    // Manual population: Fetch listing data for each completed collaboration
+    const completedCollaborationsWithListing = await Promise.all(
+      completedCollaborationsDetails.map(async (collab) => {
+        if (collab.selectDeal && collab.selectDeal.selectListing) {
+          try {
+            const listingData = await Listing.findById(
+              collab.selectDeal.selectListing,
+            ).select(
+              "title description images location propertyType amenities customAmenities",
+            );
+
+            return {
+              ...collab.toObject(),
+              selectDeal: {
+                ...collab.selectDeal.toObject(),
+                selectListing: listingData,
+              },
+            };
+          } catch (error) {
+            console.log("Error fetching listing:", error);
+            return collab;
+          }
+        }
+        return collab;
+      }),
+    );
+
+    // Format collaboration stats
+    const stats = {};
+    collaborationStats.forEach((stat) => {
+      stats[stat._id] = {
+        count: stat.count,
+        totalCompensation: stat.totalCompensation || 0,
+        totalNights: stat.totalNights || 0,
+        avgCompensation: stat.avgCompensation || 0,
+        avgNights: stat.avgNights || 0,
+      };
+    });
+
+    if (!userData) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
-    // Calculate completed collaborations
-    const completedCollaborationsCount = Math.max(
-      user.collaborations?.filter((c) => c.status === "completed").length || 0,
-      user.redeemStars?.filter((r) => r.collaborationId?.status === "completed")
-        .length || 0,
-    );
-
-    // Map deals safely
-    const dealsData =
-      user.deals?.map((deal) => ({
-        _id: deal._id,
-        title: deal.title?.title || deal.title || "",
-        description: deal.title?.description || deal.description || "",
-        images: deal.title?.images || deal.images || [],
-        location: deal.title?.location || deal.location || "",
-        compensation: deal.compensation || 0,
-        status: deal.status || "pending",
-        addAirbnbLink: deal.addAirbnbLink || null,
-        inTimeAndDate: deal.inTimeAndDate || null,
-        outTimeAndDate: deal.outTimeAndDate || null,
-        guestCount: deal.guestCount || 0,
-        deliverables: deal.deliverables || [],
-        createdAt: deal.createdAt,
-        updatedAt: deal.updatedAt,
-      })) || [];
-
-    // Map redeemStars safely
-    const redeemStarsData =
-      user.redeemStars?.map((star) => ({
-        _id: star._id,
-        stars: star.stars || 0,
-        createdAt: star.createdAt,
-        collaborationId: star.collaborationId
-          ? {
-              _id: star.collaborationId._id,
-              status: star.collaborationId.status || "pending",
-              negotiationStatus:
-                star.collaborationId.negotiationStatus || "pending",
-              paymentStatus: star.collaborationId.paymentStatus || "pending",
-              selectDeal: star.collaborationId.selectDeal
-                ? {
-                    _id: star.collaborationId.selectDeal._id,
-                    title: star.collaborationId.selectDeal.title?.title || "",
-                    description:
-                      star.collaborationId.selectDeal.title?.description || "",
-                    compensation:
-                      star.collaborationId.selectDeal.compensation || 0,
-                    images: star.collaborationId.selectDeal.title?.images || [],
-                  }
-                : null,
-            }
-          : null,
-      })) || [];
-
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      userName: user.userName,
-      role: user.role,
-      image: user.image,
-      phone: user.phone,
-      country: user.country,
-      city: user.city,
-      status: user.status,
-      isFounderMember: user.isFounderMember,
-      isNoMember: user.isNoMember,
-      totalUsersAtRegistration: user.totalUsersAtRegistration,
-      collaborationsTotal: user.collaborationsTotal,
-      dealsTotal: user.dealsTotal,
-      listingsTotal: user.listingsTotal,
-      completeDealsTotal: user.completeDealsTotal,
-      deals: dealsData,
-      redeemStars: redeemStarsData,
-      completedCollaborationsCount,
-    };
-
     return res.status(200).json({
       success: true,
       message: "User retrieved successfully",
-      data: userData,
+      data: {
+        ...userData.toObject(),
+        collaborationStats: {
+          total:
+            (stats.pending?.count || 0) +
+            (stats.negotiating?.count || 0) +
+            (stats.accepted?.count || 0) +
+            (stats.ongoing?.count || 0) +
+            (stats.completed?.count || 0) +
+            (stats.rejected?.count || 0),
+          pending: {
+            count: stats.pending?.count || 0,
+            totalCompensation: stats.pending?.totalCompensation || 0,
+            totalNights: stats.pending?.totalNights || 0,
+            avgCompensation: stats.pending?.avgCompensation || 0,
+            avgNights: stats.pending?.avgNights || 0,
+          },
+          negotiating: {
+            count: stats.negotiating?.count || 0,
+            totalCompensation: stats.negotiating?.totalCompensation || 0,
+            totalNights: stats.negotiating?.totalNights || 0,
+            avgCompensation: stats.negotiating?.avgCompensation || 0,
+            avgNights: stats.negotiating?.avgNights || 0,
+          },
+          accepted: {
+            count: stats.accepted?.count || 0,
+            totalCompensation: stats.accepted?.totalCompensation || 0,
+            totalNights: stats.accepted?.totalNights || 0,
+            avgCompensation: stats.accepted?.avgCompensation || 0,
+            avgNights: stats.accepted?.avgNights || 0,
+          },
+          ongoing: {
+            count: stats.ongoing?.count || 0,
+            totalCompensation: stats.ongoing?.totalCompensation || 0,
+            totalNights: stats.ongoing?.totalNights || 0,
+            avgCompensation: stats.ongoing?.avgCompensation || 0,
+            avgNights: stats.ongoing?.avgNights || 0,
+          },
+          completed: {
+            count: stats.completed?.count || 0,
+            totalCompensation: stats.completed?.totalCompensation || 0,
+            totalNights: stats.completed?.totalNights || 0,
+            avgCompensation: stats.completed?.avgCompensation || 0,
+            avgNights: stats.completed?.avgNights || 0,
+            details: completedCollaborationsWithListing,
+          },
+          rejected: {
+            count: stats.rejected?.count || 0,
+            totalCompensation: stats.rejected?.totalCompensation || 0,
+            totalNights: stats.rejected?.totalNights || 0,
+            avgCompensation: stats.rejected?.avgCompensation || 0,
+            avgNights: stats.rejected?.avgNights || 0,
+          },
+        },
+      },
     });
   } catch (error) {
     return res.status(500).json({
