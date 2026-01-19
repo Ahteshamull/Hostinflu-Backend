@@ -57,6 +57,9 @@ export const singleUser = async (req, res) => {
       });
     }
 
+    /* =========================
+       1. Get User
+    ========================= */
     const userData = await userModel
       .findById(id)
       .select("-password -confirmPassword -refreshToken")
@@ -64,18 +67,11 @@ export const singleUser = async (req, res) => {
         path: "collaborations",
         populate: [
           {
-            path: "selectInfluencerOrHost",
-            select: "name email role",
-          },
-          {
             path: "selectDeal",
-            select:
-              "description compensation addAirbnbLink inTimeAndDate outTimeAndDate guestCount deliverables status",
             populate: {
               path: "selectListing",
               model: "Listing",
-              select:
-                "title description images location propertyType amenities customAmenities",
+              select: "title images",
               strictPopulate: false,
             },
           },
@@ -86,7 +82,16 @@ export const singleUser = async (req, res) => {
         ],
       });
 
-    // Get collaboration statistics
+    if (!userData) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    /* =========================
+       2. Collaboration Stats
+    ========================= */
     const collaborationStats = await Collaborations.aggregate([
       {
         $match: {
@@ -108,64 +113,33 @@ export const singleUser = async (req, res) => {
       },
     ]);
 
-    // Get detailed completed collaboration information
-    const completedCollaborationsDetails = await Collaborations.find({
-      $or: [
-        { userId: userData._id, status: "completed" },
-        { selectInfluencerOrHost: userData._id, status: "completed" },
-      ],
+    /* =========================
+       3. Completed Details
+    ========================= */
+    const completedCollaborations = await Collaborations.find({
+      status: "completed",
+      $or: [{ userId: userData._id }, { selectInfluencerOrHost: userData._id }],
     })
       .populate("selectInfluencerOrHost", "name email role")
+      .populate("userId", "name email role")
       .populate({
         path: "selectDeal",
         populate: {
           path: "selectListing",
           model: "Listing",
-          select:
-            "title description images location propertyType amenities customAmenities",
+          select: "title images",
           strictPopulate: false,
         },
       })
-      .populate("userId", "name email role")
-      .select(
-        "status payment numberOfNights createdAt updatedAt selectInfluencerOrHost selectDeal userId",
-      );
+      .select("status payment selectInfluencerOrHost selectDeal userId");
 
-    // Debug: Log the first completed collaboration to see what's populated
-  
-
-    // Manual population: Fetch listing data for each completed collaboration
-    const completedCollaborationsWithListing = await Promise.all(
-      completedCollaborationsDetails.map(async (collab) => {
-        if (collab.selectDeal && collab.selectDeal.selectListing) {
-          try {
-            const listingData = await Listing.findById(
-              collab.selectDeal.selectListing,
-            ).select(
-              "title description images location propertyType amenities customAmenities",
-            );
-
-            return {
-              ...collab.toObject(),
-              selectDeal: {
-                ...collab.selectDeal.toObject(),
-                selectListing: listingData,
-              },
-            };
-          } catch (error) {
-            console.log("Error fetching listing:", error);
-            return collab;
-          }
-        }
-        return collab;
-      }),
-    );
-
-    // Format collaboration stats
+    /* =========================
+       4. Format Stats
+    ========================= */
     const stats = {};
     collaborationStats.forEach((stat) => {
       stats[stat._id] = {
-        count: stat.count,
+        count: stat.count || 0,
         totalCompensation: stat.totalCompensation || 0,
         totalNights: stat.totalNights || 0,
         avgCompensation: stat.avgCompensation || 0,
@@ -173,69 +147,36 @@ export const singleUser = async (req, res) => {
       };
     });
 
-    if (!userData) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+    const buildStatus = (key) => ({
+      count: stats[key]?.count || 0,
+      totalCompensation: stats[key]?.totalCompensation || 0,
+      totalNights: stats[key]?.totalNights || 0,
+      avgCompensation: stats[key]?.avgCompensation || 0,
+      avgNights: stats[key]?.avgNights || 0,
+    });
 
+    /* =========================
+       5. Response
+    ========================= */
     return res.status(200).json({
       success: true,
       message: "User retrieved successfully",
       data: {
         ...userData.toObject(),
         collaborationStats: {
-          total:
-            (stats.pending?.count || 0) +
-            (stats.negotiating?.count || 0) +
-            (stats.accepted?.count || 0) +
-            (stats.ongoing?.count || 0) +
-            (stats.completed?.count || 0) +
-            (stats.rejected?.count || 0),
-          pending: {
-            count: stats.pending?.count || 0,
-            totalCompensation: stats.pending?.totalCompensation || 0,
-            totalNights: stats.pending?.totalNights || 0,
-            avgCompensation: stats.pending?.avgCompensation || 0,
-            avgNights: stats.pending?.avgNights || 0,
-          },
-          negotiating: {
-            count: stats.negotiating?.count || 0,
-            totalCompensation: stats.negotiating?.totalCompensation || 0,
-            totalNights: stats.negotiating?.totalNights || 0,
-            avgCompensation: stats.negotiating?.avgCompensation || 0,
-            avgNights: stats.negotiating?.avgNights || 0,
-          },
-          accepted: {
-            count: stats.accepted?.count || 0,
-            totalCompensation: stats.accepted?.totalCompensation || 0,
-            totalNights: stats.accepted?.totalNights || 0,
-            avgCompensation: stats.accepted?.avgCompensation || 0,
-            avgNights: stats.accepted?.avgNights || 0,
-          },
-          ongoing: {
-            count: stats.ongoing?.count || 0,
-            totalCompensation: stats.ongoing?.totalCompensation || 0,
-            totalNights: stats.ongoing?.totalNights || 0,
-            avgCompensation: stats.ongoing?.avgCompensation || 0,
-            avgNights: stats.ongoing?.avgNights || 0,
-          },
+          total: Object.values(stats).reduce(
+            (sum, s) => sum + (s.count || 0),
+            0,
+          ),
+          pending: buildStatus("pending"),
+          negotiating: buildStatus("negotiating"),
+          accepted: buildStatus("accepted"),
+          ongoing: buildStatus("ongoing"),
           completed: {
-            count: stats.completed?.count || 0,
-            totalCompensation: stats.completed?.totalCompensation || 0,
-            totalNights: stats.completed?.totalNights || 0,
-            avgCompensation: stats.completed?.avgCompensation || 0,
-            avgNights: stats.completed?.avgNights || 0,
-            details: completedCollaborationsWithListing,
+            ...buildStatus("completed"),
+            details: completedCollaborations,
           },
-          rejected: {
-            count: stats.rejected?.count || 0,
-            totalCompensation: stats.rejected?.totalCompensation || 0,
-            totalNights: stats.rejected?.totalNights || 0,
-            avgCompensation: stats.rejected?.avgCompensation || 0,
-            avgNights: stats.rejected?.avgNights || 0,
-          },
+          rejected: buildStatus("rejected"),
         },
       },
     });
