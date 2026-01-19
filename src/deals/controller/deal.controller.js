@@ -108,11 +108,17 @@ export const createDeal = async (req, res) => {
       $inc: { dealsTotal: 1 },
     });
 
+    // ✅ Get the created deal with populated listing data
+    const populatedDeal = await Deal.findById(newDeal._id).populate({
+      path: "title",
+      select: "title description images price status",
+    });
+
     return res.status(201).json({
       success: true,
       message: "Deal created successfully",
       data: {
-        deal: newDeal,
+        deal: populatedDeal,
       },
     });
   } catch (error) {

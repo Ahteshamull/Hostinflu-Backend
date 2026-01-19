@@ -64,17 +64,20 @@ export const singleUser = async (req, res) => {
           { path: "selectInfluencerOrHost", select: "name email role" },
           {
             path: "selectDeal",
-            select: "dealTitle description compensation status",
+            select: "dealTitle description compensation status images _id",
           },
         ],
       })
       .populate({
         path: "deals",
-        populate: { path: "title", select: "title description" },
+        populate: {
+          path: "title",
+          select: "title description compensation status images location",
+        },
       })
       .populate({
         path: "listings",
-        select: "title description price status",
+        populate: { path: "title", select: "title description price status" },
       })
       .populate({
         path: "redeemStars",
@@ -88,7 +91,11 @@ export const singleUser = async (req, res) => {
             },
             {
               path: "selectDeal",
-              
+              populate: {
+                path: "title",
+                select: "title description compensation status images _id",
+              },
+              select: "status negotiationStatus paymentStatus",
             },
           ],
         },
@@ -101,26 +108,82 @@ export const singleUser = async (req, res) => {
       });
     }
 
-    // Calculate completed collaborations count from both collaborations and redeemStars
-    const completedFromCollaborations = user.collaborations.filter(
-      (collab) => collab.status === "completed",
-    );
-
-    const completedFromRedeemStars = user.redeemStars.filter(
-      (redeemStar) =>
-        redeemStar.collaborationId &&
-        redeemStar.collaborationId.status === "completed",
-    );
-
-    // Use the higher count between the two sources
+    // Calculate completed collaborations
     const completedCollaborationsCount = Math.max(
-      completedFromCollaborations.length,
-      completedFromRedeemStars.length,
+      user.collaborations?.filter((c) => c.status === "completed").length || 0,
+      user.redeemStars?.filter((r) => r.collaborationId?.status === "completed")
+        .length || 0,
     );
 
-    // Add completed collaborations count to user data
-    const userData = user.toObject();
-    userData.completedCollaborationsCount = completedCollaborationsCount;
+    // Map deals safely
+    const dealsData =
+      user.deals?.map((deal) => ({
+        _id: deal._id,
+        title: deal.title?.title || deal.title || "",
+        description: deal.title?.description || deal.description || "",
+        images: deal.title?.images || deal.images || [],
+        location: deal.title?.location || deal.location || "",
+        compensation: deal.compensation || 0,
+        status: deal.status || "pending",
+        addAirbnbLink: deal.addAirbnbLink || null,
+        inTimeAndDate: deal.inTimeAndDate || null,
+        outTimeAndDate: deal.outTimeAndDate || null,
+        guestCount: deal.guestCount || 0,
+        deliverables: deal.deliverables || [],
+        createdAt: deal.createdAt,
+        updatedAt: deal.updatedAt,
+      })) || [];
+
+    // Map redeemStars safely
+    const redeemStarsData =
+      user.redeemStars?.map((star) => ({
+        _id: star._id,
+        stars: star.stars || 0,
+        createdAt: star.createdAt,
+        collaborationId: star.collaborationId
+          ? {
+              _id: star.collaborationId._id,
+              status: star.collaborationId.status || "pending",
+              negotiationStatus:
+                star.collaborationId.negotiationStatus || "pending",
+              paymentStatus: star.collaborationId.paymentStatus || "pending",
+              selectDeal: star.collaborationId.selectDeal
+                ? {
+                    _id: star.collaborationId.selectDeal._id,
+                    title: star.collaborationId.selectDeal.title?.title || "",
+                    description:
+                      star.collaborationId.selectDeal.title?.description || "",
+                    compensation:
+                      star.collaborationId.selectDeal.compensation || 0,
+                    images: star.collaborationId.selectDeal.title?.images || [],
+                  }
+                : null,
+            }
+          : null,
+      })) || [];
+
+    const userData = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      userName: user.userName,
+      role: user.role,
+      image: user.image,
+      phone: user.phone,
+      country: user.country,
+      city: user.city,
+      status: user.status,
+      isFounderMember: user.isFounderMember,
+      isNoMember: user.isNoMember,
+      totalUsersAtRegistration: user.totalUsersAtRegistration,
+      collaborationsTotal: user.collaborationsTotal,
+      dealsTotal: user.dealsTotal,
+      listingsTotal: user.listingsTotal,
+      completeDealsTotal: user.completeDealsTotal,
+      deals: dealsData,
+      redeemStars: redeemStarsData,
+      completedCollaborationsCount,
+    };
 
     return res.status(200).json({
       success: true,
