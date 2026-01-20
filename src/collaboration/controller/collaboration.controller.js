@@ -44,7 +44,7 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-    // Check if user is trying to create collaboration with themselves
+   
     if (userId.toString() === selectInfluencerOrHost.toString()) {
       return res.status(400).json({
         message: "You cannot create collaboration with yourself",
@@ -52,9 +52,8 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-    // Validate role-based collaboration rules
+ 
     if (userRole === "host") {
-      // Host can create collaborations for anyone
       if (!["host", "influencer"].includes(selectedUser.role)) {
         return res.status(400).json({
           message:
