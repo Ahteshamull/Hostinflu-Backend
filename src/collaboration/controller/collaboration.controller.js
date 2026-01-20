@@ -84,13 +84,16 @@ export const createCollaboration = async (req, res) => {
       numberOfNights,
       startDate,
       endDate,
-      userId, // This is the creator's ID
-      status: "pending", // Set initial status to pending
+      userId, 
+      
+      status: "pending", 
+      
     });
 
     const savedCollaboration = await newCollaboration.save();
 
-    // Add collaboration ID to user's collaborations array and increment total
+    
+    
     await userModel.findByIdAndUpdate(userId, {
       $push: { collaborations: savedCollaboration._id },
       $inc: { collaborationsTotal: 1 },
