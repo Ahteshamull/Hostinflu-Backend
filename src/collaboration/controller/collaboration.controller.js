@@ -15,7 +15,7 @@ export const createCollaboration = async (req, res) => {
       endDate,
     } = req.body;
 
-    // Get userId and role from token
+   
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
 
@@ -26,7 +26,7 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-    // Validate required fields
+
     if (!selectInfluencerOrHost || !selectDeal) {
       return res.status(400).json({
         message: "Influencer/Host and Deal are required",
@@ -34,7 +34,7 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-    // Get the selected user's role to validate cross-role collaboration
+  
     const selectedUser = await userModel.findById(selectInfluencerOrHost);
 
     if (!selectedUser) {
