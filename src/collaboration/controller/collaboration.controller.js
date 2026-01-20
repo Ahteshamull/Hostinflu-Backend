@@ -62,7 +62,6 @@ export const createCollaboration = async (req, res) => {
         });
       }
     } else if (userRole === "influencer") {
-      // Influencer can create collaborations for anyone
       if (!["host", "influencer"].includes(selectedUser.role)) {
         return res.status(400).json({
           message:
@@ -78,7 +77,7 @@ export const createCollaboration = async (req, res) => {
     }
 
     const newCollaboration = new Collaborations({
-      selectInfluencerOrHost, // This will be the target user (influencer for host, host for influencer)
+      selectInfluencerOrHost,
       selectDeal,
       payment,
       freeStay,
