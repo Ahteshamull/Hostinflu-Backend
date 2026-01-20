@@ -5,6 +5,9 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { sendEmail } from "../../config/email.config.js";
+import otpService from "../../helper/helpers/otpService.js";
+import PasswordReset from "../../auth/schema/passwordReset.modal.js";
+import sendOtp from "../../helper/helpers/sendOtp.js";
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -392,47 +395,40 @@ const singleAdmin = async (req, res) => {
 };
 
 const forgotPassAdmin = async (req, res) => {
-  try {
-    const { email } = req.body;
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: "Email required" });
 
-    // Find admin by email
-    const admin = await Admin.findOne({ email });
+  const admin = await Admin.findOne({ email });
+  if (!admin) return res.status(404).json({ message: "Admin not found" });
 
-    if (!admin) {
-      return res.status(404).json({
-        success: false,
-        message: "Admin not found",
-      });
-    }
+  await PasswordReset.cleanExpiredOTPs();
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+  let reset = await PasswordReset.findOne({ email });
 
-    admin.resetPasswordToken = resetToken;
-    admin.resetPasswordExpiry = resetTokenExpiry;
+  if (reset) {
+    const resendCheck = otpService.canResend(reset);
+    if (!resendCheck.allowed)
+      return res.status(429).json({ message: resendCheck.message });
 
-    await admin.save();
-
-    // Send reset email
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
-    await sendEmail({
-      email: admin.email,
-      subject: "Password Reset Request",
-      message: `You requested a password reset. Click the link below to reset your password:\n\n${resetUrl}\n\nThis link will expire in 1 hour.`,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Password reset email sent successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message || "Server error while sending reset email",
-    });
+    reset.resendCount++;
+    reset.lastResendAt = new Date();
+  } else {
+    reset = new PasswordReset({ email });
   }
+
+  const otp = otpService.generateOTP();
+
+  reset.hashedOTP = otpService.hashOTP(otp);
+  reset.otpCreatedAt = new Date();
+  reset.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  reset.attempts = 0;
+  reset.verified = false;
+
+  await reset.save();
+
+  await sendOtp.sendOTPEmail(email, otp, admin.name);
+
+  res.json({ success: true, message: "OTP sent to email" });
 };
 
 export {
