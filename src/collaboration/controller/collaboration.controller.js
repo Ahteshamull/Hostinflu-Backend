@@ -280,7 +280,7 @@ export const getMyAllCollaborations = async (req, res) => {
     }
 
     if (userRole === "host") {
-      // Host: Show collaborations they created
+
       filter.userId = userId;
       collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
