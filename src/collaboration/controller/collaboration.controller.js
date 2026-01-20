@@ -15,7 +15,6 @@ export const createCollaboration = async (req, res) => {
       endDate,
     } = req.body;
 
-   
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
 
@@ -26,7 +25,6 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-
     if (!selectInfluencerOrHost || !selectDeal) {
       return res.status(400).json({
         message: "Influencer/Host and Deal are required",
@@ -34,7 +32,6 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-  
     const selectedUser = await userModel.findById(selectInfluencerOrHost);
 
     if (!selectedUser) {
@@ -44,7 +41,6 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-   
     if (userId.toString() === selectInfluencerOrHost.toString()) {
       return res.status(400).json({
         message: "You cannot create collaboration with yourself",
@@ -52,7 +48,6 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
- 
     if (userRole === "host") {
       if (!["host", "influencer"].includes(selectedUser.role)) {
         return res.status(400).json({
@@ -84,21 +79,17 @@ export const createCollaboration = async (req, res) => {
       numberOfNights,
       startDate,
       endDate,
-      userId, 
-      
-      status: "pending", 
-      
+      userId,
+
+      status: "pending",
     });
 
     const savedCollaboration = await newCollaboration.save();
 
-    
-    
     await userModel.findByIdAndUpdate(userId, {
       $push: { collaborations: savedCollaboration._id },
       $inc: { collaborationsTotal: 1 },
-      
-      
+
       $push: {
         redeemStars: {
           collaborationId: savedCollaboration._id,
@@ -107,11 +98,7 @@ export const createCollaboration = async (req, res) => {
       },
     });
 
-    
-    
     await userModel.findByIdAndUpdate(selectInfluencerOrHost, {
-   
-      
       $push: {
         redeemStars: {
           collaborationId: savedCollaboration._id,
@@ -120,14 +107,9 @@ export const createCollaboration = async (req, res) => {
       },
     });
 
-
-    
     try {
       await createCollaborationNotification(savedCollaboration, userRole);
-    } catch (notificationError) {
-    
-      
-    }
+    } catch (notificationError) {}
 
     res.status(201).json({
       success: true,
@@ -287,12 +269,12 @@ export const getMyAllCollaborations = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    // Find collaborations based on user role
+   
     let collaborations;
     let total;
     let filter = {};
 
-    // Add status filter if provided
+   
     if (status) {
       filter.status = status;
     }
@@ -1358,5 +1340,3 @@ export const getCollaborationsByUser = async (req, res) => {
     });
   }
 };
-
-
