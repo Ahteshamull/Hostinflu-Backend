@@ -7,6 +7,7 @@ import {
   deleteAdmin,
   allAdmin,
   singleAdmin,
+  forgotPassAdmin,
 } from "../controller/admin.controller.js";
 import { upload } from "../../helper/middlewares/imageControlMiddleware.js";
 import superAdminMiddleware from "../../helper/middlewares/superAdminMiddleware.js";
@@ -47,5 +48,8 @@ router.get("/all-admins", authenticateToken, allAdmin);
 
 //localhost:3000/api/v1/admin/single-admin/:id
 router.get("/single-admin/:id", authenticateToken, singleAdmin);
+
+//localhost:3000/api/v1/admin/forgot-password
+router.post("/forgot-password", forgotPassAdmin);
 
 export default router;

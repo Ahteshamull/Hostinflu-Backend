@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
+import { sendEmail } from "../../config/email.config.js";
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -11,7 +13,7 @@ const generateToken = (id) => {
     process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN,
     {
       expiresIn: process.env.JWT_EXPIRE || "30d",
-    }
+    },
   );
 };
 
@@ -22,7 +24,7 @@ const generateRefreshToken = (id) => {
     process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN,
     {
       expiresIn: process.env.REFRESH_TOKEN_EXPIRE || "7d",
-    }
+    },
   );
 };
 
@@ -187,7 +189,7 @@ const adminChangePassword = async (req, res) => {
     try {
       decoded = jwt.verify(
         token,
-        process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN
+        process.env.ACCESS_TOKEN_SECRET || process.env.PRV_TOKEN,
       );
     } catch (err) {
       return res.status(401).json({ error: true, message: "Invalid token" });
@@ -200,12 +202,10 @@ const adminChangePassword = async (req, res) => {
     }
 
     if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({
-          error: true,
-          message: "Password must be at least 6 characters",
-        });
+      return res.status(400).json({
+        error: true,
+        message: "Password must be at least 6 characters",
+      });
     }
 
     // Get admin ID from authenticated token
@@ -220,7 +220,7 @@ const adminChangePassword = async (req, res) => {
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(
       currentPassword,
-      admin.password
+      admin.password,
     );
     if (!isCurrentPasswordValid) {
       return res
@@ -391,6 +391,50 @@ const singleAdmin = async (req, res) => {
   }
 };
 
+const forgotPassAdmin = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find admin by email
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+
+    admin.resetPasswordToken = resetToken;
+    admin.resetPasswordExpiry = resetTokenExpiry;
+
+    await admin.save();
+
+    // Send reset email
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    await sendEmail({
+      email: admin.email,
+      subject: "Password Reset Request",
+      message: `You requested a password reset. Click the link below to reset your password:\n\n${resetUrl}\n\nThis link will expire in 1 hour.`,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset email sent successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Server error while sending reset email",
+    });
+  }
+};
+
 export {
   createAdmin,
   adminLogin,
@@ -399,4 +443,5 @@ export {
   deleteAdmin,
   allAdmin,
   singleAdmin,
+  forgotPassAdmin,
 };
