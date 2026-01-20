@@ -97,7 +97,8 @@ export const createCollaboration = async (req, res) => {
     await userModel.findByIdAndUpdate(userId, {
       $push: { collaborations: savedCollaboration._id },
       $inc: { collaborationsTotal: 1 },
-      // Add redeem stars as object with collaborationId and stars
+      
+      
       $push: {
         redeemStars: {
           collaborationId: savedCollaboration._id,
@@ -106,9 +107,11 @@ export const createCollaboration = async (req, res) => {
       },
     });
 
-    // Also add redeem stars to the target user (selectInfluencerOrHost)
+    
+    
     await userModel.findByIdAndUpdate(selectInfluencerOrHost, {
-      // Add redeem stars as object with collaborationId and stars
+   
+      
       $push: {
         redeemStars: {
           collaborationId: savedCollaboration._id,
@@ -117,11 +120,13 @@ export const createCollaboration = async (req, res) => {
       },
     });
 
-    // Send notification to the receiver
+
+    
     try {
       await createCollaborationNotification(savedCollaboration, userRole);
     } catch (notificationError) {
-      // Continue with response even if notification fails
+    
+      
     }
 
     res.status(201).json({
