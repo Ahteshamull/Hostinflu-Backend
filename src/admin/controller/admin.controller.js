@@ -431,6 +431,114 @@ const forgotPassAdmin = async (req, res) => {
   res.json({ success: true, message: "OTP sent to email" });
 };
 
+const OTPVerifyAdmin = async (req, res) => {
+  const { otp } = req.body;
+  if (!otp) {
+    return res.status(400).json({ message: "OTP is required" });
+  }
+
+  try {
+    // Find all unverified OTP records
+    const resets = await PasswordReset.find({ verified: false });
+
+    // Find the matching OTP by verification
+    let reset = null;
+    for (const resetRecord of resets) {
+      const isValidOTP = await otpService.verifyOTP(otp, resetRecord.hashedOTP);
+      if (isValidOTP) {
+        reset = resetRecord;
+        break;
+      }
+    }
+
+    if (!reset) {
+      return res.status(404).json({ message: "Invalid OTP" });
+    }
+
+    if (reset.verified) {
+      return res.status(400).json({ message: "OTP already verified" });
+    }
+
+    if (reset.otpExpiresAt < new Date()) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    if (reset.attempts >= 3) {
+      return res
+        .status(429)
+        .json({ message: "Too many attempts. Please request new OTP" });
+    }
+
+    reset.verified = true;
+    reset.verifiedAt = new Date();
+    await reset.save();
+
+    res.json({
+      success: true,
+      message: "OTP verified successfully",
+      email: reset.email,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Server error while verifying OTP",
+    });
+  }
+};
+
+const resetPasswordAdmin = async (req, res) => {
+  const { email, newPassword, confirmPassword } = req.body;
+  if (!email || !newPassword || !confirmPassword) {
+    return res
+      .status(400)
+      .json({ message: "Email, new password, and confirm password required" });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: "Passwords do not match" });
+  }
+
+  try {
+    const reset = await PasswordReset.findOne({ email });
+    if (!reset) {
+      return res.status(404).json({ message: "OTP request not found" });
+    }
+
+    if (!reset.verified) {
+      return res
+        .status(400)
+        .json({ message: "OTP not verified. Please verify OTP first" });
+    }
+
+    if (reset.verifiedAt < new Date(Date.now() - 30 * 60 * 1000)) {
+      return res
+        .status(400)
+        .json({ message: "OTP verification expired. Please request new OTP" });
+    }
+
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    admin.password = hashedPassword;
+    admin.confirmPassword = hashedPassword;
+    await admin.save();
+
+    await PasswordReset.deleteOne({ email });
+
+    res.json({ success: true, message: "Password reset successfully" });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Server error while resetting password",
+    });
+  }
+};
+
 export {
   createAdmin,
   adminLogin,
@@ -440,4 +548,6 @@ export {
   allAdmin,
   singleAdmin,
   forgotPassAdmin,
+  OTPVerifyAdmin,
+  resetPasswordAdmin,
 };

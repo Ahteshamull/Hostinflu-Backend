@@ -8,6 +8,8 @@ import {
   allAdmin,
   singleAdmin,
   forgotPassAdmin,
+  OTPVerifyAdmin,
+  resetPasswordAdmin,
 } from "../controller/admin.controller.js";
 import { upload } from "../../helper/middlewares/imageControlMiddleware.js";
 import superAdminMiddleware from "../../helper/middlewares/superAdminMiddleware.js";
@@ -51,5 +53,11 @@ router.get("/single-admin/:id", authenticateToken, singleAdmin);
 
 //localhost:3000/api/v1/admin/forgot-password
 router.post("/forgot-password", forgotPassAdmin);
+
+//localhost:3000/api/v1/admin/otp-verify
+router.post("/otp-verify", OTPVerifyAdmin);
+
+//localhost:3000/api/v1/admin/reset-password
+router.post("/reset-password", resetPasswordAdmin);
 
 export default router;
