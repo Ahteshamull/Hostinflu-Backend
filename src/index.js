@@ -32,7 +32,7 @@ app.use(cookieParser());
 
 app.use("/uploads", express.static("uploads"));
 
-//routes
+
 app.use(router);
 
 // Root route
