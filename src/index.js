@@ -22,7 +22,7 @@ initializeSocket(server);
 
 app.use(
   cors({
-    origin: "*", // Adjust this to your frontend URL in production
+    origin: "*", 
     credentials: true,
   }),
 );
