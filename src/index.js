@@ -24,7 +24,7 @@ app.use(
   cors({
     origin: "*", // Adjust this to your frontend URL in production
     credentials: true,
-  })
+  }),
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

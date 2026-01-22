@@ -32,7 +32,7 @@ router.use(baseurl, dashboard);
 router.use(baseurl, redeem);
 router.use(baseurl, referral);
 
-// 404 fallback for API
+// Update code
 router.use(baseurl, (req, res) => {
   return res
     .status(404)
