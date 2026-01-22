@@ -45,7 +45,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// DB connect
+
 dbConnect();
 
 // Start server
