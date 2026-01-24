@@ -675,6 +675,13 @@ export const changePassword = async (req, res) => {
       .json({ error: true, message: "Current password is incorrect" });
   }
 
+  // Clean up invalid redeemStars entries before saving
+  if (user.redeemStars && Array.isArray(user.redeemStars)) {
+    user.redeemStars = user.redeemStars.filter(
+      (item) => item && item.collaborationId && typeof item.stars === "number",
+    );
+  }
+
   // Update password
   user.password = await bcrypt.hash(newPassword, 10);
   await user.save();
