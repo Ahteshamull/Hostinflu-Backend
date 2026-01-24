@@ -95,7 +95,7 @@ const userSchema = new Schema(
 
     isFounderMember: {
       type: Boolean,
-      default: true, // First 50 members are true by default
+      default: true, 
     },
 
     isNoMember: {
