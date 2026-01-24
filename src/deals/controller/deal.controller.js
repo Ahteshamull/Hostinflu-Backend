@@ -202,7 +202,7 @@ const getAllDeals = async (req, res) => {
     }
 
     const deals = await Deal.find(filter)
-      .populate("title", "title location")
+      .populate("title")
       .populate("userId")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
