@@ -480,6 +480,55 @@ const userPersonalDealsGrowth = async (req, res) => {
   }
 };
 
+const userCreatedDeals = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+
+    // Extract the actual ObjectId string from SchemaObjectId
+    let userIdString;
+    if (typeof userId === "string") {
+      userIdString = userId;
+    } else if (userId && userId.path) {
+      userIdString = userId.path;
+    } else if (userId && typeof userId.toString === "function") {
+      userIdString = userId.toString();
+    } else {
+      throw new Error("Invalid userId format");
+    }
+
+   
+
+    // Try using the string directly first (Mongoose can handle string ObjectIds)
+    let deals = await Deal.find({ userId: userIdString }).populate("title");
+
+    // If no deals found with string, try ObjectId conversion
+    if (deals.length === 0) {
+    
+      const { ObjectId } = await import("mongoose");
+      const objectId = new ObjectId(userIdString);
+      deals = await Deal.find({ userId: objectId }).populate("title");
+    }
+
+ 
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User created deals retrieved successfully",
+      data: deals,
+    });
+  } catch (error) {
+    console.error("Error in userCreatedDeals:", error);
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user created deals",
+      error: error.message,
+    });
+  }
+};
+
 export {
   getAllDeals,
   getSingleDeal,
@@ -488,4 +537,5 @@ export {
   deleteDeal,
   userPersonalTotalDeals,
   userPersonalDealsGrowth,
+  userCreatedDeals,
 };

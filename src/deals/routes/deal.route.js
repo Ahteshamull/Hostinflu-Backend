@@ -9,6 +9,7 @@ import {
   userPersonalDealsGrowth,
   getMyAllDeals,
   deleteDeal,
+  userCreatedDeals,
 } from "../controller/deal.controller.js";
 import {
   authenticateToken,
@@ -41,6 +42,9 @@ router.get("/my-all-deals", authenticateToken, getMyAllDeals);
 
 // localhost:3000/api/v1/deal/delete-deal/:id
 router.delete("/delete-deal/:id", authenticateToken, requireHostRole, deleteDeal);
+
+// localhost:3000/api/v1/deal/user-created-deals/:userId
+router.get("/user-created-deals/:userId", userCreatedDeals);
 
 
 
