@@ -22,7 +22,7 @@ initializeSocket(server);
 
 app.use(
   cors({
-    origin: "*", 
+    origin: "*",
     credentials: true,
   }),
 );
@@ -32,9 +32,7 @@ app.use(cookieParser());
 
 app.use("/uploads", express.static("uploads"));
 
-
 app.use(router);
-
 
 app.get("/", (req, res) => {
   res.json({
@@ -45,9 +43,7 @@ app.get("/", (req, res) => {
   });
 });
 
-
 dbConnect();
-
 
 server.listen(PORT, () => {
   console.log(`🛜  Server running at ${PORT}`);
