@@ -742,7 +742,7 @@ export const setUpProfile = async (req, res) => {
 
     const { fullName, location, linkAirbnbAccount, bio, nicheTags } = req.body;
 
-    // Find user and update profile
+
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({
