@@ -199,11 +199,14 @@ const getAllDeals = async (req, res) => {
 
     if (status) {
       filter.status = status;
+    } else {
+      // By default, exclude deleted/rejected deals
+      filter.status = { $ne: "rejected" };
     }
 
     const deals = await Deal.find(filter)
       .populate("title")
-      .populate("userId")
+      .populate("userId", "name email userName role image")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((currentPage - 1) * limit);
