@@ -88,7 +88,7 @@ export const singleUser = async (req, res) => {
       });
     }
 
-    // Clean up orphaned redeemStars entries
+    // Clean up orphaned redeemStars entries and populate collaboration info
     if (userData.redeemStars && userData.redeemStars.length > 0) {
       const validRedeemStars = [];
       for (const redeemStar of userData.redeemStars) {
@@ -107,6 +107,48 @@ export const singleUser = async (req, res) => {
         });
         userData.redeemStars = validRedeemStars;
       }
+
+      // Populate collaboration details for redeemStars
+      userData.redeemStars = await Promise.all(
+        userData.redeemStars.map(async (redeemStar) => {
+          const collaboration = await Collaborations.findById(
+            redeemStar.collaborationId,
+          )
+            .populate("selectDeal")
+            .populate("userId", "name email role")
+            .populate("selectInfluencerOrHost", "name email role");
+
+          return {
+            ...redeemStar.toObject(),
+            collaboration: collaboration
+              ? {
+                  _id: collaboration._id,
+                  status: collaboration.status,
+                  numberOfNights:
+                    collaboration.selectDeal?.compensation?.numberOfNights || 0,
+                  payment: collaboration.payment,
+                  createdAt: collaboration.createdAt,
+                  creator: collaboration.userId
+                    ? {
+                        _id: collaboration.userId._id,
+                        name: collaboration.userId.name,
+                        email: collaboration.userId.email,
+                        role: collaboration.userId.role,
+                      }
+                    : null,
+                  target: collaboration.selectInfluencerOrHost
+                    ? {
+                        _id: collaboration.selectInfluencerOrHost._id,
+                        name: collaboration.selectInfluencerOrHost.name,
+                        email: collaboration.selectInfluencerOrHost.email,
+                        role: collaboration.selectInfluencerOrHost.role,
+                      }
+                    : null,
+                }
+              : null,
+          };
+        }),
+      );
     }
 
     // Filter out deleted deals and listings
@@ -135,6 +177,19 @@ export const singleUser = async (req, res) => {
         listing._id.toString(),
       );
     }
+
+    // Calculate redeem stars from completed collaborations
+    let totalRedeemStars = 0;
+    const userCompletedCollaborations = await Collaborations.find({
+      status: "completed",
+      $or: [{ userId: userData._id }, { selectInfluencerOrHost: userData._id }],
+    }).populate("selectDeal");
+
+    totalRedeemStars = userCompletedCollaborations.reduce(
+      (total, collab) =>
+        total + (collab.selectDeal?.compensation?.numberOfNights || 0),
+      0,
+    );
 
     /* =========================
        2. Collaboration Stats
@@ -220,6 +275,7 @@ export const singleUser = async (req, res) => {
         completeDealsTotal: userData.completeDeals
           ? userData.completeDeals.length
           : 0,
+        totalRedeemStars: totalRedeemStars,
         collaborationStats: {
           total: Object.values(stats).reduce(
             (sum, s) => sum + (s.count || 0),

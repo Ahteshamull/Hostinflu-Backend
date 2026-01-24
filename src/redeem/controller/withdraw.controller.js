@@ -38,7 +38,7 @@ export const withdrawRedeemStars = async (req, res) => {
     const redeemStarEntry = user.redeemStars.find(
       (item) =>
         item.collaborationId &&
-        item.collaborationId.toString() === collaborationId
+        item.collaborationId.toString() === collaborationId,
     );
 
     if (!redeemStarEntry) {
@@ -50,8 +50,9 @@ export const withdrawRedeemStars = async (req, res) => {
 
     // Get the full collaboration data with populated user info
     const collaboration = await Collaborations.findById(collaborationId)
-      .populate("userId", "name email")
-      .populate("selectInfluencerOrHost", "name email");
+      .populate("userId", "name email role")
+      .populate("selectInfluencerOrHost", "name email role")
+      .populate("selectDeal", "description compensation");
 
     if (!collaboration) {
       return res.status(404).json({
@@ -101,7 +102,7 @@ export const withdrawRedeemStars = async (req, res) => {
         !(
           item.collaborationId &&
           item.collaborationId.toString() === collaborationId
-        )
+        ),
     );
 
     // Save user without triggering validation
@@ -115,6 +116,35 @@ export const withdrawRedeemStars = async (req, res) => {
       data: {
         withdrawnStars: redeemStarEntry.stars,
         collaborationId: redeemStarEntry.collaborationId._id,
+        collaboration: {
+          _id: collaboration._id,
+          status: collaboration.status,
+          payment: collaboration.payment,
+          createdAt: collaboration.createdAt,
+          creator: collaboration.userId
+            ? {
+                _id: collaboration.userId._id,
+                name: collaboration.userId.name,
+                email: collaboration.userId.email,
+                role: collaboration.userId.role,
+              }
+            : null,
+          target: collaboration.selectInfluencerOrHost
+            ? {
+                _id: collaboration.selectInfluencerOrHost._id,
+                name: collaboration.selectInfluencerOrHost.name,
+                email: collaboration.selectInfluencerOrHost.email,
+                role: collaboration.selectInfluencerOrHost.role,
+              }
+            : null,
+          deal: collaboration.selectDeal
+            ? {
+                _id: collaboration.selectDeal._id,
+                description: collaboration.selectDeal.description,
+                compensation: collaboration.selectDeal.compensation,
+              }
+            : null,
+        },
       },
     });
   } catch (error) {

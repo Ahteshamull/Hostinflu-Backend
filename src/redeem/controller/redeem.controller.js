@@ -84,21 +84,52 @@ export const getUserRedeemStars = async (req, res) => {
       });
     }
 
-    // Filter only valid redeem stars (with collaborationId and stars)
-    const validRedeemStars = user.redeemStars.filter(
-      (item) => item.collaborationId && item.stars,
+ 
+
+    // Clean up orphaned redeemStars entries (collaboration deleted)
+    if (user.redeemStars && user.redeemStars.length > 0) {
+      const validRedeemStars = [];
+      for (const redeemStar of user.redeemStars) {
+        const collaborationExists = await Collaborations.exists({
+          _id: redeemStar.collaborationId,
+        });
+        if (collaborationExists) {
+          validRedeemStars.push(redeemStar);
+        }
+      }
+
+      // Update user with only valid redeemStars
+      if (validRedeemStars.length !== user.redeemStars.length) {
+        await userModel.findByIdAndUpdate(userId, {
+          redeemStars: validRedeemStars,
+        });
+        user.redeemStars = validRedeemStars;
+      }
+
+
+    }
+
+    // Filter only valid redeem stars (with collaborationId and completed status)
+    const filteredRedeemStars = user.redeemStars.filter(
+      (item) =>
+        item.collaborationId && item.collaborationId.status === "completed",
     );
 
+    
+
     // Format the response
-    const formattedRedeemStars = validRedeemStars.map((item) => ({
+    const formattedRedeemStars = filteredRedeemStars.map((item) => ({
       _id: item._id,
-      stars: item.stars,
+      stars:
+        item.collaborationId?.selectDeal?.compensation?.numberOfNights || 0, // Get from selectDeal.compensation
       createdAt: item.createdAt,
       collaboration: item.collaborationId
         ? {
             _id: item.collaborationId._id,
             payment: item.collaborationId.payment,
-            numberOfNights: item.collaborationId.numberOfNights,
+            numberOfNights:
+              item.collaborationId.selectDeal?.compensation?.numberOfNights ||
+              0,
             status: item.collaborationId.status,
             negotiationStatus: item.collaborationId.negotiationStatus,
             startDate: item.collaborationId.startDate,
@@ -127,6 +158,7 @@ export const getUserRedeemStars = async (req, res) => {
               ? {
                   _id: item.collaborationId.selectDeal._id,
                   description: item.collaborationId.selectDeal.description,
+                  compensation: item.collaborationId.selectDeal.compensation,
                 }
               : null,
           }

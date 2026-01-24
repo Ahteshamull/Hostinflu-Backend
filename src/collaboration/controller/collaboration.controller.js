@@ -93,7 +93,6 @@ export const createCollaboration = async (req, res) => {
       $push: {
         redeemStars: {
           collaborationId: savedCollaboration._id,
-          stars: numberOfNights,
         },
       },
     });
@@ -102,7 +101,6 @@ export const createCollaboration = async (req, res) => {
       $push: {
         redeemStars: {
           collaborationId: savedCollaboration._id,
-          stars: numberOfNights,
         },
       },
     });
@@ -502,6 +500,29 @@ export const updateCollaboration = async (req, res) => {
     )
       .populate("selectInfluencerOrHost", "name email")
       .populate("selectDeal", "dealTitle");
+
+    // If status is being updated to "completed", add redeemStars
+    if (
+      updateData.status === "completed" &&
+      collaboration.status !== "completed"
+    ) {
+      // Add redeemStars to both users for completed collaboration
+      await userModel.findByIdAndUpdate(collaboration.userId, {
+        $push: {
+          redeemStars: {
+            collaborationId: collaboration._id,
+          },
+        },
+      });
+
+      await userModel.findByIdAndUpdate(collaboration.selectInfluencerOrHost, {
+        $push: {
+          redeemStars: {
+            collaborationId: collaboration._id,
+          },
+        },
+      });
+    }
 
     res.status(200).json({
       success: true,
