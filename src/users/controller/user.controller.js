@@ -109,6 +109,33 @@ export const singleUser = async (req, res) => {
       }
     }
 
+    // Filter out deleted deals and listings
+    const Deal = (await import("../../deals/schema/deal.modal.js")).default;
+    const Listing = (await import("../../listing/schema/listing.modal.js"))
+      .Listing;
+
+    // Filter out deleted deals
+    let activeDeals = [];
+    if (userData.deals && userData.deals.length > 0) {
+      const existingDeals = await Deal.find({
+        _id: { $in: userData.deals },
+        status: { $ne: "rejected" },
+      }).select("_id");
+      activeDeals = existingDeals.map((deal) => deal._id.toString());
+    }
+
+    // Filter out deleted listings
+    let activeListings = [];
+    if (userData.listings && userData.listings.length > 0) {
+      const existingListings = await Listing.find({
+        _id: { $in: userData.listings },
+        status: { $ne: "rejected" },
+      }).select("_id");
+      activeListings = existingListings.map((listing) =>
+        listing._id.toString(),
+      );
+    }
+
     /* =========================
        2. Collaboration Stats
     ========================= */
@@ -183,6 +210,16 @@ export const singleUser = async (req, res) => {
       message: "User retrieved successfully",
       data: {
         ...userData.toObject(),
+        deals: activeDeals,
+        dealsTotal: activeDeals.length,
+        listings: activeListings,
+        listingsTotal: activeListings.length,
+        collaborationsTotal: userData.collaborations
+          ? userData.collaborations.length
+          : 0,
+        completeDealsTotal: userData.completeDeals
+          ? userData.completeDeals.length
+          : 0,
         collaborationStats: {
           total: Object.values(stats).reduce(
             (sum, s) => sum + (s.count || 0),
