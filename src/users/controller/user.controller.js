@@ -88,6 +88,27 @@ export const singleUser = async (req, res) => {
       });
     }
 
+    // Clean up orphaned redeemStars entries
+    if (userData.redeemStars && userData.redeemStars.length > 0) {
+      const validRedeemStars = [];
+      for (const redeemStar of userData.redeemStars) {
+        const collaborationExists = await Collaborations.exists({
+          _id: redeemStar.collaborationId,
+        });
+        if (collaborationExists) {
+          validRedeemStars.push(redeemStar);
+        }
+      }
+
+      // Update user with only valid redeemStars
+      if (validRedeemStars.length !== userData.redeemStars.length) {
+        await userModel.findByIdAndUpdate(id, {
+          redeemStars: validRedeemStars,
+        });
+        userData.redeemStars = validRedeemStars;
+      }
+    }
+
     /* =========================
        2. Collaboration Stats
     ========================= */

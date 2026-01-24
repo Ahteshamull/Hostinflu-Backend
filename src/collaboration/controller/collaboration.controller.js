@@ -237,6 +237,22 @@ export const deleteCollaboration = async (req, res) => {
       });
     }
 
+    // Remove corresponding redeemStars entries from both users
+    await userModel.updateMany(
+      {
+        _id: {
+          $in: [collaboration.userId, collaboration.selectInfluencerOrHost],
+        },
+      },
+      {
+        $pull: {
+          redeemStars: {
+            collaborationId: collaboration._id,
+          },
+        },
+      },
+    );
+
     res.status(200).json({
       success: true,
       error: false,
@@ -269,18 +285,15 @@ export const getMyAllCollaborations = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-   
     let collaborations;
     let total;
     let filter = {};
 
-   
     if (status) {
       filter.status = status;
     }
 
     if (userRole === "host") {
-
       filter.userId = userId;
       collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role")
