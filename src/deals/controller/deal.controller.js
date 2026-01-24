@@ -483,7 +483,6 @@ const userPersonalDealsGrowth = async (req, res) => {
 const userCreatedDeals = async (req, res) => {
   try {
     const userId = req.params.userId;
-    
 
     // Extract the actual ObjectId string from SchemaObjectId
     let userIdString;
@@ -497,25 +496,21 @@ const userCreatedDeals = async (req, res) => {
       throw new Error("Invalid userId format");
     }
 
-   
-
     // Try using the string directly first (Mongoose can handle string ObjectIds)
     let deals = await Deal.find({ userId: userIdString }).populate("title");
 
     // If no deals found with string, try ObjectId conversion
     if (deals.length === 0) {
-    
       const { ObjectId } = await import("mongoose");
       const objectId = new ObjectId(userIdString);
       deals = await Deal.find({ userId: objectId }).populate("title");
     }
 
- 
-
     res.status(200).json({
       success: true,
       error: false,
       message: "User created deals retrieved successfully",
+      count: deals.length,
       data: deals,
     });
   } catch (error) {
