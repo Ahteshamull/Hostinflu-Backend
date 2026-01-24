@@ -159,7 +159,7 @@ const userSchema = new Schema(
       default: 0,
     },
     avgResponseTime: {
-      type: Number, // in minutes
+      type: Number, 
       default: 0,
     },
     dateOfBirth: {
