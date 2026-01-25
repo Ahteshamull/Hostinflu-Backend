@@ -946,7 +946,7 @@ export const deleteUser = async (req, res) => {
       
     }
 
-    // Delete user's reviews
+
     try {
       const Review = (await import("../../review/schema/review.modal.js"))
         .default;
