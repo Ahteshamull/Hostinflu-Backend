@@ -28,7 +28,7 @@ router.get("/get-all-deals", getAllDeals);
 router.get("/get-single-deal/:id", getSingleDeal);
 
 // localhost:3000/api/v1/deal/update-deal/:id - Update deal
-router.put("/update-deal/:id", authenticateToken, requireHostRole, updateDeal);
+router.patch("/update-deal/:id", authenticateToken, requireHostRole, updateDeal);
 
 
 // localhost:3000/api/v1/deal/user-personal-total-deals
