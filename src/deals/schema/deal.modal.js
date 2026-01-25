@@ -21,9 +21,25 @@ const deliverableSchema = new Schema(
       min: 1,
     },
 
-    platformFollowers: {
-      type: String,
-    },
+    platformFollowers: [
+      {
+        Instagram: {
+          type: String,
+        },
+        Tiktok: {
+          type:String
+        },
+        Youtube: {
+          type:String
+        },
+        Facebook: {
+          type:String
+        },
+        X: {
+          type:String
+        }
+      },
+    ],
   },
   { _id: false },
 );
