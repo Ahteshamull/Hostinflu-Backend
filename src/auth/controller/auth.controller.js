@@ -943,7 +943,7 @@ export const deleteUser = async (req, res) => {
       });
     } catch (messageError) {
       console.log("Error deleting messages:", messageError);
-      // Continue even if message deletion fails
+      
     }
 
     // Delete user's reviews
