@@ -742,7 +742,6 @@ export const setUpProfile = async (req, res) => {
 
     const { fullName, location, linkAirbnbAccount, bio, nicheTags } = req.body;
 
-
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({
@@ -853,6 +852,144 @@ export const setUpProfile = async (req, res) => {
       error: true,
       message: "Internal server error",
       details: error.message,
+    });
+  }
+};
+
+export const deleteUser = async (req, res) => {
+  try {
+    // Get user ID from token
+    const userId = req.user?._id || req.user?.id || req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User ID not found in token",
+      });
+    }
+
+    // Find the user
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if user has active collaborations
+    const Collaboration = (
+      await import("../../collaboration/schema/collaboration.modal.js")
+    ).default;
+    const activeCollaborations = await Collaboration.find({
+      $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
+      status: { $in: ["pending", "negotiating", "accepted", "ongoing"] },
+    });
+
+    if (activeCollaborations.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Cannot delete account with active collaborations. Please complete or cancel all active collaborations first.",
+        activeCollaborations: activeCollaborations.length,
+      });
+    }
+
+    // Delete user's profile image if exists
+    if (user.image && user.image !== "") {
+      try {
+        const fs = await import("fs");
+        const path = await import("path");
+        const imagePath = path.join(process.cwd(), "uploads", user.image);
+
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      } catch (imageError) {
+        console.log("Error deleting profile image:", imageError);
+        // Continue with user deletion even if image deletion fails
+      }
+    }
+
+    // Delete all user's collaborations
+    await Collaboration.deleteMany({
+      $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
+    });
+
+    // Delete user's deals
+    const Deal = (await import("../../deals/schema/deal.modal.js")).default;
+    await Deal.deleteMany({ userId: userId });
+
+    // Delete user's listings
+    const Listing = (await import("../../listing/schema/listing.modal.js"))
+      .Listing;
+    await Listing.deleteMany({ userId: userId });
+
+    // Delete user's notifications
+    const Notification = (
+      await import("../../notification/schema/notification.modal.js")
+    ).default;
+    await Notification.deleteMany({
+      $or: [{ receiverId: userId }, { senderId: userId }],
+    });
+
+    // Delete user's messages
+    try {
+      const Message = (await import("../../message/schema/message.modal.js"))
+        .default;
+      await Message.deleteMany({
+        $or: [{ senderId: userId }, { receiverId: userId }],
+      });
+    } catch (messageError) {
+      console.log("Error deleting messages:", messageError);
+      // Continue even if message deletion fails
+    }
+
+    // Delete user's reviews
+    try {
+      const Review = (await import("../../review/schema/review.modal.js"))
+        .default;
+      if (Review) {
+        await Review.deleteMany({ userId: userId });
+      }
+    } catch (reviewError) {
+      console.log(
+        "Review module not found or error deleting reviews:",
+        reviewError.message,
+      );
+      // Continue even if review deletion fails
+    }
+
+    // Remove user from other users' connections/followers if applicable
+    await userModel.updateMany(
+      {
+        $or: [
+          { connections: userId },
+          { followers: userId },
+          { following: userId },
+        ],
+      },
+      {
+        $pull: {
+          connections: userId,
+          followers: userId,
+          following: userId,
+        },
+      },
+    );
+
+    // Delete the user
+    await userModel.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Account and all associated data deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error deleting account",
     });
   }
 };
