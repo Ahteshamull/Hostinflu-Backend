@@ -926,7 +926,7 @@ export const deleteUser = async (req, res) => {
       .Listing;
     await Listing.deleteMany({ userId: userId });
 
-    // Delete user's notifications
+    
     const Notification = (
       await import("../../notification/schema/notification.modal.js")
     ).default;
