@@ -90,6 +90,48 @@ export const createDeal = async (req, res) => {
       });
     }
 
+    // ✅ Validate platformFollowers if provided
+    if (platformFollowers) {
+      if (!Array.isArray(platformFollowers)) {
+        return res.status(400).json({
+          success: false,
+          message: "platformFollowers must be an array",
+        });
+      }
+
+      // Validate each platformFollowers object
+      for (const follower of platformFollowers) {
+        if (!follower || typeof follower !== "object") {
+          return res.status(400).json({
+            success: false,
+            message: "Each platformFollowers entry must be an object",
+          });
+        }
+
+        // Check if at least one platform is provided
+        const hasValidPlatform = [
+          "Instagram",
+          "Tiktok",
+          "Youtube",
+          "Facebook",
+          "X",
+        ].some(
+          (platform) =>
+            follower[platform] &&
+            typeof follower[platform] === "string" &&
+            follower[platform].trim() !== "",
+        );
+
+        if (!hasValidPlatform) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Each platformFollowers entry must have at least one valid platform (Instagram, Tiktok, Youtube, Facebook, X)",
+          });
+        }
+      }
+    }
+
     // ✅ Create deal
     const newDeal = await Deal.create({
       title,
