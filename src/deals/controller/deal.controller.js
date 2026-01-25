@@ -14,6 +14,7 @@ export const createDeal = async (req, res) => {
       compensation,
       deliverables,
       guestCount,
+      platformFollowers,
     } = req.body;
 
     // ✅ Get userId safely from token
@@ -99,6 +100,7 @@ export const createDeal = async (req, res) => {
       guestCount,
       compensation,
       deliverables,
+      platformFollowers,
       userId,
     });
 

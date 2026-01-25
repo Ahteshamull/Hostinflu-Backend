@@ -20,6 +20,10 @@ const deliverableSchema = new Schema(
       required: true,
       min: 1,
     },
+
+    platformFollowers: {
+      type: String,
+    },
   },
   { _id: false },
 );
