@@ -934,7 +934,7 @@ export const deleteUser = async (req, res) => {
       $or: [{ receiverId: userId }, { senderId: userId }],
     });
 
-    // Delete user's messages
+
     try {
       const Message = (await import("../../message/schema/message.modal.js"))
         .default;
