@@ -332,7 +332,7 @@ const getMyAllDeals = async (req, res) => {
 
     const deals = await Deal.find(filter)
       .populate("title", "title location images")
-      .populate("userId")
+      .populate("userId", "name email userName role image")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip(skip);
