@@ -25,10 +25,10 @@ const deliverableSchema = new Schema(
       Instagram: {
         type: String,
       },
-      Tiktok: {
+      TikTok: {
         type: String,
       },
-      Youtube: {
+      YouTube: {
         type: String,
       },
       Facebook: {

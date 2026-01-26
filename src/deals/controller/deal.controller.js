@@ -90,43 +90,49 @@ export const createDeal = async (req, res) => {
       });
     }
 
-    // ✅ Validate platformFollowers if provided
-    if (platformFollowers) {
-      if (!Array.isArray(platformFollowers)) {
+    // ✅ Validate each deliverable and its platformFollowers
+    for (const deliverable of deliverables) {
+      // Validate required fields
+      if (
+        !deliverable.platform ||
+        !deliverable.contentType ||
+        !deliverable.quantity
+      ) {
         return res.status(400).json({
           success: false,
-          message: "platformFollowers must be an array",
+          message:
+            "Each deliverable must have platform, contentType, and quantity",
         });
       }
 
-      // Validate each platformFollowers object
-      for (const follower of platformFollowers) {
-        if (!follower || typeof follower !== "object") {
+      // Validate platformFollowers if provided
+      if (deliverable.platformFollowers) {
+        if (typeof deliverable.platformFollowers !== "object") {
           return res.status(400).json({
             success: false,
-            message: "Each platformFollowers entry must be an object",
+            message: "platformFollowers must be an object",
           });
         }
 
         // Check if at least one platform is provided
         const hasValidPlatform = [
           "Instagram",
-          "Tiktok",
-          "Youtube",
+          "TikTok",
+          "YouTube",
           "Facebook",
           "X",
         ].some(
           (platform) =>
-            follower[platform] &&
-            typeof follower[platform] === "string" &&
-            follower[platform].trim() !== "",
+            deliverable.platformFollowers[platform] &&
+            typeof deliverable.platformFollowers[platform] === "string" &&
+            deliverable.platformFollowers[platform].trim() !== "",
         );
 
         if (!hasValidPlatform) {
           return res.status(400).json({
             success: false,
             message:
-              "Each platformFollowers entry must have at least one valid platform (Instagram, Tiktok, Youtube, Facebook, X)",
+              "Each deliverable must have at least one valid platform with follower count (Instagram, TikTok, YouTube, Facebook, X)",
           });
         }
       }
@@ -142,7 +148,6 @@ export const createDeal = async (req, res) => {
       guestCount,
       compensation,
       deliverables,
-      platformFollowers,
       userId,
     });
 
