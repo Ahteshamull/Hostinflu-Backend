@@ -27,7 +27,7 @@ const PaymentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["PENDING", "SUCCESS", "FAILED", "CANCELLED"], // adjust to your PaymentStatus enum
+      enum: ["PENDING", "SUCCESS", "IN_PROGRESS", "FAILED", "CANCELLED"], // adjust to your PaymentStatus enum
       required: true,
     },
     provider: {

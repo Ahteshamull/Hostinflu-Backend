@@ -243,17 +243,17 @@ export const webhook = async (req, res) => {
 
           // Update payment status and payment intent ID
           await Payment.findByIdAndUpdate(payment._id, {
-            status: "SUCCESS",
+            status: "IN_PROGRESS", // payment amount hold in platform account
             paymentIntentId: session.payment_intent,
           });
 
-          console.log("✅ Payment status updated to SUCCESS");
+          console.log("✅ Payment status updated to IN_PROGRESS");
 
           // Update collaboration payment status and status
           const updatedCollab = await Collaborations.findByIdAndUpdate(
             payment.title,
             {
-              paymentStatus: "paid",
+              paymentStatus: "in_progress",
               status: "ongoing",
             },
             { new: true },
@@ -266,6 +266,47 @@ export const webhook = async (req, res) => {
           });
         } else {
           console.log("❌ Payment not found for session:", session.id);
+        }
+        break;
+
+      case "payment_intent.amount_capturable_updated":
+        console.log("💰 Processing payment_intent.amount_capturable_updated");
+        const intent = event.data.object;
+
+        // Find payment by payment intent ID
+        const capturablePayment = await Payment.findOne({
+          paymentIntentId: intent.id,
+        });
+
+        if (capturablePayment) {
+          console.log("✅ Capturable payment found:", capturablePayment._id);
+
+          // Update payment status to IN_PROGRESS (held in platform account)
+          if (capturablePayment.status !== "IN_PROGRESS") {
+            await Payment.findByIdAndUpdate(capturablePayment._id, {
+              status: "IN_PROGRESS",
+            });
+
+            console.log("✅ Payment status updated to IN_PROGRESS (held)");
+
+            // Update collaboration payment status and status
+            const updatedCollab = await Collaborations.findByIdAndUpdate(
+              capturablePayment.title,
+              {
+                paymentStatus: "in_progress",
+                status: "ongoing",
+              },
+              { new: true },
+            );
+
+            console.log("✅ Collaboration updated for capturable payment:", {
+              id: updatedCollab._id,
+              status: updatedCollab.status,
+              paymentStatus: updatedCollab.paymentStatus,
+            });
+          }
+        } else {
+          console.log("❌ Payment not found for capturable intent:", intent.id);
         }
         break;
 
@@ -330,6 +371,7 @@ export const capturePayment = async (req, res) => {
 
     const { paymentId } = req.params;
     const userId = req.user?._id || req.user?.id || req.user?.userId;
+    const PLATFORM_PERCENT = 10; // 10% platform fee
 
     if (!paymentId) {
       return res.status(400).json({
@@ -338,8 +380,13 @@ export const capturePayment = async (req, res) => {
       });
     }
 
-    // Find payment
-    const payment = await Payment.findById(paymentId).populate("userId");
+    // Find payment with collaboration details
+    const payment = await Payment.findById(paymentId)
+      .populate("userId")
+      .populate({
+        path: "title",
+        populate: ["userId", "selectInfluencerOrHost"],
+      });
 
     if (!payment) {
       return res.status(404).json({
@@ -348,20 +395,21 @@ export const capturePayment = async (req, res) => {
       });
     }
 
-    // Check if user owns the payment
-    if (payment.userId._id.toString() !== userId.toString()) {
+    // Check if user owns the collaboration (host)
+    const collaboration = payment.title;
+    if (collaboration.userId._id.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        message: "You can only capture your own payments",
+        message: "Only the collaboration creator can release payments",
       });
     }
 
-    // Check if payment is in PENDING status
-    if (payment.status !== "PENDING") {
+    // Check if payment is in IN_PROGRESS status (held)
+    if (payment.status !== "IN_PROGRESS") {
       return res.status(400).json({
         success: false,
         message:
-          "Payment cannot be captured. Current status: " + payment.status,
+          "Payment cannot be released. Current status: " + payment.status,
       });
     }
 
@@ -372,31 +420,77 @@ export const capturePayment = async (req, res) => {
       });
     }
 
+    // Check if collaboration is completed
+    if (collaboration.status !== "completed") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Collaboration must be completed before payment can be released",
+      });
+    }
+
+    const totalAmount = Math.round(payment.amount * 100); // Convert to cents
+    const adminAmount = Math.round((totalAmount * PLATFORM_PERCENT) / 100);
+    const influencerAmount = totalAmount - adminAmount;
+
     // Capture the payment
-    const paymentIntent = await stripe.paymentIntents.capture(
+    const capturedIntent = await stripe.paymentIntents.capture(
       payment.paymentIntentId,
+      {
+        idempotencyKey: `capture_${payment._id}`,
+      },
     );
 
-    // Update payment status
+    const chargeId = capturedIntent.latest_charge;
+
+    if (!chargeId) {
+      return res.status(400).json({
+        success: false,
+        message: "Charge not found after capture",
+      });
+    }
+
+    // TODO: Transfer influencer share (need influencer's Stripe account)
+    // For now, we'll just mark as paid and calculate amounts
+    // await stripe.transfers.create({
+    //   amount: influencerAmount,
+    //   currency: "usd",
+    //   destination: influencerStripeAccountId,
+    //   source_transaction: chargeId,
+    // });
+
+    // Update payment status and amounts
     await Payment.findByIdAndUpdate(paymentId, {
       status: "SUCCESS",
+      adminAmount: adminAmount / 100, // Convert back to dollars
+      influencerAmount: influencerAmount / 100, // Convert back to dollars
+      platformFee: PLATFORM_PERCENT,
+      capturedAt: new Date(),
+    });
+
+    // Update collaboration payment status
+    await Collaborations.findByIdAndUpdate(collaboration._id, {
+      paymentStatus: "paid",
     });
 
     return res.status(200).json({
       success: true,
-      message: "Payment captured successfully",
+      message: "Payment released successfully",
       data: {
         paymentId: payment._id,
-        amount: payment.amount,
+        totalAmount: payment.amount,
+        platformFee: PLATFORM_PERCENT,
+        adminAmount: adminAmount / 100,
+        influencerAmount: influencerAmount / 100,
         status: "SUCCESS",
         capturedAt: new Date(),
       },
     });
   } catch (error) {
-    console.error("Error capturing payment:", error);
+    console.error("Error releasing payment:", error);
     return res.status(500).json({
       success: false,
-      message: "Error capturing payment",
+      message: "Error releasing payment",
       error: error.message,
     });
   }

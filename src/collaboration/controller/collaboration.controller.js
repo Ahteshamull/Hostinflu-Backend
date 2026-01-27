@@ -2,6 +2,7 @@ import Collaborations from "../schema/collaboration.modal.js";
 import { createCollaborationNotification } from "../../notification/controller/notification.controller.js";
 import userModel from "../../auth/schema/auth.modal.js";
 import Notification from "../../notification/schema/notification.modal.js";
+import Payment from "../../payment/schema/payment.modal.js";
 
 export const createCollaboration = async (req, res) => {
   try {
@@ -144,6 +145,28 @@ export const getAllCollaboration = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
+    // Add payment information for collaborations with in_progress payment status
+    const collaborationsWithPayment = await Promise.all(
+      collaborations.map(async (collab) => {
+        const collaborationObj = collab.toObject();
+
+        if (collab.paymentStatus === "in_progress") {
+          const payment = await Payment.findOne({
+            title: collab._id,
+            status: "IN_PROGRESS",
+          }).select(
+            "sessionId paymentIntentId amount status provider createdAt",
+          );
+
+          collaborationObj.payment = payment || null;
+        } else {
+          collaborationObj.payment = null;
+        }
+
+        return collaborationObj;
+      }),
+    );
+
     const total = await Collaborations.countDocuments(filter);
 
     res.status(200).json({
@@ -157,7 +180,7 @@ export const getAllCollaboration = async (req, res) => {
           total,
           limit: parseInt(limit),
         },
-        collaborations,
+        collaborations: collaborationsWithPayment,
       },
     });
   } catch (error) {
@@ -337,23 +360,40 @@ export const getMyAllCollaborations = async (req, res) => {
       total = await Collaborations.countDocuments(filter);
     }
 
-    // Add action permissions to each collaboration
-    const collaborationsWithActions = collaborations.map((collab) => {
-      const isCreator = collab.userId._id.toString() === userId;
-      const isSelectedUser =
-        collab.selectInfluencerOrHost._id.toString() === userId;
+    // Add action permissions and payment information to each collaboration
+    const collaborationsWithActions = await Promise.all(
+      collaborations.map(async (collab) => {
+        const collaborationObj = collab.toObject();
+        const isCreator = collab.userId._id.toString() === userId;
+        const isSelectedUser =
+          collab.selectInfluencerOrHost._id.toString() === userId;
 
-      return {
-        ...collab.toObject(),
-        canAccept: isSelectedUser && collab.status === "pending",
-        canReject: isSelectedUser && collab.status === "pending",
-        canNegotiate: isSelectedUser && collab.status === "pending",
-        canWithdraw:
-          isCreator &&
-          (collab.status === "pending" || collab.status === "negotiating"),
-        role: isCreator ? "creator" : "selected",
-      };
-    });
+        // Add payment information for collaborations with in_progress payment status
+        if (collab.paymentStatus === "in_progress") {
+          const payment = await Payment.findOne({
+            title: collab._id,
+            status: "IN_PROGRESS",
+          }).select(
+            "sessionId paymentIntentId amount status provider createdAt",
+          );
+
+          collaborationObj.payment = payment || null;
+        } else {
+          collaborationObj.payment = null;
+        }
+
+        return {
+          ...collaborationObj,
+          canAccept: isSelectedUser && collab.status === "pending",
+          canReject: isSelectedUser && collab.status === "pending",
+          canNegotiate: isSelectedUser && collab.status === "pending",
+          canWithdraw:
+            isCreator &&
+            (collab.status === "pending" || collab.status === "negotiating"),
+          role: isCreator ? "creator" : "selected",
+        };
+      }),
+    );
 
     res.status(200).json({
       success: true,
