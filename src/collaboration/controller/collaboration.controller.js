@@ -379,16 +379,7 @@ export const getMyAllCollaborations = async (req, res) => {
 export const updateCollaboration = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      selectDeal,
-      payment,
-      freeStay,
-      numberOfNights,
-      startDate,
-      endDate,
-      status,
-      socialMediaLinks,
-    } = req.body;
+    const { socialMediaLinks } = req.body;
 
     // Get userId and role from token
     const userId = req.user?.id || req.user?._id || req.user?.userId;
@@ -401,8 +392,10 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Find existing collaboration
-    const collaboration = await Collaborations.findById(id);
+    // Find existing collaboration with populated deal
+    const collaboration =
+      await Collaborations.findById(id).populate("selectDeal");
+
     if (!collaboration) {
       return res.status(404).json({
         success: false,
@@ -411,33 +404,60 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
+    // Validate social media links against deal deliverables
+    if (socialMediaLinks && collaboration.selectDeal?.deliverables) {
+      const dealPlatforms = collaboration.selectDeal.deliverables.map((d) =>
+        d.platform.toLowerCase(),
+      );
+      const providedPlatforms = Object.keys(socialMediaLinks).filter(
+        (platform) =>
+          socialMediaLinks[platform] &&
+          socialMediaLinks[platform].trim() !== "",
+      );
+
+      // Check if provided platforms match deal deliverables
+      const invalidPlatforms = providedPlatforms.filter(
+        (platform) => !dealPlatforms.includes(platform.toLowerCase()),
+      );
+
+      if (invalidPlatforms.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: true,
+          message: `Invalid platforms provided. This deal only requires: ${dealPlatforms.join(", ")}. You provided: ${invalidPlatforms.join(", ")}`,
+          requiredPlatforms: dealPlatforms,
+          providedPlatforms: invalidPlatforms,
+        });
+      }
+    }
+
     // Check if user has permission to update this collaboration
+    // Only influencers can update collaborations they were selected for
+    if (userRole !== "influencer") {
+      return res.status(403).json({
+        success: false,
+        error: true,
+        message: "Only influencers can update collaboration content",
+      });
+    }
+
+    // Check if this influencer was selected for this collaboration
     if (
-      !collaboration.userId ||
-      collaboration.userId.toString() !== userId.toString()
+      !collaboration.selectInfluencerOrHost ||
+      collaboration.selectInfluencerOrHost.toString() !== userId.toString()
     ) {
       return res.status(403).json({
         success: false,
         error: true,
-        message: "You can only update your own collaborations",
+        message: "You can only update collaborations you were selected for",
       });
     }
 
     // Prepare update object
     const updateData = {};
 
-    // Update basic collaboration fields if provided
-    if (selectDeal !== undefined) updateData.selectDeal = selectDeal;
-    if (payment !== undefined) updateData.payment = payment;
-    if (freeStay !== undefined) updateData.freeStay = freeStay;
-    if (numberOfNights !== undefined)
-      updateData.numberOfNights = numberOfNights;
-    if (startDate !== undefined) updateData.startDate = startDate;
-    if (endDate !== undefined) updateData.endDate = endDate;
-    if (status !== undefined) updateData.status = status;
-
-    // Only influencers can update social media links
-    if (userRole === "influencer" && socialMediaLinks) {
+    // Allow influencers to update social media links
+    if (socialMediaLinks) {
       updateData.socialMediaLinks = {
         instagram:
           socialMediaLinks.instagram ||
@@ -460,76 +480,54 @@ export const updateCollaboration = async (req, res) => {
           collaboration.socialMediaLinks?.tiktok ||
           "",
       };
-    } else if (userRole !== "influencer" && socialMediaLinks) {
-      return res.status(403).json({
-        success: false,
-        error: true,
-        message: "Only influencers can update social media links",
-      });
     }
 
-    // Validate required fields if updating deal or payment
-    if (updateData.selectDeal && !updateData.payment) {
-      return res.status(400).json({
-        message: "Payment amount is required when updating deal",
-        error: "Invalid request",
-      });
-    }
+    // Check if collaboration should be marked as completed
+    // Collaboration is completed when:
+    // 1. Status is "ongoing" (payment completed)
+    // 2. Social media links are provided (indicating content completion)
+    let shouldComplete = false;
 
-    // Validate free stay requirements
-    if (updateData.freeStay === true) {
-      if (!updateData.numberOfNights) {
-        return res.status(400).json({
-          message: "Number of nights is required when free stay is enabled",
-          error: "Invalid request",
-        });
-      }
-      if (!updateData.startDate || !updateData.endDate) {
-        return res.status(400).json({
-          message: "Start and end dates are required when free stay is enabled",
-          error: "Invalid request",
-        });
+    if (collaboration.status === "ongoing") {
+      const currentLinks =
+        updateData.socialMediaLinks || collaboration.socialMediaLinks;
+      const hasContent = Object.values(currentLinks).some(
+        (link) => link && link.trim() !== "",
+      );
+
+      if (hasContent) {
+        shouldComplete = true;
+        updateData.status = "completed";
       }
     }
 
-    // Update collaboration
+    // Update the collaboration
     const updatedCollaboration = await Collaborations.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true },
-    )
-      .populate("selectInfluencerOrHost", "name email")
-      .populate("selectDeal", "dealTitle");
-
-    // If status is being updated to "completed", add redeemStars
-    if (
-      updateData.status === "completed" &&
-      collaboration.status !== "completed"
-    ) {
-      // Add redeemStars to both users for completed collaboration
-      await userModel.findByIdAndUpdate(collaboration.userId, {
-        $push: {
-          redeemStars: {
-            collaborationId: collaboration._id,
-          },
-        },
-      });
-
-      await userModel.findByIdAndUpdate(collaboration.selectInfluencerOrHost, {
-        $push: {
-          redeemStars: {
-            collaborationId: collaboration._id,
-          },
-        },
-      });
-    }
+    ).populate([
+      {
+        path: "selectDeal",
+        select:
+          "description compensation addAirbnbLink inTimeAndDate outTimeAndDate",
+      },
+      { path: "userId", select: "_id name email role userName" },
+      {
+        path: "selectInfluencerOrHost",
+        select: "_id name email role userName",
+      },
+    ]);
 
     res.status(200).json({
       success: true,
       error: false,
-      message: "Collaboration updated successfully",
+      message: shouldComplete
+        ? "Collaboration completed successfully! Social media links have been provided."
+        : "Collaboration updated successfully",
       data: {
         collaboration: updatedCollaboration,
+        statusChanged: shouldComplete,
       },
     });
   } catch (error) {

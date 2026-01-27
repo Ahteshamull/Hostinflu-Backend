@@ -38,8 +38,8 @@ router.get("/get-all-collaboration", getAllCollaboration);
 //localhost:3000/api/v1/collaboration/get-single-collaboration (user only)
 router.get("/get-single-collaboration/:id", getSingleCollaboration);
 
-//localhost:3000/api/v1/collaboration/update-collaboration (user only)
-router.put(
+//localhost:3000/api/v1/collaboration/update-collaboration (influencer only)
+router.patch(
   "/update-collaboration/:id",
   authenticateToken,
   requireHostOrInfluencerRole,
@@ -126,8 +126,6 @@ router.put(
   requireHostOrInfluencerRole,
   acceptOrRejectCollaboration,
 );
-
-
 
 //localhost:3000/api/v1/collaboration/get-collaboration-user/:userId?status=complete
 router.get("/get-collaboration-user/:userId", getCollaborationsByUser);
