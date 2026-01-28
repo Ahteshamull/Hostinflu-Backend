@@ -409,7 +409,7 @@ const get_all_conversations_for_user = async (userId, query) => {
     const limit = parseInt(query?.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Find all conversations where the user is a participant
+    
     const conversationsList = await conversations
       .find({ participants: { $in: [userId] } })
       .populate("lastMessage")
