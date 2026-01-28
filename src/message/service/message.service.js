@@ -436,6 +436,53 @@ const get_all_conversations_for_user = async (userId, query) => {
   }
 };
 
+const getUserConversationId = async (userId, receiverId, options = {}) => {
+  try {
+    const { page = 1, limit = 20 } = options;
+
+    const conversation = await conversations.findOne({
+      participants: { $in: [userId, receiverId] },
+    });
+
+    if (!conversation) {
+      return {
+        messages: [],
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: 0,
+          totalMessages: 0,
+          limit: parseInt(limit),
+        },
+      };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [messageList, total] = await Promise.all([
+      messages
+        .find({ conversationId: conversation._id })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      messages.countDocuments({ conversationId: conversation._id }),
+    ]);
+
+    return {
+      messages: messageList,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalMessages: total,
+        limit: parseInt(limit),
+      },
+    };
+  } catch (error) {
+    throw new Error(
+      "Error getting user conversation messages: " + error.message,
+    );
+  }
+};
+
 const MessageService = {
   new_message_IntoDb,
   updateMessageById_IntoDb,
@@ -444,6 +491,7 @@ const MessageService = {
   single_new_message_IntoDb,
   get_my_single_specific_chatList,
   get_all_conversations_for_user,
+  getUserConversationId,
 };
 
 export default MessageService;

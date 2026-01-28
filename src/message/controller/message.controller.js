@@ -115,6 +115,37 @@ const get_all_conversations_controller = async (req, res) => {
   });
 };
 
+const getUserConversation = async (req, res) => {
+  const { receiverId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+
+  if (!receiverId) {
+    return res.status(400).json({
+      success: false,
+      message: "Receiver ID is required",
+    });
+  }
+
+  try {
+    const result = await MessageService.getUserConversationId(
+      req.user.id,
+      receiverId,
+      { page, limit },
+    );
+    res.status(200).json({
+      success: true,
+      message: "Successfully retrieved conversation messages",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving conversation",
+      error: error.message,
+    });
+  }
+};
+
 const MessageController = {
   new_message,
   updateMessageById,
@@ -124,6 +155,7 @@ const MessageController = {
   single_new_message,
   get_my_single_specific_chatList_controller,
   get_all_conversations_controller,
+  getUserConversation,
 };
 
 export default MessageController;

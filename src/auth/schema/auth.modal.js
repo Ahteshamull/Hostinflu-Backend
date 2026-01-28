@@ -95,7 +95,7 @@ const userSchema = new Schema(
 
     isFounderMember: {
       type: Boolean,
-      default: true, 
+      default: true,
     },
 
     isNoMember: {
@@ -159,11 +159,15 @@ const userSchema = new Schema(
       default: 0,
     },
     avgResponseTime: {
-      type: Number, 
+      type: Number,
       default: 0,
     },
     dateOfBirth: {
       type: String,
+    },
+    issn: {
+      type: Boolean,
+      default: false,
     },
     redeemStars: {
       type: [
