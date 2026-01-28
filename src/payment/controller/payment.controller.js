@@ -450,7 +450,7 @@ export const capturePayment = async (req, res) => {
       });
     }
 
-    // TODO: Transfer influencer share (need influencer's Stripe account)
+
     // For now, we'll just mark as paid and calculate amounts
     // await stripe.transfers.create({
     //   amount: influencerAmount,
