@@ -10,7 +10,6 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 
-// stripe account onboarding
 export const stripeAccountOnboarding = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id || req.user?.userId;
