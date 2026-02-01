@@ -124,6 +124,18 @@ const getAllListings = async (req, res) => {
 
     const total = await Listing.countDocuments(filter);
 
+    // Get additional meta data
+    const activeListings = await Listing.countDocuments({ status: "active" });
+    const pendingListings = await Listing.countDocuments({ status: "pending" });
+    const totalListings = await Listing.countDocuments();
+
+    // Get property type distribution
+    const propertyTypeStats = await Listing.aggregate([
+      { $match: filter },
+      { $group: { _id: "$propertyType", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+
     res.status(200).json({
       success: true,
       error: false,
@@ -131,6 +143,13 @@ const getAllListings = async (req, res) => {
       totalPages: Math.ceil(total / limitNum),
       currentPage: pageNum,
       total,
+      meta: {
+        totalPage: Math.ceil(total / limitNum),
+        currentPage: pageNum,
+        total,
+        limit: limitNum,
+     
+      },
       data: {
         listings,
       },
@@ -360,7 +379,7 @@ const adminAcceptListing = async (req, res) => {
     const updatedListing = await Listing.findByIdAndUpdate(
       id,
       { status: "verified" },
-      { new: true }
+      { new: true },
     ).populate("userId", "name email");
 
     // Send notification to the listing owner that their listing has been verified
@@ -371,7 +390,7 @@ const adminAcceptListing = async (req, res) => {
         `Your listing "${updatedListing.title}" has been verified and is now active.`,
         updatedListing._id,
         req.user.id, // Admin who verified
-        updatedListing.userId._id // Listing owner
+        updatedListing.userId._id, // Listing owner
       );
     }
 
