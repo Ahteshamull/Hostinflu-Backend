@@ -12,14 +12,23 @@ import {
   capturePayment,
   getPaymentStatus,
   getUserPayments,
+  stripeAccountOnboarding,
 } from "../controller/payment.controller.js";
+import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
+
+// localhost:3000/api/v1/payment/stripe-account-onboarding
+router.post(
+  "/stripe-account-onboarding",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  stripeAccountOnboarding,
+);
 
 // localhost:3000/api/v1/payment/checkout-session/:collaborationId
 router.post(
   "/checkout-session/:collaborationId",
   authenticateToken,
   requireHostRole,
-
   createCheckoutSession,
 );
 

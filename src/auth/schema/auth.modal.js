@@ -200,6 +200,8 @@ const userSchema = new Schema(
     referralCode: { type: String, unique: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     referralCount: { type: Number, default: 0 },
+    stripeAccountId: { type: String },
+    isStripeConnected: { type: Boolean, default: false },
   },
   {
     timestamps: true,

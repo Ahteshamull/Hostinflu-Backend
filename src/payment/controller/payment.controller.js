@@ -10,6 +10,135 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 
+// stripe account onboarding
+export const stripeAccountOnboarding = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User ID not found in token",
+      });
+    }
+
+    // Check if Stripe is configured
+    if (!stripe) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Stripe is not configured. Please add STRIPE_SECRET_KEY to environment variables.",
+      });
+    }
+
+    // Find user
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // if user already has stripe account
+    if (user.stripeAccountId) {
+      const account = await stripe.accounts.retrieve(user.stripeAccountId);
+
+      const cardPayments = account.capabilities?.card_payments;
+      const transfers = account.capabilities?.transfers;
+      const requirements = account.requirements?.currently_due || [];
+
+      // if verified
+      if (cardPayments === "active" && transfers === "active") {
+        // update DB to mark as connected
+        await userModel.findByIdAndUpdate(user.id, {
+          isStripeConnected: true,
+        });
+
+        return res.status(200).json({
+          success: true,
+          status: "verified",
+          message: "Stripe account verified successfully.",
+          capabilities: account.capabilities,
+        });
+      }
+
+      // if not verified → generate onboarding link
+      const accountLinks = await stripe.accountLinks.create({
+        account: user.stripeAccountId,
+        refresh_url: `${process.env.ONBOARDING_REFRESH_URL}?accountId=${user.stripeAccountId}`,
+        return_url: `${process.env.ONBOARDING_RETURN_URL}?accountId=${user.stripeAccountId}`,
+        type: "account_onboarding",
+      });
+
+      // update DB to store stripeAccountId & mark connected
+      await userModel.findByIdAndUpdate(user.id, {
+        stripeAccountId: user.stripeAccountId,
+        isStripeConnected: true,
+      });
+
+      return res.status(200).json({
+        success: true,
+        status: requirements.length > 0 ? "requirements_due" : "pending",
+        message:
+          requirements.length > 0
+            ? "Additional information required for Stripe verification."
+            : "Your Stripe account verification is under review.",
+        requirements,
+        onboardingLink: accountLinks.url,
+      });
+    }
+
+    // if user has no stripe account → create new account
+    const account = await stripe.accounts.create({
+      type: "express",
+      country: "US",
+      email: user?.email,
+      business_type: "individual",
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      settings: {
+        payouts: {
+          schedule: {
+            delay_days: 2, // minimum allowed
+          },
+        },
+      },
+    });
+
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: `${process.env.ONBOARDING_REFRESH_URL}?accountId=${account.id}`,
+      return_url: `${process.env.ONBOARDING_RETURN_URL}?accountId=${account.id}`,
+      type: "account_onboarding",
+    });
+
+    // update DB with stripeAccountId & mark connected
+    await userModel.findByIdAndUpdate(user.id, {
+      stripeAccountId: account.id,
+      isStripeConnected: true,
+    });
+
+    return res.status(200).json({
+      success: true,
+      status: "pending",
+      message: "Your Stripe account verification is under review.",
+      capabilities: account.capabilities,
+      onboardingLink: accountLink.url,
+    });
+  } catch (error) {
+    console.error("Error in stripe account onboarding:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error creating Stripe account onboarding",
+      error: error.message,
+    });
+  }
+};
+
 export const createCheckoutSession = async (req, res) => {
   try {
     // Check if Stripe is configured
@@ -449,7 +578,6 @@ export const capturePayment = async (req, res) => {
         message: "Charge not found after capture",
       });
     }
-
 
     // For now, we'll just mark as paid and calculate amounts
     // await stripe.transfers.create({
