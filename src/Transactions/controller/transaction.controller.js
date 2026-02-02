@@ -98,3 +98,44 @@ export const allTransactions = async (req, res) => {
     });
   }
 };
+
+export const singleTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate transaction ID
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction ID is required",
+      });
+    }
+
+    // Get single transaction with populated fields
+    const transaction = await paymentModal
+      .findById(id)
+      .populate("userId", "name email")
+      .populate("title", "title status");
+
+    // Check if transaction exists
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction retrieved successfully",
+      data: transaction,
+    });
+  } catch (error) {
+    console.error("Error getting single transaction:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error getting single transaction",
+      error: error.message,
+    });
+  }
+};
