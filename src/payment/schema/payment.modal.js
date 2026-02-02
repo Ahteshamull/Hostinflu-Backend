@@ -56,6 +56,10 @@ const PaymentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Collaboration",
     },
+    selectInfluencerOrHost: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   {
     timestamps: true,

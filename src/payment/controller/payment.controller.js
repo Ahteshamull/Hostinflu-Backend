@@ -298,6 +298,7 @@ export const createCheckoutSession = async (req, res) => {
       status: "PENDING",
       provider: "STRIPE",
       userId: userId,
+      selectInfluencerOrHost: collaboration.selectInfluencerOrHost,
       title: collaboration._id,
     });
 
@@ -726,5 +727,3 @@ export const getUserPayments = async (req, res) => {
     });
   }
 };
-
-
