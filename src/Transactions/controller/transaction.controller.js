@@ -1,0 +1,100 @@
+import paymentModal from "../../payment/schema/payment.modal.js";
+
+// Get all transactions (for admin)
+export const allTransactions = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      userId,
+      startDate,
+      endDate,
+    } = req.query;
+
+    // Convert pagination parameters
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filter
+    const filter = {};
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (userId) {
+      filter.userId = userId;
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        filter.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Get transactions with pagination
+    const transactions = await paymentModal
+      .find(filter)
+      .populate("userId", "name email")
+      .populate("collaborationId", "title status")
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    // Get total count
+    const total = await paymentModal.countDocuments(filter);
+
+    // Get meta data
+    const totalRevenue = await paymentModal.aggregate([
+      {
+        $match: {
+          status: "completed",
+          ...(filter.status && { status: filter.status }),
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    const transactionStats = await paymentModal.aggregate([
+      { $match: filter },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "All transactions retrieved successfully",
+      data: {
+        transactions,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          total,
+          limit: limitNum,
+        },
+        meta: {
+          totalRevenue: totalRevenue[0]?.total || 0,
+          transactionStats,
+          filterApplied: {
+            status: status || null,
+            userId: userId || null,
+            startDate: startDate || null,
+            endDate: endDate || null,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error getting all transactions:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error getting all transactions",
+      error: error.message,
+    });
+  }
+};
