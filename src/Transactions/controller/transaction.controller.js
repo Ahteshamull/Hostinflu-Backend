@@ -139,3 +139,101 @@ export const singleTransaction = async (req, res) => {
     });
   }
 };
+
+export const userPersonalTransaction = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, startDate, endDate } = req.query;
+
+    // Get user ID from authenticated user (from JWT token)
+    const userId = req.user?.id || req.user?._id;
+
+    // Validate user authentication
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User authentication required",
+      });
+    }
+
+    // Convert pagination parameters
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filter for current user's transactions
+    const filter = { userId };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        filter.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Get user's transactions with pagination
+    const transactions = await paymentModal
+      .find(filter)
+      .populate("title", "title status")
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    // Get total count for user's transactions
+    const total = await paymentModal.countDocuments(filter);
+
+    // Get user's total revenue (completed transactions only)
+    const totalRevenue = await paymentModal.aggregate([
+      {
+        $match: {
+          userId: userId,
+          status: "completed",
+          ...(status && { status: status }),
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    // Get user's transaction statistics
+    const transactionStats = await paymentModal.aggregate([
+      { $match: filter },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "User transactions retrieved successfully",
+      data: {
+        transactions,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          total,
+          limit: limitNum,
+        },
+        meta: {
+          totalRevenue: totalRevenue[0]?.total || 0,
+          transactionStats,
+          filterApplied: {
+            status: status || null,
+            startDate: startDate || null,
+            endDate: endDate || null,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error getting user transactions:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error getting user transactions",
+      error: error.message,
+    });
+  }
+};
