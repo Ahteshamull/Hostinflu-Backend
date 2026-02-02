@@ -42,7 +42,7 @@ export const allTransactions = async (req, res) => {
     const transactions = await paymentModal
       .find(filter)
       .populate("userId", "name email")
-      .populate("collaborationId", "title status")
+      .populate("title", "title status")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip(skip);
