@@ -237,3 +237,54 @@ export const userPersonalTransaction = async (req, res) => {
     });
   }
 };
+
+export const userPersonalSingleTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get user ID from authenticated user (from JWT token)
+    const userId = req.user?.id || req.user?._id;
+
+    // Validate user authentication
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User authentication required",
+      });
+    }
+
+    // Validate transaction ID
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction ID is required",
+      });
+    }
+
+    // Get single transaction and verify it belongs to the authenticated user
+    const transaction = await paymentModal
+      .findOne({ _id: id, userId: userId })
+      .populate("title", "title status");
+
+    // Check if transaction exists and belongs to the user
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found or access denied",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction retrieved successfully",
+      data: transaction,
+    });
+  } catch (error) {
+    console.error("Error getting user single transaction:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error getting user single transaction",
+      error: error.message,
+    });
+  }
+};

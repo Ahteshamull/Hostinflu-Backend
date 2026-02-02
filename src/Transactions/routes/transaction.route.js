@@ -1,5 +1,10 @@
 import express from "express";
-import { allTransactions, singleTransaction, userPersonalTransaction } from "../controller/transaction.controller.js";
+import {
+  allTransactions,
+  singleTransaction,
+  userPersonalTransaction,
+  userPersonalSingleTransaction,
+} from "../controller/transaction.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
 
@@ -12,6 +17,19 @@ router.get("/all-transaction", allTransactions);
 router.get("/single-transaction/:id", singleTransaction);
 
 // localhost:3000/api/v1/transactions/user-transaction
-router.get("/user-transaction", authenticateToken, requireHostOrInfluencerRole, userPersonalTransaction);
+router.get(
+  "/user-transaction",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  userPersonalTransaction,
+);
+
+// localhost:3000/api/v1/transactions/user-transaction/:id
+router.get(
+  "/user-transaction/:id",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  userPersonalSingleTransaction,
+);
 
 export default router;
