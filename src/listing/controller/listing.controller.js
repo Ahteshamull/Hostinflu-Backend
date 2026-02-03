@@ -148,7 +148,6 @@ const getAllListings = async (req, res) => {
         currentPage: pageNum,
         total,
         limit: limitNum,
-     
       },
       data: {
         listings,
@@ -375,29 +374,70 @@ const updateListing = async (req, res) => {
 const adminAcceptListing = async (req, res) => {
   try {
     const { id } = req.params;
+    const { action, reason } = req.body; // action: 'approve' or 'reject'
+
+    // Validate action
+    if (!action || !["verified", "rejected"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Action is required and must be 'verified' or 'rejected'",
+      });
+    }
+
+    // Validate reason for rejection
+    if (action === "reject" && !reason) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Reason is required when rejecting a listing",
+      });
+    }
 
     const updatedListing = await Listing.findByIdAndUpdate(
       id,
-      { status: "verified" },
+      {
+        status: action === "verified" ? "verified" : "rejected",
+        rejectionReason: action === "rejected" ? reason : null,
+      },
       { new: true },
     ).populate("userId", "name email");
 
-    // Send notification to the listing owner that their listing has been verified
+    if (!updatedListing) {
+      return res.status(404).json({
+        success: false,
+        error: true,
+        message: "Listing not found",
+      });
+    }
+
+    // Send notification to the listing owner
     if (updatedListing && updatedListing.userId) {
-      await createNotification(
-        "listing_verified",
-        "Listing Verified",
-        `Your listing "${updatedListing.title}" has been verified and is now active.`,
-        updatedListing._id,
-        req.user.id, // Admin who verified
-        updatedListing.userId._id, // Listing owner
-      );
+      if (action === "verified") {
+        await createNotification(
+          "listing_verified",
+          "Listing Verified",
+          `Your listing "${updatedListing.title}" has been verified and is now active.`,
+          updatedListing._id,
+          req.user.id, // Admin who verified
+          updatedListing.userId._id, // Listing owner
+        );
+      } else {
+        await createNotification(
+          "listing_rejected",
+          "Listing Rejected",
+          `Your listing "${updatedListing.title}" has been rejected. Reason: ${reason}`,
+          updatedListing._id,
+          req.user.id, // Admin who rejected
+          updatedListing.userId._id, // Listing owner
+        );
+      }
     }
 
     res.status(200).json({
       success: true,
       error: false,
-      message: "Listing verified successfully",
+      message: `Listing ${action === "verified" ? "verified" : "rejected"} successfully`,
       data: {
         listing: updatedListing,
       },
@@ -406,7 +446,7 @@ const adminAcceptListing = async (req, res) => {
     res.status(500).json({
       success: false,
       error: true,
-      message: "Error verifying listing",
+      message: `Error ${req.body.action === "verified" ? "verifying" : "rejecting"} listing`,
       error: error.message,
     });
   }
