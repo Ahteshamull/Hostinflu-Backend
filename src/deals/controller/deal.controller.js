@@ -44,6 +44,14 @@ export const createDeal = async (req, res) => {
       });
     }
 
+    // ✅ Check if listing is verified
+    if (listing.status !== "verified") {
+      return res.status(400).json({
+        success: false,
+        message: "Deal can only be created for verified listings",
+      });
+    }
+
     // ✅ Validate compensation
     if (
       !compensation ||
