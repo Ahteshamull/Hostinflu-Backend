@@ -374,19 +374,19 @@ const updateListing = async (req, res) => {
 const adminAcceptListing = async (req, res) => {
   try {
     const { id } = req.params;
-    const { action, reason } = req.body; // action: 'approve' or 'reject'
+    const { status, reason } = req.body; // status: 'verified' or 'rejected'
 
-    // Validate action
-    if (!action || !["verified", "rejected"].includes(action)) {
+    // Validate status
+    if (!status || !["verified", "rejected"].includes(status)) {
       return res.status(400).json({
         success: false,
         error: true,
-        message: "Action is required and must be 'verified' or 'rejected'",
+        message: "Status is required and must be 'verified' or 'rejected'",
       });
     }
 
     // Validate reason for rejection
-    if (action === "rejected" && !reason) {
+    if (status === "rejected" && !reason) {
       return res.status(400).json({
         success: false,
         error: true,
@@ -397,8 +397,8 @@ const adminAcceptListing = async (req, res) => {
     const updatedListing = await Listing.findByIdAndUpdate(
       id,
       {
-        status: action === "verified" ? "verified" : "rejected",
-        rejectionReason: action === "rejected" ? reason : null,
+        status: status,
+        rejectionReason: status === "rejected" ? reason : null,
       },
       { new: true },
     ).populate("userId", "name email");
@@ -413,7 +413,7 @@ const adminAcceptListing = async (req, res) => {
 
     // Send notification to the listing owner
     if (updatedListing && updatedListing.userId) {
-      if (action === "verified") {
+      if (status === "verified") {
         await createNotification(
           "listing_verified",
           "Listing Verified",
@@ -437,7 +437,7 @@ const adminAcceptListing = async (req, res) => {
     res.status(200).json({
       success: true,
       error: false,
-      message: `Listing ${action === "verified" ? "verified" : "rejected"} successfully`,
+      message: `Listing ${status} successfully`,
       data: {
         listing: updatedListing,
       },
@@ -446,7 +446,7 @@ const adminAcceptListing = async (req, res) => {
     res.status(500).json({
       success: false,
       error: true,
-      message: `Error ${req.body.action === "verified" ? "verifying" : "rejecting"} listing`,
+      message: `Error ${req.body.status === "verified" ? "verifying" : "rejecting"} listing`,
       error: error.message,
     });
   }
