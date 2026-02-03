@@ -386,7 +386,7 @@ const adminAcceptListing = async (req, res) => {
     }
 
     // Validate reason for rejection
-    if (action === "reject" && !reason) {
+    if (action === "rejected" && !reason) {
       return res.status(400).json({
         success: false,
         error: true,
