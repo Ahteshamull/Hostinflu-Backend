@@ -16,6 +16,7 @@ import referral from "../referral/routes/index.js";
 import payment from "../payment/routes/index.js";
 import transaction from "../Transactions/routes/index.js";
 import earning from "../earning/routes/index.js";
+import review from "../review/routes/index.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
@@ -37,12 +38,17 @@ router.use(baseurl, referral);
 router.use(baseurl, payment);
 router.use(baseurl, transaction);
 router.use(baseurl, earning);
+router.use(baseurl, review);
 
 // Update code
 router.use(baseurl, (req, res) => {
   return res
     .status(404)
-    .send({ error: "No matching API route found for this request" });
+    .send({
+      success: false,
+      error: true,
+      message: "No matching API route found for this request",
+    });
 });
 
 export default router;
