@@ -163,8 +163,107 @@ export const createReview = async (req, res) => {
   }
 };
 
-export const userPersonalReview = (req, res) => {
-  res.send("User personal review");
+export const userPersonalReview = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, reviewType } = req.query;
+
+    // Get user ID from authenticated user (from JWT token)
+    const userId = req.user?.id || req.user?._id;
+
+    // Validate user authentication
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User authentication required",
+      });
+    }
+
+    // Convert pagination parameters
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filter - get reviews where user is either reviewer or reviewee
+    const filter = {
+      isDeleted: false,
+      $or: [
+        { reviewerId: userId.toString() }, // Reviews I wrote
+        { revieweeId: userId.toString() }, // Reviews about me
+      ],
+    };
+
+    // Filter by review type if specified
+    if (reviewType) {
+      filter.reviewType = reviewType;
+    }
+
+    // Get total count
+    const total = await Review.countDocuments(filter);
+
+    // Get reviews with pagination and populate related data
+    const reviews = await Review.find(filter)
+      .populate("collaborationId", "title status")
+      .populate("reviewerId", "name email")
+      .populate("revieweeId", "name email")
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    // Get statistics
+    const reviewsWritten = await Review.countDocuments({
+      reviewerId: userId.toString(),
+      isDeleted: false,
+    });
+
+    const reviewsReceived = await Review.countDocuments({
+      revieweeId: userId.toString(),
+      isDeleted: false,
+    });
+
+    const averageRating = await Review.aggregate([
+      {
+        $match: {
+          revieweeId: userId.toString(),
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          avgRating: { $avg: "$rating" },
+        },
+      },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "User reviews retrieved successfully",
+      data: {
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          total,
+          limit: limitNum,
+        },
+        meta: {
+          reviewsWritten,
+          reviewsReceived,
+          averageRating: averageRating[0]?.avgRating || 0,
+          filterApplied: {
+            reviewType: reviewType || null,
+          },
+        },
+        reviews,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching user reviews:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching user reviews",
+      error: error.message,
+    });
+  }
 };
 
 export const getReview = (req, res) => {
