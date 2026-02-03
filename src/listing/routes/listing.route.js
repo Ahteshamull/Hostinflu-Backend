@@ -9,6 +9,7 @@ import {
   adminAcceptListing,
   personalTotalListings,
   personalListingsGrowth,
+  userPersonalVerifyListings,
 } from "../controller/listing.controller.js";
 import {
   authenticateToken,
@@ -32,7 +33,7 @@ router.post(
   requireHostRole,
   uploadMultipleImages,
   errorCheck,
-  createListing
+  createListing,
 );
 
 // localhost:3000/api/v1/listing/all-listings
@@ -48,7 +49,7 @@ router.put(
   requireHostRole,
   uploadMultipleImages,
   errorCheck,
-  updateListing
+  updateListing,
 );
 
 // localhost:3000/api/v1/listing/admin-accept/listing/:id
@@ -56,21 +57,21 @@ router.put(
   "/admin-accept/listing/:id",
   authenticateToken,
   requireSuperAdminOrAdminRole,
-  adminAcceptListing
+  adminAcceptListing,
 );
 
 // localhost:3000/api/v1/listing/personal-total-listings
 router.get(
   "/personal-total-listings",
   authenticateToken,
-  personalTotalListings
+  personalTotalListings,
 );
 
 // localhost:3000/api/v1/listing/personal-listings-growth
 router.get(
   "/personal-listings-growth",
   authenticateToken,
-  personalListingsGrowth
+  personalListingsGrowth,
 );
 
 // localhost:3000/api/v1/listing/delete-listing/:id
@@ -78,10 +79,17 @@ router.delete(
   "/delete-listing/:id",
   authenticateToken,
   requireHostRole,
-  deleteListing
+  deleteListing,
 );
 
 // localhost:3000/api/v1/listing/my-listings
 router.get("/my-listings", authenticateToken, getMyAllListings);
+
+// localhost:3000/api/v1/listing/user-personal-verify
+router.get(
+  "/user-personal-verify",
+  authenticateToken,
+  userPersonalVerifyListings,
+);
 
 export default router;

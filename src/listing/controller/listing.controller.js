@@ -547,6 +547,81 @@ const personalListingsGrowth = async (req, res) => {
   }
 };
 
+const userPersonalVerifyListings = async (req, res) => {
+  try {
+    // Get user ID from token
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: true,
+        message: "Authentication required",
+      });
+    }
+
+    const { page = 1, limit = 10 } = req.query;
+
+    // Convert pagination parameters
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filter
+    const filter = {
+      userId,
+      status: "verified",
+    };
+
+    // Get total count
+    const total = await Listing.countDocuments(filter);
+
+    // Get listings with pagination
+    const listings = await Listing.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    // Get statistics
+    const totalVerifiedListings = await Listing.countDocuments({
+      userId,
+      status: "verified",
+    });
+
+    const totalListings = await Listing.countDocuments({ userId });
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User personal verified listings retrieved successfully",
+      data: {
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          total,
+          limit: limitNum,
+        },
+        meta: {
+          totalVerifiedListings,
+          totalListings,
+          verificationRate:
+            totalListings > 0
+              ? ((totalVerifiedListings / totalListings) * 100).toFixed(2)
+              : 0,
+        },
+        listings,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user personal verified listings",
+      error: error.message,
+    });
+  }
+};
+
 export {
   createListing,
   getAllListings,
@@ -557,4 +632,5 @@ export {
   adminAcceptListing,
   personalTotalListings,
   personalListingsGrowth,
+  userPersonalVerifyListings,
 };
