@@ -163,8 +163,8 @@ const getAllListings = async (req, res) => {
 
 const getMyAllListings = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { currentPage = 1, limit = 10 } = req.query;
+    const userId = req.user?._id || req.user?.id;
+    const { currentPage = 1, limit = 10, status } = req.query;
 
     // Convert to numbers and validate
     const pageNum = parseInt(currentPage, 10);
@@ -188,28 +188,61 @@ const getMyAllListings = async (req, res) => {
 
     const skip = (pageNum - 1) * limitNum;
 
-    const listings = await Listing.find({ userId })
+    // Build filter with userId and optional status
+    const filter = { userId };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const listings = await Listing.find(filter)
       .populate("userId")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip(skip);
 
-    const total = await Listing.countDocuments({ userId });
+    const total = await Listing.countDocuments(filter);
+
+    // Get statistics for the user's listings
+    const totalUserListings = await Listing.countDocuments({ userId });
+    const verifiedListings = await Listing.countDocuments({
+      userId,
+      status: "verified",
+    });
+    const pendingListings = await Listing.countDocuments({
+      userId,
+      status: "pending",
+    });
+    const rejectedListings = await Listing.countDocuments({
+      userId,
+      status: "rejected",
+    });
 
     res.status(200).json({
       success: true,
       error: false,
-      message: "Listings retrieved successfully",
+      message: "User listings retrieved successfully",
       totalPages: Math.ceil(total / limitNum),
       currentPage: pageNum,
       limit: limitNum,
       total,
+      meta: {
+        totalUserListings,
+        verifiedListings,
+        pendingListings,
+        rejectedListings,
+        filterApplied: {
+          status: status || null,
+        },
+      },
       data: {
         listings,
       },
     });
   } catch (error) {
     res.status(500).json({
+      success: false,
+      error: true,
       message: "Error retrieving listings",
       error: error.message,
     });
