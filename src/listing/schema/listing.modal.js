@@ -32,6 +32,10 @@ const listingSchema = new mongoose.Schema({
     enum: ["pending", "verified", "rejected"],
     default: "pending",
   },
+  rejectionReason: {
+    type: String,
+    default: null,
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },

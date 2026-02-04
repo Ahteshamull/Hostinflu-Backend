@@ -199,7 +199,10 @@ const getMyAllListings = async (req, res) => {
       .populate("userId")
       .sort({ createdAt: -1 })
       .limit(limitNum)
-      .skip(skip);
+      .skip(skip)
+      .select(
+        "title description location propertyType images amenities status rejectionReason createdAt updatedAt",
+      );
 
     const total = await Listing.countDocuments(filter);
 
