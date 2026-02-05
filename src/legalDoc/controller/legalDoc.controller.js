@@ -5,7 +5,7 @@ export const createDoc = async (req, res) => {
     const { content } = req.params;
     const { description } = req.body;
 
-    // Validate required fields
+   
     if (!content || !description) {
       return res.status(400).json({
         success: false,
