@@ -13,11 +13,8 @@ export const createDoc = async (req, res) => {
       });
     }
 
-    // Find existing document by content
     const existingDoc = await legalDocModel.findOne({ content });
-
     if (existingDoc) {
-      // Update existing document
       existingDoc.description = description;
       const updatedDoc = await existingDoc.save();
 
