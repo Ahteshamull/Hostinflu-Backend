@@ -5,7 +5,6 @@ export const createDoc = async (req, res) => {
     const { content } = req.params;
     const { description } = req.body;
 
-   
     if (!content || !description) {
       return res.status(400).json({
         success: false,
@@ -24,7 +23,6 @@ export const createDoc = async (req, res) => {
         data: updatedDoc,
       });
     } else {
-    
       const newDoc = new legalDocModel({
         content,
         description,
@@ -51,13 +49,11 @@ export const getDoc = async (req, res) => {
   try {
     const { content } = req.params;
 
-    
     let query = {};
     if (content) {
       query.content = content;
     }
 
-    // Find documents
     const documents = await legalDocModel.find(query);
 
     if (documents.length === 0) {
