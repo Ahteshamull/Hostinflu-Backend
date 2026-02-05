@@ -24,7 +24,7 @@ export const createDoc = async (req, res) => {
         data: updatedDoc,
       });
     } else {
-      // Create new document
+    
       const newDoc = new legalDocModel({
         content,
         description,
@@ -51,7 +51,7 @@ export const getDoc = async (req, res) => {
   try {
     const { content } = req.params;
 
-    // If content is specified, filter by content type
+    
     let query = {};
     if (content) {
       query.content = content;
