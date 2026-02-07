@@ -17,7 +17,7 @@ const server = createServer(app);
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize Socket.IO
+
 initializeSocket(server);
 
 app.use(
