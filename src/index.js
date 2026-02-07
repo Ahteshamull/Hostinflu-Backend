@@ -27,7 +27,7 @@ app.use(
   }),
 );
 
-// Raw body parser for Stripe webhook
+
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
