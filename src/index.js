@@ -12,12 +12,12 @@ import { initializeSocket } from "./socket/connection/socket.Connection.js";
 
 const app = express();
 
-//socket server
+
 const server = createServer(app);
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize Socket.IO
+
 initializeSocket(server);
 
 app.use(
@@ -27,7 +27,7 @@ app.use(
   }),
 );
 
-// Raw body parser for Stripe webhook
+
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());

@@ -56,9 +56,7 @@ export const singleUser = async (req, res) => {
       });
     }
 
-    /* =========================
-       1. Get User
-    ========================= */
+
     const userData = await userModel
       .findById(id)
       .select("-password -confirmPassword -refreshToken")
@@ -88,7 +86,6 @@ export const singleUser = async (req, res) => {
       });
     }
 
-    // Clean up orphaned redeemStars entries and populate collaboration info
     if (userData.redeemStars && userData.redeemStars.length > 0) {
       const validRedeemStars = [];
       for (const redeemStar of userData.redeemStars) {
@@ -100,7 +97,7 @@ export const singleUser = async (req, res) => {
         }
       }
 
-      // Update user with only valid redeemStars
+        // Update user with only valid redeemStars
       if (validRedeemStars.length !== userData.redeemStars.length) {
         await userModel.findByIdAndUpdate(id, {
           redeemStars: validRedeemStars,
