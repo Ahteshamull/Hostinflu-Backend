@@ -815,7 +815,7 @@ export const topInfluencer = async (req, res) => {
         },
       })
       .select(
-        "name email role image userName bio isFounderMember location socialMediaLinks collaborationsTotal",
+        "name email role image userName bio isFounderMember location socialMediaLinks totalReviews  collaborationsTotal",
       ) // Add more user info
       .sort({ collaborationsTotal: -1 })
       .limit(limit)

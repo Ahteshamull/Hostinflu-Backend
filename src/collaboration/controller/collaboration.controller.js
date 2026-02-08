@@ -137,7 +137,6 @@ export const createCollaborationWeb = async (req, res) => {
     const creatorRole = req.user?.role;
 
     const {
-      selectListing,
       title,
       description,
       addAirbnbLink,
@@ -151,9 +150,6 @@ export const createCollaborationWeb = async (req, res) => {
     // ✅ Validation
     if (!mongoose.Types.ObjectId.isValid(targetUserId))
       return res.status(400).json({ message: "Invalid target user ID" });
-
-    if (!mongoose.Types.ObjectId.isValid(selectListing))
-      return res.status(400).json({ message: "Invalid listing ID" });
 
     if (!["host", "influencer"].includes(creatorRole))
       return res.status(403).json({
@@ -182,16 +178,11 @@ export const createCollaborationWeb = async (req, res) => {
       quantity: d.quantity || 1,
     }));
 
-    // ✅ Get users and listing
+    // ✅ Get target user
     const targetUser = await userModel.findById(targetUserId);
-    const listing = await (
-      await import("../../listing/schema/listing.modal.js")
-    ).Listing.findById(selectListing);
 
-    if (!targetUser || !listing)
-      return res
-        .status(404)
-        .json({ message: "Target user or listing not found" });
+    if (!targetUser)
+      return res.status(404).json({ message: "Target user not found" });
 
     if (creatorId === targetUserId)
       return res
@@ -200,9 +191,7 @@ export const createCollaborationWeb = async (req, res) => {
 
     // ✅ Create Deal
     const Deal = (await import("../../deals/schema/deal.modal.js")).default;
-    const dealTitle = mongoose.Types.ObjectId.isValid(title)
-      ? listing.title
-      : title;
+    const dealTitle = mongoose.Types.ObjectId.isValid(title) ? title : title;
 
     const newDeal = new Deal({
       title: dealTitle,
@@ -213,7 +202,6 @@ export const createCollaborationWeb = async (req, res) => {
       compensation,
       guestCount,
       deliverables: finalDeliverables,
-      selectListing,
       userId: creatorId,
       status: "pending",
     });
@@ -225,7 +213,6 @@ export const createCollaborationWeb = async (req, res) => {
       userId: creatorId,
       selectInfluencerOrHost: targetUserId,
       selectDeal: savedDeal._id,
-      selectListing,
       status: "pending",
     });
 
@@ -258,8 +245,7 @@ export const createCollaborationWeb = async (req, res) => {
     )
       .populate("userId", "name email role")
       .populate("selectInfluencerOrHost", "name email role")
-      .populate("selectDeal")
-      .populate("selectListing", "title images location");
+      .populate("selectDeal");
 
     return res.status(201).json({
       success: true,
@@ -267,7 +253,6 @@ export const createCollaborationWeb = async (req, res) => {
       data: {
         collaboration: populatedCollab,
         deal: savedDeal,
-        listing: listing,
       },
     });
   } catch (error) {
@@ -278,7 +263,6 @@ export const createCollaborationWeb = async (req, res) => {
     });
   }
 };
-
 
 export const getAllCollaboration = async (req, res) => {
   try {
