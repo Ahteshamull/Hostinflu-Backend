@@ -19,6 +19,7 @@ const collaborationSchema = new mongoose.Schema(
       ref: "Deal",
       required: [true, "Select Deal is required"],
     },
+
     selectListing: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Listing",
@@ -43,6 +44,7 @@ const collaborationSchema = new mongoose.Schema(
       enum: ["pending", "accepted", "rejected"],
       default: "pending",
     },
+
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "failed", "in_progress"],

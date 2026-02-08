@@ -132,9 +132,11 @@ export const createCollaboration = async (req, res) => {
 
 export const createCollaborationWeb = async (req, res) => {
   try {
-    const { id } = req.params;
+    const targetUserId = req.params.id; // From URL param
+    const creatorId = req.user?.id || req.user?._id || req.user?.sub; // From token
+    const creatorRole = req.user?.role;
 
-    let {
+    const {
       selectListing,
       title,
       description,
@@ -146,80 +148,82 @@ export const createCollaborationWeb = async (req, res) => {
       deliverables,
     } = req.body;
 
-    const userId = id;
-    const userRole = req.user?.role;
+    // ✅ Validation
+    if (!mongoose.Types.ObjectId.isValid(targetUserId))
+      return res.status(400).json({ message: "Invalid target user ID" });
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid user ID" });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(selectListing)) {
+    if (!mongoose.Types.ObjectId.isValid(selectListing))
       return res.status(400).json({ message: "Invalid listing ID" });
-    }
 
-    if (!["host", "influencer"].includes(userRole)) {
+    if (!["host", "influencer"].includes(creatorRole))
       return res.status(403).json({
         message: "Only hosts and influencers can create collaborations",
       });
-    }
 
-    if (
-      !title ||
-      !description ||
-      !inTimeAndDate ||
-      !outTimeAndDate ||
-      !compensation
-    ) {
-      return res.status(400).json({
-        message: "Required fields missing",
-      });
-    }
+    if (!description || !inTimeAndDate || !outTimeAndDate || !compensation)
+      return res.status(400).json({ message: "Required fields missing" });
 
-    // Parse deliverables (form-data safe)
+    // 🔧 Parse deliverables
+    let finalDeliverables = deliverables;
     if (typeof deliverables === "string") {
       try {
-        deliverables = JSON.parse(deliverables);
+        finalDeliverables = JSON.parse(deliverables);
       } catch {
-        return res.status(400).json({
-          message: "Deliverables must be valid JSON",
-        });
+        return res
+          .status(400)
+          .json({ message: "Deliverables must be valid JSON" });
       }
     }
 
-    const user = await userModel.findById(userId);
+    // Default quantity if missing
+    finalDeliverables = finalDeliverables.map((d) => ({
+      platform: d.platform,
+      contentType: d.contentType,
+      quantity: d.quantity || 1,
+    }));
+
+    // ✅ Get users and listing
+    const targetUser = await userModel.findById(targetUserId);
     const listing = await (
       await import("../../listing/schema/listing.modal.js")
     ).Listing.findById(selectListing);
 
-    if (!user || !listing) {
-      return res.status(404).json({
-        message: "User or listing not found",
-      });
-    }
+    if (!targetUser || !listing)
+      return res
+        .status(404)
+        .json({ message: "Target user or listing not found" });
+
+    if (creatorId === targetUserId)
+      return res
+        .status(400)
+        .json({ message: "Cannot create collaboration with yourself" });
 
     // ✅ Create Deal
     const Deal = (await import("../../deals/schema/deal.modal.js")).default;
+    const dealTitle = mongoose.Types.ObjectId.isValid(title)
+      ? listing.title
+      : title;
 
     const newDeal = new Deal({
-      title, // ✅ FIXED
+      title: dealTitle,
       description,
       addAirbnbLink,
       inTimeAndDate,
       outTimeAndDate,
       compensation,
       guestCount,
-      deliverables,
+      deliverables: finalDeliverables,
       selectListing,
-      userId,
+      userId: creatorId,
       status: "pending",
     });
 
     const savedDeal = await newDeal.save();
 
-    // ✅ Create Collaboration (self)
+    // ✅ Create Collaboration
     const newCollaboration = new Collaborations({
-      userId,
-      selectInfluencerOrHost: userId, // ✅ FIX
+      userId: creatorId,
+      selectInfluencerOrHost: targetUserId,
       selectDeal: savedDeal._id,
       selectListing,
       status: "pending",
@@ -227,8 +231,8 @@ export const createCollaborationWeb = async (req, res) => {
 
     const savedCollaboration = await newCollaboration.save();
 
-    // ✅ Update user once
-    await userModel.findByIdAndUpdate(userId, {
+    // ✅ Update users
+    await userModel.findByIdAndUpdate(creatorId, {
       $push: {
         collaborations: savedCollaboration._id,
         deals: savedDeal._id,
@@ -237,17 +241,33 @@ export const createCollaborationWeb = async (req, res) => {
       $inc: { collaborationsTotal: 1, dealsTotal: 1 },
     });
 
+    await userModel.findByIdAndUpdate(targetUserId, {
+      $push: {
+        redeemStars: { collaborationId: savedCollaboration._id },
+      },
+    });
+
+    // ✅ Notification
     try {
-      await createCollaborationNotification(savedCollaboration, userRole);
+      await createCollaborationNotification(savedCollaboration, creatorRole);
     } catch {}
+
+    // ✅ Respond with populated data
+    const populatedCollab = await Collaborations.findById(
+      savedCollaboration._id,
+    )
+      .populate("userId", "name email role")
+      .populate("selectInfluencerOrHost", "name email role")
+      .populate("selectDeal")
+      .populate("selectListing", "title images location");
 
     return res.status(201).json({
       success: true,
       message: "Collaboration created successfully",
       data: {
-        collaboration: savedCollaboration,
+        collaboration: populatedCollab,
         deal: savedDeal,
-        listing,
+        listing: listing,
       },
     });
   } catch (error) {

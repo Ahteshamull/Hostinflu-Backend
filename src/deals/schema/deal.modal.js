@@ -45,9 +45,9 @@ const deliverableSchema = new Schema(
 const dealSchema = new Schema(
   {
     title: {
-      type: Schema.Types.ObjectId,
-      ref: "Listing",
+      type: String, // ✅ Changed from ObjectId to String
       required: true,
+      trim: true,
     },
 
     description: {
