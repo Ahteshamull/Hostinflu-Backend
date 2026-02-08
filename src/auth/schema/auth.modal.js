@@ -90,14 +90,7 @@ const userSchema = new Schema(
       {
         platform: {
           type: String,
-          enum: [
-            "facebook",
-            "instagram",
-            "x",
-            "youtube",
-            "tiktok", 
-          ],
-          
+          enum: ["facebook", "instagram", "x", "youtube", "tiktok"],
         },
         url: {
           type: String,
@@ -206,6 +199,10 @@ const userSchema = new Schema(
       default: [],
     },
     totalReviews: {
+      type: Number,
+      default: 0,
+    },
+    averageRating: {
       type: Number,
       default: 0,
     },

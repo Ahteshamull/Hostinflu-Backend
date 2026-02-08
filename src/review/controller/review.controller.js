@@ -1,6 +1,7 @@
 import Review from "../schema/review.modal.js";
 import Collaborations from "../../collaboration/schema/collaboration.modal.js";
 import Payment from "../../payment/schema/payment.modal.js";
+import userModel from "../../auth/schema/auth.modal.js";
 
 export const createReview = async (req, res) => {
   try {
@@ -140,6 +141,22 @@ export const createReview = async (req, res) => {
       reviewerId,
       revieweeId,
       reviewType,
+    });
+
+    // ✅ Update reviewee's rating and total reviews
+    const allReviewsForUser = await Review.find({
+      revieweeId,
+      isDeleted: false,
+    });
+
+    const totalReviewsCount = allReviewsForUser.length;
+    const averageRatingValue =
+      allReviewsForUser.reduce((sum, rev) => sum + rev.rating, 0) /
+      totalReviewsCount;
+
+    await userModel.findByIdAndUpdate(revieweeId, {
+      totalReviews: totalReviewsCount,
+      averageRating: Math.round(averageRatingValue * 10) / 10, // Round to 1 decimal place
     });
 
     // Populate review data for response

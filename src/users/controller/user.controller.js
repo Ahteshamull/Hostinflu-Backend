@@ -744,7 +744,7 @@ export const discoverHost = async (req, res) => {
         },
       })
       .select(
-        "name email role image userName isFounderMember bio location socialMediaLinks",
+        "",
       ) // Add more user info
       .sort({ createdAt: -1 })
       .limit(4) // Only 4 hosts
@@ -814,9 +814,7 @@ export const topInfluencer = async (req, res) => {
           select: "title images location status",
         },
       })
-      .select(
-        "name email role image userName bio isFounderMember location socialMediaLinks totalReviews  collaborationsTotal",
-      ) // Add more user info
+      .select("") // Select all fields
       .sort({ collaborationsTotal: -1 })
       .limit(limit)
       .skip((page - 1) * limit);
