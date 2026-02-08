@@ -736,16 +736,8 @@ export const discoverHost = async (req, res) => {
     // Find only 4 hosts with their deals and count deals
     const hosts = await userModel
       .find({ role: "host" })
-      .populate({
-        path: "deals",
-        populate: {
-          path: "selectListing",
-          select: "title images location status",
-        },
-      })
-      .select(
-        "",
-      ) // Add more user info
+      .populate("deals") // Simple population without selectListing
+      .select("") // Select all fields to ensure we get all available data
       .sort({ createdAt: -1 })
       .limit(4) // Only 4 hosts
       .skip((page - 1) * 4); // Skip based on 4 per page
@@ -807,13 +799,7 @@ export const topInfluencer = async (req, res) => {
     // Find top influencers with their collaborations
     const influencers = await userModel
       .find({ role: "influencer" })
-      .populate({
-        path: "collaborations",
-        populate: {
-          path: "selectListing",
-          select: "title images location status",
-        },
-      })
+      .populate("collaborations") // Simple population without selectListing
       .select("") // Select all fields
       .sort({ collaborationsTotal: -1 })
       .limit(limit)

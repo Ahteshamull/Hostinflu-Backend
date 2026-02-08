@@ -18,6 +18,19 @@ export const createUser = async (req, res) => {
   let role = req.body.role;
   let userName = req.body.userName;
 
+  // Extract additional fields from request body
+  let location = req.body.location;
+  let fullAddress = req.body.fullAddress;
+  let country = req.body.country;
+  let state = req.body.state;
+  let city = req.body.city;
+  let zipCode = req.body.zipCode;
+  let phone = req.body.phone;
+  let dateOfBirth = req.body.dateOfBirth;
+  let gender = req.body.gender;
+  let aboutMe = req.body.aboutMe;
+  let bio = req.body.bio;
+
   // Basic required fields
   if (!name || !email || !password) {
     return res.status(404).send({
@@ -107,6 +120,17 @@ export const createUser = async (req, res) => {
           password: hash,
           confirmPassword: hash,
           role,
+          location,
+          fullAddress,
+          country,
+          state,
+          city,
+          zipCode,
+          phone,
+          dateOfBirth,
+          gender,
+          aboutMe,
+          bio,
           isFounderMember, // 👑 Founder Member for first 50 users
           isNoMember,
           totalUsersAtRegistration: totalUsers, // Save total users count at registration
@@ -117,9 +141,10 @@ export const createUser = async (req, res) => {
         // Send notification to admin about new user registration
         await notifyAdminOnUserCreated(user._id, user.name, user.email);
 
-        // Populate user data with collaborations
+        // Populate user data with all information
         const populatedUser = await userModel
           .findById(user._id)
+          .select("") // Select all fields
           .populate("collaborations")
           .populate("redeemStars.collaborationId");
 
@@ -926,14 +951,12 @@ export const deleteUser = async (req, res) => {
       .Listing;
     await Listing.deleteMany({ userId: userId });
 
-    
     const Notification = (
       await import("../../notification/schema/notification.modal.js")
     ).default;
     await Notification.deleteMany({
       $or: [{ receiverId: userId }, { senderId: userId }],
     });
-
 
     try {
       const Message = (await import("../../message/schema/message.modal.js"))
@@ -943,9 +966,7 @@ export const deleteUser = async (req, res) => {
       });
     } catch (messageError) {
       console.log("Error deleting messages:", messageError);
-      
     }
-
 
     try {
       const Review = (await import("../../review/schema/review.modal.js"))
