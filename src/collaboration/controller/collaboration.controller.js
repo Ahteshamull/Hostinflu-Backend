@@ -4,6 +4,8 @@ import userModel from "../../auth/schema/auth.modal.js";
 import Notification from "../../notification/schema/notification.modal.js";
 import Payment from "../../payment/schema/payment.modal.js";
 
+import mongoose from "mongoose";
+
 export const createCollaboration = async (req, res) => {
   try {
     const {
@@ -130,135 +132,133 @@ export const createCollaboration = async (req, res) => {
 
 export const createCollaborationWeb = async (req, res) => {
   try {
-    const { id } = req.params; // Get user ID from URL params
-    const {
-      selectInfluencerOrHost,
+    const { id } = req.params;
+
+    let {
       selectListing,
-      payment,
-      freeStay,
-      numberOfNights,
-      startDate,
-      endDate,
+      title,
+      description,
+      addAirbnbLink,
+      inTimeAndDate,
+      outTimeAndDate,
+      compensation,
+      guestCount,
+      deliverables,
     } = req.body;
 
-    const userId = id; // Use user ID from params
-    const userRole = req.user?.role; // Get role from token for validation
+    const userId = id;
+    const userRole = req.user?.role;
 
-    if (!userId) {
-      return res.status(400).json({
-        message: "User ID is required in URL parameters",
-        error: "Invalid request",
-      });
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
     }
 
-    if (!userRole) {
-      return res.status(401).json({
-        message: "User role not found in token",
-        error: "Authentication required",
-      });
+    if (!mongoose.Types.ObjectId.isValid(selectListing)) {
+      return res.status(400).json({ message: "Invalid listing ID" });
     }
 
-    if (!selectInfluencerOrHost || !selectListing) {
-      return res.status(400).json({
-        message: "Influencer/Host and Listing are required",
-        error: "Invalid request",
-      });
-    }
-
-    const selectedUser = await userModel.findById(selectInfluencerOrHost);
-
-    if (!selectedUser) {
-      return res.status(404).json({
-        message: "Selected user not found",
-        error: "Invalid user selection",
-      });
-    }
-
-    if (userId.toString() === selectInfluencerOrHost.toString()) {
-      return res.status(400).json({
-        message: "You cannot create collaboration with yourself",
-        error: "Invalid collaboration target",
-      });
-    }
-
-    if (userRole === "host") {
-      if (!["host", "influencer"].includes(selectedUser.role)) {
-        return res.status(400).json({
-          message:
-            "Host can only create collaborations for hosts or influencers",
-          error: "Invalid collaboration target",
-        });
-      }
-    } else if (userRole === "influencer") {
-      if (!["host", "influencer"].includes(selectedUser.role)) {
-        return res.status(400).json({
-          message:
-            "Influencer can only create collaborations for hosts or influencers",
-          error: "Invalid collaboration target",
-        });
-      }
-    } else {
+    if (!["host", "influencer"].includes(userRole)) {
       return res.status(403).json({
         message: "Only hosts and influencers can create collaborations",
-        error: "Invalid role",
       });
     }
 
-    const newCollaboration = new Collaborations({
-      selectInfluencerOrHost,
-      selectListing,
-      payment,
-      freeStay,
-      numberOfNights,
-      startDate,
-      endDate,
-      userId,
+    if (
+      !title ||
+      !description ||
+      !inTimeAndDate ||
+      !outTimeAndDate ||
+      !compensation
+    ) {
+      return res.status(400).json({
+        message: "Required fields missing",
+      });
+    }
 
+    // Parse deliverables (form-data safe)
+    if (typeof deliverables === "string") {
+      try {
+        deliverables = JSON.parse(deliverables);
+      } catch {
+        return res.status(400).json({
+          message: "Deliverables must be valid JSON",
+        });
+      }
+    }
+
+    const user = await userModel.findById(userId);
+    const listing = await (
+      await import("../../listing/schema/listing.modal.js")
+    ).Listing.findById(selectListing);
+
+    if (!user || !listing) {
+      return res.status(404).json({
+        message: "User or listing not found",
+      });
+    }
+
+    // ✅ Create Deal
+    const Deal = (await import("../../deals/schema/deal.modal.js")).default;
+
+    const newDeal = new Deal({
+      title, // ✅ FIXED
+      description,
+      addAirbnbLink,
+      inTimeAndDate,
+      outTimeAndDate,
+      compensation,
+      guestCount,
+      deliverables,
+      selectListing,
+      userId,
+      status: "pending",
+    });
+
+    const savedDeal = await newDeal.save();
+
+    // ✅ Create Collaboration (self)
+    const newCollaboration = new Collaborations({
+      userId,
+      selectInfluencerOrHost: userId, // ✅ FIX
+      selectDeal: savedDeal._id,
+      selectListing,
       status: "pending",
     });
 
     const savedCollaboration = await newCollaboration.save();
 
+    // ✅ Update user once
     await userModel.findByIdAndUpdate(userId, {
-      $push: { collaborations: savedCollaboration._id },
-      $inc: { collaborationsTotal: 1 },
-
       $push: {
-        redeemStars: {
-          collaborationId: savedCollaboration._id,
-        },
+        collaborations: savedCollaboration._id,
+        deals: savedDeal._id,
+        redeemStars: { collaborationId: savedCollaboration._id },
       },
-    });
-
-    await userModel.findByIdAndUpdate(selectInfluencerOrHost, {
-      $push: {
-        redeemStars: {
-          collaborationId: savedCollaboration._id,
-        },
-      },
+      $inc: { collaborationsTotal: 1, dealsTotal: 1 },
     });
 
     try {
       await createCollaborationNotification(savedCollaboration, userRole);
-    } catch (notificationError) {}
+    } catch {}
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      error: false,
-      message: "Collaboration send successfully",
+      message: "Collaboration created successfully",
       data: {
         collaboration: savedCollaboration,
+        deal: savedDeal,
+        listing,
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: true,
       message: "Error creating collaboration",
       error: error.message,
     });
   }
 };
+
 
 export const getAllCollaboration = async (req, res) => {
   try {
@@ -270,7 +270,6 @@ export const getAllCollaboration = async (req, res) => {
     }
 
     const collaborations = await Collaborations.find(filter)
-      .populate("selectInfluencerOrHost", "name email role")
       .populate("userId", "name email role")
       .populate("selectDeal")
       .sort({ createdAt: -1 })
