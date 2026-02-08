@@ -127,6 +127,137 @@ export const createCollaboration = async (req, res) => {
     });
   }
 };
+export const createCollaborationWeb = async (req, res) => {
+  try {
+    const { id } = req.params; // Get user ID from URL params
+    const {
+      selectInfluencerOrHost,
+      selectDeal,
+      payment,
+      freeStay,
+      numberOfNights,
+      startDate,
+      endDate,
+    } = req.body;
+
+    const userId = id; // Use user ID from params
+    const userRole = req.user?.role; // Get role from token for validation
+
+    if (!userId) {
+      return res.status(400).json({
+        message: "User ID is required in URL parameters",
+        error: "Invalid request",
+      });
+    }
+
+    if (!userRole) {
+      return res.status(401).json({
+        message: "User role not found in token",
+        error: "Authentication required",
+      });
+    }
+
+    if (!selectInfluencerOrHost || !selectDeal) {
+      return res.status(400).json({
+        message: "Influencer/Host and Deal are required",
+        error: "Invalid request",
+      });
+    }
+
+    const selectedUser = await userModel.findById(selectInfluencerOrHost);
+
+    if (!selectedUser) {
+      return res.status(404).json({
+        message: "Selected user not found",
+        error: "Invalid user selection",
+      });
+    }
+
+    if (userId.toString() === selectInfluencerOrHost.toString()) {
+      return res.status(400).json({
+        message: "You cannot create collaboration with yourself",
+        error: "Invalid collaboration target",
+      });
+    }
+
+    if (userRole === "host") {
+      if (!["host", "influencer"].includes(selectedUser.role)) {
+        return res.status(400).json({
+          message:
+            "Host can only create collaborations for hosts or influencers",
+          error: "Invalid collaboration target",
+        });
+      }
+    } else if (userRole === "influencer") {
+      if (!["host", "influencer"].includes(selectedUser.role)) {
+        return res.status(400).json({
+          message:
+            "Influencer can only create collaborations for hosts or influencers",
+          error: "Invalid collaboration target",
+        });
+      }
+    } else {
+      return res.status(403).json({
+        message: "Only hosts and influencers can create collaborations",
+        error: "Invalid role",
+      });
+    }
+
+    const newCollaboration = new Collaborations({
+      selectInfluencerOrHost,
+      selectDeal,
+      payment,
+      freeStay,
+      numberOfNights,
+      startDate,
+      endDate,
+      userId,
+
+      status: "pending",
+    });
+
+    const savedCollaboration = await newCollaboration.save();
+
+    await userModel.findByIdAndUpdate(userId, {
+      $push: { collaborations: savedCollaboration._id },
+      $inc: { collaborationsTotal: 1 },
+
+      $push: {
+        redeemStars: {
+          collaborationId: savedCollaboration._id,
+        },
+      },
+    });
+
+    await userModel.findByIdAndUpdate(selectInfluencerOrHost, {
+      $push: {
+        redeemStars: {
+          collaborationId: savedCollaboration._id,
+        },
+      },
+    });
+
+    try {
+      await createCollaborationNotification(savedCollaboration, userRole);
+    } catch (notificationError) {}
+
+    res.status(201).json({
+      success: true,
+      error: false,
+      message: "Collaboration send successfully",
+      data: {
+        collaboration: savedCollaboration,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error creating collaboration",
+      error: error.message,
+    });
+  }
+};
 
 export const getAllCollaboration = async (req, res) => {
   try {

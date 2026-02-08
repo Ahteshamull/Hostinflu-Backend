@@ -18,6 +18,7 @@ import {
   updateNegotiateStatus,
   acceptOrRejectCollaboration,
   getCollaborationsByUser,
+  createCollaborationWeb,
 } from "../controller/collaboration.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
@@ -30,6 +31,14 @@ router.post(
   authenticateToken,
   requireHostOrInfluencerRole,
   createCollaboration,
+);
+
+//localhost:3000/api/v1/collaboration/create-collaboration-web (user only)
+router.post(
+  "/create-collaboration-web/:id",
+  authenticateToken,
+  requireHostOrInfluencerRole,
+  createCollaborationWeb,
 );
 
 //localhost:3000/api/v1/collaboration/get-all-collaboration (user only)

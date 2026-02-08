@@ -178,6 +178,15 @@ export const singleUser = async (req, res) => {
       );
     }
 
+    // Get total listings count (including rejected)
+    let totalListings = [];
+    if (userData.listings && userData.listings.length > 0) {
+      const allListings = await Listing.find({
+        _id: { $in: userData.listings },
+      }).select("_id");
+      totalListings = allListings.map((listing) => listing._id.toString());
+    }
+
     // Calculate redeem stars from completed collaborations
     let totalRedeemStars = 0;
     const userCompletedCollaborations = await Collaborations.find({
@@ -269,6 +278,7 @@ export const singleUser = async (req, res) => {
         dealsTotal: activeDeals.length,
         listings: activeListings,
         listingsTotal: activeListings.length,
+        totalListings: totalListings.length,
         collaborationsTotal: userData.collaborations
           ? userData.collaborations.length
           : 0,
