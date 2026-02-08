@@ -56,7 +56,6 @@ export const singleUser = async (req, res) => {
       });
     }
 
-
     const userData = await userModel
       .findById(id)
       .select("-password -confirmPassword -refreshToken")
@@ -97,7 +96,7 @@ export const singleUser = async (req, res) => {
         }
       }
 
-        // Update user with only valid redeemStars
+      // Update user with only valid redeemStars
       if (validRedeemStars.length !== userData.redeemStars.length) {
         await userModel.findByIdAndUpdate(id, {
           redeemStars: validRedeemStars,
@@ -336,9 +335,10 @@ export const updateProfile = async (req, res) => {
       fullAddress,
       aboutMe,
       image,
-      addAsocialMediaLink,
-      addYourSocialFollowers,
     } = req.body;
+
+    // 🔧 FIX: use mutable variable
+    let { socialMediaLinks } = req.body;
 
     const existingUser = await userModel.findById(userId);
 
@@ -349,64 +349,10 @@ export const updateProfile = async (req, res) => {
         success: false,
         message: "User not found",
         debug: {
-          userId: userId,
+          userId,
           totalUsersInDb: totalUsers,
-          suggestion:
-            totalUsers === 0
-              ? "Database appears to be empty. Users may need to be created."
-              : "User may have been deleted or token may be from a different database.",
         },
       });
-    }
-
-    if (email && email !== existingUser.email) {
-      const emailExists = await userModel.findOne({
-        email: email.toLowerCase(),
-        _id: { $ne: userId },
-      });
-      if (emailExists) {
-        return res.status(400).json({
-          success: false,
-          message: "Email is already in use by another user",
-        });
-      }
-    }
-
-    if (userName && userName.toLowerCase().trim() !== existingUser.userName) {
-      const normalizedUserName = userName.toLowerCase().trim();
-
-      if (!/^[a-z0-9_]+$/.test(normalizedUserName)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Username can only contain lowercase letters, numbers, and underscore (_)",
-        });
-      }
-
-      if (normalizedUserName.length < 5) {
-        return res.status(400).json({
-          success: false,
-          message: "Username must be at least 5 characters",
-        });
-      }
-
-      if (normalizedUserName.length > 20) {
-        return res.status(400).json({
-          success: false,
-          message: "Username must not exceed 20 characters",
-        });
-      }
-
-      const userNameExists = await userModel.findOne({
-        userName: normalizedUserName,
-        _id: { $ne: userId },
-      });
-      if (userNameExists) {
-        return res.status(400).json({
-          success: false,
-          message: "Username is already in use by another user",
-        });
-      }
     }
 
     const updateData = {};
@@ -478,45 +424,74 @@ export const updateProfile = async (req, res) => {
       hasChanges = true;
     }
 
-    if (image !== undefined && image !== existingUser.image) {
-      updateData.image = image;
+    // ✅ influencer only
+    if (existingUser.role === "influencer" && socialMediaLinks !== undefined) {
+      console.log("Received:", socialMediaLinks);
+
+      if (typeof socialMediaLinks === "string") {
+        try {
+          socialMediaLinks = JSON.parse(socialMediaLinks);
+        } catch (err) {
+          return res.status(400).json({
+            success: false,
+            message: "Social media links must be a valid JSON array.",
+          });
+        }
+      }
+
+      if (!Array.isArray(socialMediaLinks)) {
+        return res.status(400).json({
+          success: false,
+          message: "Social media links must be an array.",
+        });
+      }
+
+      const validPlatforms = [
+        "facebook",
+        "instagram",
+        "x",
+        "youtube",
+        "tiktok",
+      ];
+
+      const filteredLinks = socialMediaLinks
+        .filter((link) => link.platform && link.url)
+        .map((link) => ({
+          platform: link.platform,
+          url: link.url,
+          followers: parseInt(link.followers) || 0,
+        }));
+
+      const isValid = filteredLinks.every(
+        (link) =>
+          validPlatforms.includes(link.platform) &&
+          typeof link.url === "string",
+      );
+
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid social media links format.",
+        });
+      }
+
+      updateData.socialMediaLinks = filteredLinks;
       hasChanges = true;
     }
 
-    // Only allow social media updates for influencers
-    if (existingUser.role === "influencer") {
-      if (
-        addAsocialMediaLink !== undefined &&
-        addAsocialMediaLink !== existingUser.addAsocialMediaLink
-      ) {
-        updateData.addAsocialMediaLink = addAsocialMediaLink;
-        hasChanges = true;
-      }
-
-      if (
-        addYourSocialFollowers !== undefined &&
-        addYourSocialFollowers !== existingUser.addYourSocialFollowers
-      ) {
-        updateData.addYourSocialFollowers = addYourSocialFollowers;
-        hasChanges = true;
-      }
-    }
-
+    // ✅ image upload
     if (req.file) {
-      if (existingUser.image) {
-        const oldImagePath = path.join(process.cwd(), existingUser.image);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
       updateData.image = `/uploads/${req.file.filename}`;
+      hasChanges = true;
+    } else if (image && image !== existingUser.image) {
+      updateData.image = image;
       hasChanges = true;
     }
 
     if (!hasChanges) {
       return res.status(200).json({
         success: true,
-        message: "No changes detected - profile data is already up to date",
+        message: "No changes detected",
         data: existingUser,
       });
     }
@@ -540,6 +515,7 @@ export const updateProfile = async (req, res) => {
     });
   }
 };
+
 
 export const userGrowth = async (req, res) => {
   try {

@@ -19,6 +19,11 @@ const collaborationSchema = new mongoose.Schema(
       ref: "Deal",
       required: [true, "Select Deal is required"],
     },
+    selectListing: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Listing",
+      required: [true, "Select Listing is required"],
+    },
 
     status: {
       type: String,

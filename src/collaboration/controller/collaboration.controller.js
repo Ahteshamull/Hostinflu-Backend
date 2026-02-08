@@ -127,12 +127,13 @@ export const createCollaboration = async (req, res) => {
     });
   }
 };
+
 export const createCollaborationWeb = async (req, res) => {
   try {
     const { id } = req.params; // Get user ID from URL params
     const {
       selectInfluencerOrHost,
-      selectDeal,
+      selectListing,
       payment,
       freeStay,
       numberOfNights,
@@ -157,9 +158,9 @@ export const createCollaborationWeb = async (req, res) => {
       });
     }
 
-    if (!selectInfluencerOrHost || !selectDeal) {
+    if (!selectInfluencerOrHost || !selectListing) {
       return res.status(400).json({
-        message: "Influencer/Host and Deal are required",
+        message: "Influencer/Host and Listing are required",
         error: "Invalid request",
       });
     }
@@ -205,7 +206,7 @@ export const createCollaborationWeb = async (req, res) => {
 
     const newCollaboration = new Collaborations({
       selectInfluencerOrHost,
-      selectDeal,
+      selectListing,
       payment,
       freeStay,
       numberOfNights,

@@ -86,12 +86,28 @@ const userSchema = new Schema(
     bio: {
       type: String,
     },
-    addAsocialMediaLink: {
-      type: String,
-    },
-    addYourSocialFollowers: {
-      type: String,
-    },
+    socialMediaLinks: [
+      {
+        platform: {
+          type: String,
+          enum: [
+            "facebook",
+            "instagram",
+            "x",
+            "youtube",
+            "tiktok", 
+          ],
+          
+        },
+        url: {
+          type: String,
+        },
+        followers: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
 
     isFounderMember: {
       type: Boolean,
