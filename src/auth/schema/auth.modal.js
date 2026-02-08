@@ -96,8 +96,8 @@ const userSchema = new Schema(
           type: String,
         },
         followers: {
-          type: Number,
-          default: 0,
+          type: String,
+          
         },
       },
     ],

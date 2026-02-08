@@ -426,7 +426,7 @@ export const updateProfile = async (req, res) => {
 
     // ✅ influencer only
     if (existingUser.role === "influencer" && socialMediaLinks !== undefined) {
-      console.log("Received:", socialMediaLinks);
+   
 
       if (typeof socialMediaLinks === "string") {
         try {
@@ -459,7 +459,7 @@ export const updateProfile = async (req, res) => {
         .map((link) => ({
           platform: link.platform,
           url: link.url,
-          followers: parseInt(link.followers) || 0,
+          followers: link.followers || "", // Keep as string for values like "12 k"
         }));
 
       const isValid = filteredLinks.every(
