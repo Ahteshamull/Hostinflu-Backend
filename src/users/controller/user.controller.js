@@ -516,7 +516,6 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-
 export const userGrowth = async (req, res) => {
   try {
     const { period = "monthly", year } = req.query;
@@ -725,6 +724,129 @@ export const deleteUser = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to delete user",
+      error: error.message,
+    });
+  }
+};
+
+export const discoverHost = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    // Find only 4 hosts with their deals and count deals
+    const hosts = await userModel
+      .find({ role: "host" })
+      .populate({
+        path: "deals",
+        populate: {
+          path: "selectListing",
+          select: "title images location status",
+        },
+      })
+      .select("name email role")
+      .sort({ createdAt: -1 })
+      .limit(4) // Only 4 hosts
+      .skip((page - 1) * 4); // Skip based on 4 per page
+
+    // Add deal count to each host
+    const hostsWithDealCount = await Promise.all(
+      hosts.map(async (host) => {
+        const dealCount = await userModel
+          .findById(host._id)
+          .select("deals")
+          .then((user) => (user ? user.deals.length : 0));
+
+        return {
+          ...host.toObject(),
+          dealCount,
+        };
+      }),
+    );
+
+    const total = await userModel.countDocuments({ role: "host" });
+
+    res.status(200).json({
+      success: true,
+      message: "Hosts discovered successfully",
+      data: {
+        hosts: hostsWithDealCount,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / 4), // Fixed for 4 per page
+          total,
+          limit: 4, // Fixed to 4
+        },
+        metadata: {
+          totalHosts: total,
+          totalDeals: hostsWithDealCount.reduce(
+            (sum, host) => sum + host.dealCount,
+            0,
+          ),
+          averageDealsPerHost: (
+            hostsWithDealCount.reduce((sum, host) => sum + host.dealCount, 0) /
+            hostsWithDealCount.length
+          ).toFixed(1),
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error discovering hosts",
+      error: error.message,
+    });
+  }
+};
+
+export const topInfluencer = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    // Find top influencers with their collaborations
+    const influencers = await userModel
+      .find({ role: "influencer" })
+      .populate({
+        path: "collaborations",
+        populate: {
+          path: "selectListing",
+          select: "title images location status",
+        },
+      })
+      .select("name email role")
+      .sort({ collaborationsTotal: -1 })
+      .limit(limit)
+      .skip((page - 1) * limit);
+
+    const total = await userModel.countDocuments({ role: "influencer" });
+
+    res.status(200).json({
+      success: true,
+      message: "Top influencers discovered successfully",
+      data: {
+        influencers,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          total,
+          limit: parseInt(limit),
+        },
+        metadata: {
+          totalInfluencers: total,
+          totalCollaborations: influencers.reduce(
+            (sum, inf) => sum + inf.collaborationsTotal,
+            0,
+          ),
+          averageCollaborationsPerInfluencer: (
+            influencers.reduce((sum, inf) => sum + inf.collaborationsTotal, 0) /
+            influencers.length
+          ).toFixed(1),
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error discovering top influencers",
       error: error.message,
     });
   }

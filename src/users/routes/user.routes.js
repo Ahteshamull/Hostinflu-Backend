@@ -5,6 +5,8 @@ import {
   updateProfile,
   deleteUser,
   userGrowth,
+  discoverHost,
+  topInfluencer,
 } from "../controller/user.controller.js";
 import {
   upload,
@@ -32,6 +34,14 @@ router.patch(
 router.delete("/delete-user/:id", deleteUser);
 
 //localhost:3000/api/v1/user/user-growth
-router.get("/user-growth", userGrowth);
+router.get("/user-growth", userGrowth);   
+
+
+// localhost:3000/api/v1/user/discover-host
+router.get("/discover-host", discoverHost);
+
+
+//localhost:3000/api/v1/user/top-influencer
+router.get("/top-influencer", topInfluencer);
 
 export default router;
