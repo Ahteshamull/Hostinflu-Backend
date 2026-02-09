@@ -1570,7 +1570,7 @@ export const getCollaborationsByUser = async (req, res) => {
         model: "Deal",
         populate: {
           path: "title",
-          select: "title images location",
+          select: "title images location amenities",
         },
       })
       .select(
