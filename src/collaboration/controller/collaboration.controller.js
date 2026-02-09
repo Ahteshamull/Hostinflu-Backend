@@ -1568,6 +1568,10 @@ export const getCollaborationsByUser = async (req, res) => {
         select:
           "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
         model: "Deal",
+        populate: {
+          path: "title",
+          select: "title images location",
+        },
       })
       .select(
         "selectDeal description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount deliverables status negotiationStatus paymentStatus socialMediaLinks",

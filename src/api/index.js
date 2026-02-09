@@ -17,6 +17,7 @@ import payment from "../payment/routes/index.js";
 import transaction from "../Transactions/routes/index.js";
 import earning from "../earning/routes/index.js";
 import review from "../review/routes/index.js";
+import gift from "../gift/routes/index.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
@@ -39,6 +40,7 @@ router.use(baseurl, payment);
 router.use(baseurl, transaction);
 router.use(baseurl, earning);
 router.use(baseurl, review);
+router.use(baseurl, gift);
 
 // Update code
 router.use(baseurl, (req, res) => {

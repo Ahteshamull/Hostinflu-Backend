@@ -30,11 +30,6 @@ const ReviewSchema = new Schema(
       ref: "User",
       required: true,
     },
-    reviewType: {
-      type: String,
-      enum: ["host_to_influencer", "influencer_to_host"],
-      required: true,
-    },
     isDeleted: {
       type: Boolean,
       default: false,

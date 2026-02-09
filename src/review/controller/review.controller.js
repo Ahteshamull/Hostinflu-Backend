@@ -5,7 +5,7 @@ import userModel from "../../auth/schema/auth.modal.js";
 
 export const createReview = async (req, res) => {
   try {
-    const { rating, comment, reviewType } = req.body;
+    const { rating, comment } = req.body;
     const { collaborationId } = req.params;
 
     // Get user ID from authenticated user (from JWT token)
@@ -20,10 +20,10 @@ export const createReview = async (req, res) => {
     }
 
     // Validate required fields
-    if (!rating || !comment || !reviewType) {
+    if (!rating || !comment) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required: rating, comment, reviewType",
+        message: "All fields are required: rating, comment",
       });
     }
 
@@ -40,15 +40,6 @@ export const createReview = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Rating must be between 1 and 5",
-      });
-    }
-
-    // Validate review type
-    if (!["host_to_influencer", "influencer_to_host"].includes(reviewType)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid review type. Must be 'host_to_influencer' or 'influencer_to_host'",
       });
     }
 
@@ -112,7 +103,6 @@ export const createReview = async (req, res) => {
     const existingReview = await Review.findOne({
       collaborationId,
       reviewerId,
-      reviewType,
       isDeleted: false,
     });
 
@@ -130,7 +120,6 @@ export const createReview = async (req, res) => {
       collaborationId,
       reviewerId,
       revieweeId,
-      reviewType,
     });
 
     // ✅ Update reviewee's rating and total reviews
