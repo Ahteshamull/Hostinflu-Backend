@@ -88,21 +88,7 @@ export const createReview = async (req, res) => {
       if (reviewerId !== userId.toString()) {
         return res.status(403).json({
           success: false,
-          message: "Only the host can create this type of review",
-        });
-      }
-
-      // Check if payment has been released (host must release payment before reviewing influencer)
-      const payment = await Payment.findOne({
-        title: collaborationId,
-        userId: reviewerId,
-        status: "SUCCESS",
-      });
-
-      if (!payment) {
-        return res.status(400).json({
-          success: false,
-          message: "Payment must be released before reviewing the influencer",
+          message: "Only host can create this type of review",
         });
       }
     } else {

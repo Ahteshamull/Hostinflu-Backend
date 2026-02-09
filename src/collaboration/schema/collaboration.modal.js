@@ -5,25 +5,22 @@ const collaborationSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
 
     selectInfluencerOrHost: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
 
-    // ✅ Collaboration-এর ভেতরেই সব Deal info
-    title: {
-      type: String,
-      required: true,
-      trim: true,
+    selectDeal: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Deal",
     },
+
+  
 
     description: {
       type: String,
-      required: true,
       trim: true,
     },
 
@@ -35,17 +32,10 @@ const collaborationSchema = new mongoose.Schema(
 
     inTimeAndDate: {
       type: Date,
-      required: true,
     },
 
     outTimeAndDate: {
       type: Date,
-      required: true,
-    },
-
-    compensation: {
-      type: mongoose.Schema.Types.Mixed,
-      required: true,
     },
 
     guestCount: {
@@ -55,8 +45,8 @@ const collaborationSchema = new mongoose.Schema(
 
     deliverables: [
       {
-        platform: { type: String, required: true },
-        contentType: { type: String, required: true },
+        platform: { type: String },
+        contentType: { type: String },
         quantity: { type: Number, default: 1 },
       },
     ],

@@ -3,6 +3,7 @@ import { createCollaborationNotification } from "../../notification/controller/n
 import userModel from "../../auth/schema/auth.modal.js";
 import Notification from "../../notification/schema/notification.modal.js";
 import Payment from "../../payment/schema/payment.modal.js";
+import Deal from "../../deals/schema/deal.modal.js";
 
 import mongoose from "mongoose";
 
@@ -10,7 +11,7 @@ export const createCollaboration = async (req, res) => {
   try {
     const {
       selectInfluencerOrHost,
-      selectDeal,
+      title,
       payment,
       freeStay,
       numberOfNights,
@@ -28,9 +29,9 @@ export const createCollaboration = async (req, res) => {
       });
     }
 
-    if (!selectInfluencerOrHost || !selectDeal) {
+    if (!selectInfluencerOrHost) {
       return res.status(400).json({
-        message: "Influencer/Host and Deal are required",
+        message: "Influencer/Host are required",
         error: "Invalid request",
       });
     }
@@ -76,7 +77,8 @@ export const createCollaboration = async (req, res) => {
 
     const newCollaboration = new Collaborations({
       selectInfluencerOrHost,
-      selectDeal,
+      title,
+      selectDeal: mongoose.Types.ObjectId.isValid(title) ? title : undefined,
       payment,
       freeStay,
       numberOfNights,
@@ -137,6 +139,7 @@ export const createCollaborationWeb = async (req, res) => {
     const creatorRole = req.user?.role;
 
     const {
+      selectDeal,
       title,
       description,
       addAirbnbLink,
@@ -158,13 +161,13 @@ export const createCollaborationWeb = async (req, res) => {
       });
     }
 
-    if (
-      !title ||
-      !description ||
-      !inTimeAndDate ||
-      !outTimeAndDate ||
-      !compensation
-    ) {
+    const dealOrListingId = selectDeal || title;
+
+    if (!dealOrListingId || !mongoose.Types.ObjectId.isValid(dealOrListingId)) {
+      return res.status(400).json({ message: "Deal/Listing ID is required" });
+    }
+
+    if (!description || !inTimeAndDate || !outTimeAndDate || !compensation) {
       return res.status(400).json({ message: "Required fields missing" });
     }
 
@@ -199,12 +202,32 @@ export const createCollaborationWeb = async (req, res) => {
       return res.status(404).json({ message: "Target user not found" });
     }
 
+    let resolvedDealId = null;
+
+    const dealById = await Deal.findById(dealOrListingId).select("_id");
+    if (dealById) {
+      resolvedDealId = dealById._id;
+    } else {
+      const dealByListing = await Deal.findOne({
+        title: dealOrListingId,
+      }).select("_id");
+      if (dealByListing) {
+        resolvedDealId = dealByListing._id;
+      }
+    }
+
+    if (!resolvedDealId) {
+      return res.status(404).json({
+        message: "Deal not found for the provided Listing/Deal ID",
+      });
+    }
+
     // ---------- CREATE COLLABORATION ----------
     const newCollaboration = new Collaborations({
       userId: creatorId,
       selectInfluencerOrHost: targetUserId,
 
-      title,
+      selectDeal: resolvedDealId,
       description,
       addAirbnbLink,
       inTimeAndDate,
@@ -246,13 +269,29 @@ export const createCollaborationWeb = async (req, res) => {
     const populatedCollaboration = await Collaborations.findById(
       savedCollaboration._id,
     )
-      .populate("userId", "name image role email fullAddress")
-      .populate("selectInfluencerOrHost", "name image role email fullAddress");
+      .populate(
+        "userId",
+        "name image role email fullAddress userName socialMediaLinks",
+      )
+      .populate(
+        "selectInfluencerOrHost",
+        "name image role email fullAddress userName socialMediaLinks",
+      )
+      .populate({
+        path: "selectDeal",
+        select:
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+        model: "Deal",
+        populate: {
+          path: "title",
+          select: "title images location",
+        },
+      });
 
     return res.status(201).json({
       success: true,
       message: "Collaboration created successfully",
-      data: populatedCollaboration,
+      data: populatedCollaboration.toObject(),
     });
   } catch (error) {
     return res.status(500).json({
@@ -274,7 +313,6 @@ export const getAllCollaboration = async (req, res) => {
 
     const collaborations = await Collaborations.find(filter)
       .populate("userId", "name email role")
-      .populate("selectDeal")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -341,7 +379,6 @@ export const getSingleCollaboration = async (req, res) => {
 
     const collaboration = await Collaborations.findById(id)
       .populate("selectInfluencerOrHost", "name email")
-      .populate("selectDeal", "dealTitle")
       .populate("userId", "name email");
 
     if (!collaboration) {
@@ -456,9 +493,6 @@ export const getMyAllCollaborations = async (req, res) => {
           "selectInfluencerOrHost",
           "name email role userName socialMediaLinks",
         )
-        .populate(
-          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
-        )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip(skip);
@@ -473,9 +507,6 @@ export const getMyAllCollaborations = async (req, res) => {
           "selectInfluencerOrHost",
           "name email role userName socialMediaLinks",
         )
-        .populate(
-          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
-        )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip(skip);
@@ -489,6 +520,10 @@ export const getMyAllCollaborations = async (req, res) => {
         .populate(
           "selectInfluencerOrHost",
           "name email role userName socialMediaLinks",
+        )
+        .populate(
+          "selectDeal",
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
         )
         .populate(
           "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
@@ -572,9 +607,8 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Find existing collaboration with populated deal
-    const collaboration =
-      await Collaborations.findById(id).populate("selectDeal");
+    // Find existing collaboration
+    const collaboration = await Collaborations.findById(id);
 
     if (!collaboration) {
       return res.status(404).json({
@@ -584,9 +618,9 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Validate social media links against deal deliverables
-    if (socialMediaLinks && collaboration.selectDeal?.deliverables) {
-      const dealPlatforms = collaboration.selectDeal.deliverables.map((d) =>
+    // Validate social media links against collaboration deliverables
+    if (socialMediaLinks && collaboration.deliverables) {
+      const dealPlatforms = collaboration.deliverables.map((d) =>
         d.platform.toLowerCase(),
       );
       const providedPlatforms = Object.keys(socialMediaLinks).filter(
@@ -688,14 +722,12 @@ export const updateCollaboration = async (req, res) => {
       { new: true, runValidators: true },
     ).populate([
       {
-        path: "selectDeal",
-        select:
-          "description compensation addAirbnbLink inTimeAndDate outTimeAndDate",
+        path: "userId",
+        select: "name email",
       },
-      { path: "userId", select: "_id name email role userName" },
       {
         path: "selectInfluencerOrHost",
-        select: "_id name email role userName",
+        select: "name email",
       },
     ]);
 
@@ -1523,8 +1555,23 @@ export const getCollaborationsByUser = async (req, res) => {
     }
 
     const collaborations = await Collaborations.find(filter)
-      .populate("selectInfluencerOrHost", "name email role")
-      .populate("userId", "name email role")
+      .populate(
+        "selectInfluencerOrHost",
+        "name email role userName socialMediaLinks image fullAddress",
+      )
+      .populate(
+        "userId",
+        "name email role userName socialMediaLinks image fullAddress",
+      )
+      .populate({
+        path: "selectDeal",
+        select:
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+        model: "Deal",
+      })
+      .select(
+        "selectDeal description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount deliverables status negotiationStatus paymentStatus socialMediaLinks",
+      )
       .sort({ updatedAt: -1 });
 
     return res.status(200).json({
