@@ -69,6 +69,10 @@ export const createReview = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Review can only be created for completed collaborations",
+        debug: {
+          currentStatus: collaboration.status,
+          requiredStatus: "completed",
+        },
       });
     }
 
