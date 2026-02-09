@@ -1525,16 +1525,6 @@ export const getCollaborationsByUser = async (req, res) => {
     const collaborations = await Collaborations.find(filter)
       .populate("selectInfluencerOrHost", "name email role")
       .populate("userId", "name email role")
-      .populate({
-        path: "selectDeal",
-        populate: {
-          path: "selectListing",
-          model: "Listing",
-          select:
-            "title description images location propertyType amenities customAmenities",
-          strictPopulate: false,
-        },
-      })
       .sort({ updatedAt: -1 });
 
     return res.status(200).json({
