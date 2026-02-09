@@ -63,16 +63,11 @@ export const singleUser = async (req, res) => {
         path: "collaborations",
         populate: [
           {
-            path: "selectDeal",
-            populate: {
-              path: "selectListing",
-              model: "Listing",
-              select: "title images",
-              strictPopulate: false,
-            },
+            path: "userId",
+            select: "name email role",
           },
           {
-            path: "userId",
+            path: "selectInfluencerOrHost",
             select: "name email role",
           },
         ],
@@ -110,7 +105,6 @@ export const singleUser = async (req, res) => {
           const collaboration = await Collaborations.findById(
             redeemStar.collaborationId,
           )
-            .populate("selectDeal")
             .populate("userId", "name email role")
             .populate("selectInfluencerOrHost", "name email role");
 
@@ -121,7 +115,7 @@ export const singleUser = async (req, res) => {
                   _id: collaboration._id,
                   status: collaboration.status,
                   numberOfNights:
-                    collaboration.selectDeal?.compensation?.numberOfNights || 0,
+                    collaboration.compensation?.numberOfNights || 0,
                   payment: collaboration.payment,
                   createdAt: collaboration.createdAt,
                   creator: collaboration.userId
@@ -188,11 +182,10 @@ export const singleUser = async (req, res) => {
     const userCompletedCollaborations = await Collaborations.find({
       status: "completed",
       $or: [{ userId: userData._id }, { selectInfluencerOrHost: userData._id }],
-    }).populate("selectDeal");
+    });
 
     totalRedeemStars = userCompletedCollaborations.reduce(
-      (total, collab) =>
-        total + (collab.selectDeal?.compensation?.numberOfNights || 0),
+      (total, collab) => total + (collab.compensation?.numberOfNights || 0),
       0,
     );
 
@@ -229,16 +222,7 @@ export const singleUser = async (req, res) => {
     })
       .populate("selectInfluencerOrHost", "name email role")
       .populate("userId", "name email role")
-      .populate({
-        path: "selectDeal",
-        populate: {
-          path: "selectListing",
-          model: "Listing",
-          select: "title images",
-          strictPopulate: false,
-        },
-      })
-      .select("status payment selectInfluencerOrHost selectDeal userId");
+      .select("status payment selectInfluencerOrHost userId");
 
     /* =========================
        4. Format Stats
@@ -426,8 +410,6 @@ export const updateProfile = async (req, res) => {
 
     // ✅ influencer only
     if (existingUser.role === "influencer" && socialMediaLinks !== undefined) {
-   
-
       if (typeof socialMediaLinks === "string") {
         try {
           socialMediaLinks = JSON.parse(socialMediaLinks);
