@@ -5,26 +5,61 @@ const collaborationSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "User ID is required"],
+      required: true,
     },
 
     selectInfluencerOrHost: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Select Influencer or Host is required"],
+      required: true,
     },
 
-    selectDeal: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Deal",
-      required: [true, "Select Deal is required"],
+    // ✅ Collaboration-এর ভেতরেই সব Deal info
+    title: {
+      type: String,
+      required: true,
+      trim: true,
     },
 
-    selectListing: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Listing",
-      
+    description: {
+      type: String,
+      required: true,
+      trim: true,
     },
+
+    addAirbnbLink: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    inTimeAndDate: {
+      type: Date,
+      required: true,
+    },
+
+    outTimeAndDate: {
+      type: Date,
+      required: true,
+    },
+
+    compensation: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
+
+    guestCount: {
+      type: Number,
+      default: 1,
+    },
+
+    deliverables: [
+      {
+        platform: { type: String, required: true },
+        contentType: { type: String, required: true },
+        quantity: { type: Number, default: 1 },
+      },
+    ],
 
     status: {
       type: String,
@@ -53,41 +88,19 @@ const collaborationSchema = new mongoose.Schema(
 
     rejectReason: {
       type: String,
-      trim: true,
       default: "",
+      trim: true,
     },
 
     socialMediaLinks: {
-      instagram: {
-        type: String,
-        trim: true,
-        default: "",
-      },
-      facebook: {
-        type: String,
-        trim: true,
-        default: "",
-      },
-      twitter: {
-        type: String,
-        trim: true,
-        default: "",
-      },
-      youtube: {
-        type: String,
-        trim: true,
-        default: "",
-      },
-      tiktok: {
-        type: String,
-        trim: true,
-        default: "",
-      },
+      instagram: { type: String, default: "" },
+      facebook: { type: String, default: "" },
+      twitter: { type: String, default: "" },
+      youtube: { type: String, default: "" },
+      tiktok: { type: String, default: "" },
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 export default mongoose.model("Collaboration", collaborationSchema);

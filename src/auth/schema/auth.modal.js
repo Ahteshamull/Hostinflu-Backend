@@ -198,6 +198,11 @@ const userSchema = new Schema(
       ],
       default: [],
     },
+
+    nightCredits: {
+      type: Number,
+      default: 0,
+    },
     totalReviews: {
       type: Number,
       default: 0,
