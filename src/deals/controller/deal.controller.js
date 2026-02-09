@@ -168,7 +168,7 @@ export const createDeal = async (req, res) => {
     // ✅ Get the created deal with populated listing data
     const populatedDeal = await Deal.findById(newDeal._id).populate({
       path: "title",
-      select: "title description images price status",
+      select: "title location images price",
     });
 
     return res.status(201).json({
@@ -339,7 +339,7 @@ const getMyAllDeals = async (req, res) => {
     }
 
     const deals = await Deal.find(filter)
-      .populate("title", "title location images")
+      .populate("title", "title location  images")
       .populate("userId", "name email userName role image")
       .sort({ createdAt: -1 })
       .limit(limit * 1)

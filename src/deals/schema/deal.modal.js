@@ -45,7 +45,8 @@ const deliverableSchema = new Schema(
 const dealSchema = new Schema(
   {
     title: {
-      type: String, // ✅ Changed from ObjectId to String
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Listing",
       required: true,
       trim: true,
     },
