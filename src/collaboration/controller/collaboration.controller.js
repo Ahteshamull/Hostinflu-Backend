@@ -451,11 +451,13 @@ export const getMyAllCollaborations = async (req, res) => {
     if (userRole === "host") {
       filter.userId = userId;
       collaborations = await Collaborations.find(filter)
-        .populate("userId", "name email role")
-        .populate("selectInfluencerOrHost", "name email role")
+        .populate("userId", "name email role userName socialMediaLinks")
         .populate(
-          "selectDeal",
-          "dealTitle description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+          "selectInfluencerOrHost",
+          "name email role userName socialMediaLinks",
+        )
+        .populate(
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
         )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -466,11 +468,13 @@ export const getMyAllCollaborations = async (req, res) => {
       // Influencer: Show collaborations where they are selected
       filter.selectInfluencerOrHost = userId;
       collaborations = await Collaborations.find(filter)
-        .populate("userId", "name email role")
-        .populate("selectInfluencerOrHost", "name email role")
+        .populate("userId", "name email role userName socialMediaLinks")
         .populate(
-          "selectDeal",
-          "dealTitle description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+          "selectInfluencerOrHost",
+          "name email role userName socialMediaLinks",
+        )
+        .populate(
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
         )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -481,11 +485,13 @@ export const getMyAllCollaborations = async (req, res) => {
       // Other roles: Show both types
       filter.$or = [{ userId: userId }, { selectInfluencerOrHost: userId }];
       collaborations = await Collaborations.find(filter)
-        .populate("userId", "name email role")
-        .populate("selectInfluencerOrHost", "name email role")
+        .populate("userId", "name email role userName socialMediaLinks")
         .populate(
-          "selectDeal",
-          "dealTitle description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+          "selectInfluencerOrHost",
+          "name email role userName socialMediaLinks",
+        )
+        .populate(
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
         )
         .sort({ createdAt: -1 })
         .limit(limit * 1)
