@@ -176,42 +176,14 @@ export const createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Find collaboration with populated deal
-    const collaboration = await Collaborations.findById(
-      collaborationId,
-    ).populate({
-      path: "selectDeal",
-      model: "Deal",
-    });
+    // Find collaboration
+    const collaboration = await Collaborations.findById(collaborationId);
 
     if (!collaboration) {
       return res.status(404).json({
         success: false,
         message: "Collaboration not found",
       });
-    }
-
-    // Debug: Check what we got
-    // Collaboration data already available
-
-    // If selectDeal is still not populated, try manual fetch
-    if (
-      !collaboration.selectDeal ||
-      typeof collaboration.selectDeal === "string"
-    ) {
-      const dealData = await Deal.findById(collaboration.selectDeal);
-      collaboration.selectDeal = dealData;
-    }
-
-    // Additional check: try to fetch deal by the original ID from database
-    if (!collaboration.selectDeal) {
-      const originalCollaboration =
-        await Collaborations.findById(collaborationId);
-
-      if (originalCollaboration.selectDeal) {
-        const dealData = await Deal.findById(originalCollaboration.selectDeal);
-        collaboration.selectDeal = dealData;
-      }
     }
 
     // Check if collaboration belongs to user
@@ -222,30 +194,28 @@ export const createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Calculate amount from collaboration payment or deal compensation
+    // Calculate amount from collaboration compensation
     let amount = 0;
 
     if (collaboration.payment && collaboration.payment > 0) {
       amount = collaboration.payment;
     } else if (
-      collaboration.selectDeal?.compensation?.directPayment === true &&
-      collaboration.selectDeal?.compensation?.paymentAmount
+      collaboration.compensation?.directPayment === true &&
+      collaboration.compensation?.paymentAmount
     ) {
-      amount = parseFloat(collaboration.selectDeal.compensation.paymentAmount);
-    } else if (collaboration.selectDeal?.compensation?.paymentAmount) {
-      amount = parseFloat(collaboration.selectDeal.compensation.paymentAmount);
+      amount = parseFloat(collaboration.compensation.paymentAmount);
+    } else if (collaboration.compensation?.paymentAmount) {
+      amount = parseFloat(collaboration.compensation.paymentAmount);
     } else {
       return res.status(400).json({
         success: false,
         message:
-          "No payment amount found for this collaboration. Please ensure the deal has paymentAmount configured in compensation.",
+          "No payment amount found for this collaboration. Please ensure the collaboration has paymentAmount configured in compensation.",
         debug: {
           collaborationPayment: collaboration.payment,
-          dealCompensation: collaboration.selectDeal?.compensation,
-          hasDirectPayment:
-            collaboration.selectDeal?.compensation?.directPayment,
-          hasPaymentAmount:
-            !!collaboration.selectDeal?.compensation?.paymentAmount,
+          compensation: collaboration.compensation,
+          hasDirectPayment: collaboration.compensation?.directPayment,
+          hasPaymentAmount: !!collaboration.compensation?.paymentAmount,
         },
       });
     }
@@ -261,7 +231,7 @@ export const createCheckoutSession = async (req, res) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `Collaboration Payment - ${collaboration.selectDeal?.description || "Service"}`,
+              name: `Collaboration Payment - ${collaboration.description || "Service"}`,
               description: description || "Payment for collaboration",
             },
             unit_amount: amountInCents,
