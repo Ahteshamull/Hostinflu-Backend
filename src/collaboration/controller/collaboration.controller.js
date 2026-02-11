@@ -87,6 +87,7 @@ export const createCollaboration = async (req, res) => {
       userId,
 
       status: "pending",
+      deliverableStatus: "pending",
     });
 
     const savedCollaboration = await newCollaboration.save();
@@ -239,6 +240,7 @@ export const createCollaborationWeb = async (req, res) => {
       status: "pending",
       negotiationStatus: "pending",
       paymentStatus: "pending",
+      deliverableStatus: "pending",
     });
 
     const savedCollaboration = await newCollaboration.save();
@@ -699,19 +701,42 @@ export const updateCollaboration = async (req, res) => {
     // Check if collaboration should be marked as completed
     // Collaboration is completed when:
     // 1. Status is "ongoing" (payment completed)
-    // 2. Social media links are provided (indicating content completion)
+    // 2. All required deliverable platforms have social media links provided
     let shouldComplete = false;
 
-    if (collaboration.status === "ongoing") {
+    if (collaboration.deliverables) {
       const currentLinks =
         updateData.socialMediaLinks || collaboration.socialMediaLinks;
-      const hasContent = Object.values(currentLinks).some(
-        (link) => link && link.trim() !== "",
+
+      // Get required platforms from deliverables
+      const requiredPlatforms = collaboration.deliverables.map((d) =>
+        d.platform.toLowerCase(),
       );
 
-      if (hasContent) {
-        shouldComplete = true;
-        updateData.status = "completed";
+      // Check if all required platforms have links provided
+      const allRequiredLinksProvided = requiredPlatforms.every((platform) => {
+        const link = currentLinks[platform];
+        return link && link.trim() !== "";
+      });
+
+      // Check if any required platform has a link (in progress)
+      const anyLinkProvided = requiredPlatforms.some((platform) => {
+        const link = currentLinks[platform];
+        return link && link.trim() !== "";
+      });
+
+      if (allRequiredLinksProvided && requiredPlatforms.length > 0) {
+        updateData.deliverableStatus = "completed";
+
+        // Also mark main status as completed if payment is ongoing
+        if (collaboration.status === "ongoing") {
+          shouldComplete = true;
+          updateData.status = "completed";
+        }
+      } else if (anyLinkProvided) {
+        updateData.deliverableStatus = "in_progress";
+      } else {
+        updateData.deliverableStatus = "pending";
       }
     }
 

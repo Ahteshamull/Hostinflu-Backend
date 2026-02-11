@@ -17,8 +17,6 @@ const collaborationSchema = new mongoose.Schema(
       ref: "Deal",
     },
 
-  
-
     description: {
       type: String,
       trim: true,
@@ -88,6 +86,12 @@ const collaborationSchema = new mongoose.Schema(
       twitter: { type: String, default: "" },
       youtube: { type: String, default: "" },
       tiktok: { type: String, default: "" },
+    },
+
+    deliverableStatus: {
+      type: String,
+      enum: ["pending", "in_progress", "completed"],
+      default: "pending",
     },
   },
   { timestamps: true },
