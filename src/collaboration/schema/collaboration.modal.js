@@ -81,11 +81,41 @@ const collaborationSchema = new mongoose.Schema(
     },
 
     socialMediaLinks: {
-      instagram: { type: String, default: "" },
-      facebook: { type: String, default: "" },
-      twitter: { type: String, default: "" },
-      youtube: { type: String, default: "" },
-      tiktok: { type: String, default: "" },
+      instagram: [
+        {
+          url: { type: String, default: "" },
+          contentType: { type: String, default: "" },
+          postDate: { type: Date },
+        },
+      ],
+      facebook: [
+        {
+          url: { type: String, default: "" },
+          contentType: { type: String, default: "" },
+          postDate: { type: Date },
+        },
+      ],
+      twitter: [
+        {
+          url: { type: String, default: "" },
+          contentType: { type: String, default: "" },
+          postDate: { type: Date },
+        },
+      ],
+      youtube: [
+        {
+          url: { type: String, default: "" },
+          contentType: { type: String, default: "" },
+          postDate: { type: Date },
+        },
+      ],
+      tiktok: [
+        {
+          url: { type: String, default: "" },
+          contentType: { type: String, default: "" },
+          postDate: { type: Date },
+        },
+      ],
     },
 
     deliverableStatus: {

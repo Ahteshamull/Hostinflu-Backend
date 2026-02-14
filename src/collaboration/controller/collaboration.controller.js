@@ -628,7 +628,8 @@ export const updateCollaboration = async (req, res) => {
       const providedPlatforms = Object.keys(socialMediaLinks).filter(
         (platform) =>
           socialMediaLinks[platform] &&
-          socialMediaLinks[platform].trim() !== "",
+          Array.isArray(socialMediaLinks[platform]) &&
+          socialMediaLinks[platform].length > 0,
       );
 
       // Check if provided platforms match deal deliverables
@@ -678,23 +679,23 @@ export const updateCollaboration = async (req, res) => {
         instagram:
           socialMediaLinks.instagram ||
           collaboration.socialMediaLinks?.instagram ||
-          "",
+          [],
         facebook:
           socialMediaLinks.facebook ||
           collaboration.socialMediaLinks?.facebook ||
-          "",
+          [],
         twitter:
           socialMediaLinks.twitter ||
           collaboration.socialMediaLinks?.twitter ||
-          "",
+          [],
         youtube:
           socialMediaLinks.youtube ||
           collaboration.socialMediaLinks?.youtube ||
-          "",
+          [],
         tiktok:
           socialMediaLinks.tiktok ||
           collaboration.socialMediaLinks?.tiktok ||
-          "",
+          [],
       };
     }
 
@@ -715,14 +716,14 @@ export const updateCollaboration = async (req, res) => {
 
       // Check if all required platforms have links provided
       const allRequiredLinksProvided = requiredPlatforms.every((platform) => {
-        const link = currentLinks[platform];
-        return link && link.trim() !== "";
+        const links = currentLinks[platform];
+        return links && Array.isArray(links) && links.length > 0;
       });
 
       // Check if any required platform has a link (in progress)
       const anyLinkProvided = requiredPlatforms.some((platform) => {
-        const link = currentLinks[platform];
-        return link && link.trim() !== "";
+        const links = currentLinks[platform];
+        return links && Array.isArray(links) && links.length > 0;
       });
 
       if (allRequiredLinksProvided && requiredPlatforms.length > 0) {
