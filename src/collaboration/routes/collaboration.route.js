@@ -129,7 +129,7 @@ router.get(
 );
 
 //localhost:3000/api/v1/collaboration/accept-or-reject-collaboration/:collaborationId
-router.put(
+router.patch(
   "/accept-or-reject-collaboration/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,

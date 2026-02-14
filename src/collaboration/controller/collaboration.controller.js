@@ -1547,27 +1547,79 @@ export const acceptOrRejectCollaboration = async (req, res) => {
     }
 
     // Update collaboration status
+    let updateData = {};
     if (action === "accept") {
-      collaboration.status = "accepted";
-      collaboration.negotiationStatus = "accepted";
+      updateData.status = "accepted";
+      updateData.negotiationStatus = "accepted";
     } else if (action === "reject") {
-      collaboration.status = "rejected";
-      collaboration.negotiationStatus = "rejected";
-      collaboration.rejectReason = reason || "No reason provided";
+      updateData.status = "rejected";
+      updateData.negotiationStatus = "rejected";
+      updateData.rejectReason = reason || "No reason provided";
     }
 
-    await collaboration.save();
+    // Fix socialMediaLinks format if needed (migration from string to array)
+    if (collaboration.socialMediaLinks) {
+      const platforms = [
+        "instagram",
+        "facebook",
+        "twitter",
+        "youtube",
+        "tiktok",
+      ];
+      const fixedSocialMediaLinks = {};
+
+      platforms.forEach((platform) => {
+        const currentValue = collaboration.socialMediaLinks[platform];
+        if (typeof currentValue === "string") {
+          // Convert string to array format
+          fixedSocialMediaLinks[platform] =
+            currentValue && currentValue.trim() !== ""
+              ? [{ url: currentValue, contentType: "", postDate: new Date() }]
+              : [];
+        } else if (Array.isArray(currentValue)) {
+          // Keep array format but filter invalid items
+          fixedSocialMediaLinks[platform] = currentValue.filter(
+            (item) =>
+              item &&
+              typeof item === "object" &&
+              item.url &&
+              item.url.trim() !== "",
+          );
+        } else {
+          // Default to empty array
+          fixedSocialMediaLinks[platform] = [];
+        }
+      });
+
+      updateData.socialMediaLinks = fixedSocialMediaLinks;
+    }
+
+    // Update without validation to avoid schema conflicts during migration
+    const updatedCollaboration = await Collaborations.findByIdAndUpdate(
+      collaborationId,
+      updateData,
+      { new: true, runValidators: false },
+    ).populate([
+      {
+        path: "userId",
+        select: "name email",
+      },
+      {
+        path: "selectInfluencerOrHost",
+        select: "name email",
+      },
+    ]);
 
     // Send notification to other party
     try {
       const notificationRecipientId =
-        collaboration.userId.toString() === userId
-          ? collaboration.selectInfluencerOrHost
-          : collaboration.userId;
+        updatedCollaboration.userId.toString() === userId
+          ? updatedCollaboration.selectInfluencerOrHost
+          : updatedCollaboration.userId;
       const updaterName =
-        collaboration.userId.toString() === userId
-          ? collaboration.userId?.name || "Host"
-          : collaboration.selectInfluencerOrHost?.name || "Influencer";
+        updatedCollaboration.userId.toString() === userId
+          ? updatedCollaboration.userId?.name || "Host"
+          : updatedCollaboration.selectInfluencerOrHost?.name || "Influencer";
 
       await createNegotiationNotification(
         notificationRecipientId,
@@ -1585,7 +1637,7 @@ export const acceptOrRejectCollaboration = async (req, res) => {
       success: true,
       error: false,
       message: `Collaboration ${action}ed successfully`,
-      data: collaboration,
+      data: updatedCollaboration,
     });
   } catch (error) {
     res.status(500).json({
