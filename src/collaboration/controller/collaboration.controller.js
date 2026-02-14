@@ -625,11 +625,24 @@ export const updateCollaboration = async (req, res) => {
       const dealPlatforms = collaboration.deliverables.map((d) =>
         d.platform.toLowerCase(),
       );
+
+      // Helper function to filter valid posts
+      const filterValidPosts = (posts) => {
+        if (!Array.isArray(posts)) return [];
+        return posts.filter(
+          (post) =>
+            post &&
+            typeof post === "object" &&
+            post.url &&
+            post.url.trim() !== "",
+        );
+      };
+
       const providedPlatforms = Object.keys(socialMediaLinks).filter(
-        (platform) =>
-          socialMediaLinks[platform] &&
-          Array.isArray(socialMediaLinks[platform]) &&
-          socialMediaLinks[platform].length > 0,
+        (platform) => {
+          const validPosts = filterValidPosts(socialMediaLinks[platform]);
+          return validPosts.length > 0;
+        },
       );
 
       // Check if provided platforms match deal deliverables
@@ -675,25 +688,37 @@ export const updateCollaboration = async (req, res) => {
 
     // Allow influencers to update social media links
     if (socialMediaLinks) {
+      // Helper function to filter valid posts
+      const filterValidPosts = (posts) => {
+        if (!Array.isArray(posts)) return [];
+        return posts.filter(
+          (post) =>
+            post &&
+            typeof post === "object" &&
+            post.url &&
+            post.url.trim() !== "",
+        );
+      };
+
       updateData.socialMediaLinks = {
         instagram:
-          socialMediaLinks.instagram ||
+          filterValidPosts(socialMediaLinks.instagram) ||
           collaboration.socialMediaLinks?.instagram ||
           [],
         facebook:
-          socialMediaLinks.facebook ||
+          filterValidPosts(socialMediaLinks.facebook) ||
           collaboration.socialMediaLinks?.facebook ||
           [],
         twitter:
-          socialMediaLinks.twitter ||
+          filterValidPosts(socialMediaLinks.twitter) ||
           collaboration.socialMediaLinks?.twitter ||
           [],
         youtube:
-          socialMediaLinks.youtube ||
+          filterValidPosts(socialMediaLinks.youtube) ||
           collaboration.socialMediaLinks?.youtube ||
           [],
         tiktok:
-          socialMediaLinks.tiktok ||
+          filterValidPosts(socialMediaLinks.tiktok) ||
           collaboration.socialMediaLinks?.tiktok ||
           [],
       };
@@ -709,6 +734,18 @@ export const updateCollaboration = async (req, res) => {
       const currentLinks =
         updateData.socialMediaLinks || collaboration.socialMediaLinks;
 
+      // Helper function to filter valid posts
+      const filterValidPosts = (posts) => {
+        if (!Array.isArray(posts)) return [];
+        return posts.filter(
+          (post) =>
+            post &&
+            typeof post === "object" &&
+            post.url &&
+            post.url.trim() !== "",
+        );
+      };
+
       // Get required platforms from deliverables
       const requiredPlatforms = collaboration.deliverables.map((d) =>
         d.platform.toLowerCase(),
@@ -717,13 +754,15 @@ export const updateCollaboration = async (req, res) => {
       // Check if all required platforms have links provided
       const allRequiredLinksProvided = requiredPlatforms.every((platform) => {
         const links = currentLinks[platform];
-        return links && Array.isArray(links) && links.length > 0;
+        const validLinks = filterValidPosts(links);
+        return validLinks.length > 0;
       });
 
       // Check if any required platform has a link (in progress)
       const anyLinkProvided = requiredPlatforms.some((platform) => {
         const links = currentLinks[platform];
-        return links && Array.isArray(links) && links.length > 0;
+        const validLinks = filterValidPosts(links);
+        return validLinks.length > 0;
       });
 
       if (allRequiredLinksProvided && requiredPlatforms.length > 0) {
