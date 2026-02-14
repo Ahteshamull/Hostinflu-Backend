@@ -141,8 +141,8 @@ export const createReview = async (req, res) => {
     // Populate review data for response
     const populatedReview = await Review.findById(review._id)
       .populate("collaborationId", "title status")
-      .populate("reviewerId", "name email")
-      .populate("revieweeId", "name email");
+      .populate("reviewerId", "name email image")
+      .populate("revieweeId", "name email image");
 
     return res.status(201).json({
       success: true,
@@ -199,8 +199,8 @@ export const userPersonalReview = async (req, res) => {
     // Get reviews with pagination and populate related data
     const reviews = await Review.find(filter)
       .populate("collaborationId", "title status")
-      .populate("reviewerId", "name email")
-      .populate("revieweeId", "name email")
+      .populate("reviewerId", "name email image")
+      .populate("revieweeId", "name email image")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip(skip);
@@ -231,10 +231,16 @@ export const userPersonalReview = async (req, res) => {
       },
     ]);
 
+    // Get user details with rating info
+    const userWithRatings = await userModel
+      .findById(userId)
+      .select("name email image averageRating totalReviews");
+
     return res.status(200).json({
       success: true,
       message: "User reviews retrieved successfully",
       data: {
+        user: userWithRatings,
         pagination: {
           currentPage: pageNum,
           totalPages: Math.ceil(total / limitNum),
@@ -300,8 +306,8 @@ export const userReview = async (req, res) => {
     // Get reviews with pagination and populate related data
     const reviews = await Review.find(filter)
       .populate("collaborationId", "title status")
-      .populate("reviewerId", "name email")
-      .populate("revieweeId", "name email")
+      .populate("reviewerId", "name email image")
+      .populate("revieweeId", "name email image")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip(skip);
@@ -332,10 +338,16 @@ export const userReview = async (req, res) => {
       },
     ]);
 
+    // Get user details with rating info
+    const userWithRatings = await userModel
+      .findById(userId)
+      .select("name email image averageRating totalReviews");
+
     return res.status(200).json({
       success: true,
       message: "User reviews retrieved successfully",
       data: {
+        user: userWithRatings,
         pagination: {
           currentPage: pageNum,
           totalPages: Math.ceil(total / limitNum),
@@ -459,8 +471,8 @@ export const allReviews = async (req, res) => {
     // Get reviews with pagination and populate related data
     const reviews = await Review.find(filter)
       .populate("collaborationId", "title status")
-      .populate("reviewerId", "name email")
-      .populate("revieweeId", "name email")
+      .populate("reviewerId", "name email image")
+      .populate("revieweeId", "name email image")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip(skip);
