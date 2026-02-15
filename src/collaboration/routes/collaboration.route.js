@@ -105,7 +105,7 @@ router.get(
 );
 
 //localhost:3000/api/v1/collaboration/create-negotiation/:collaborationId
-router.put(
+router.patch(
   "/create-negotiation/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,
@@ -113,7 +113,7 @@ router.put(
 );
 
 //localhost:3000/api/v1/collaboration/update-negotiation-status/:collaborationId
-router.put(
+router.patch(
   "/update-negotiation-status/:collaborationId",
   authenticateToken,
   requireHostOrInfluencerRole,
