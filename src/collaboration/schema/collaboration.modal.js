@@ -17,6 +17,13 @@ const collaborationSchema = new mongoose.Schema(
       ref: "Deal",
     },
 
+    compensation: {
+      nightCredits: { type: Boolean, default: false },
+      numberOfNights: { type: Number, default: 1 },
+      directPayment: { type: Boolean, default: false },
+      paymentAmount: { type: String, default: "0" },
+    },
+
     description: {
       type: String,
       trim: true,
@@ -48,12 +55,6 @@ const collaborationSchema = new mongoose.Schema(
         quantity: { type: Number, default: 1 },
       },
     ],
-
-    payment: {
-      type: String,
-      default: "",
-      trim: true,
-    },
 
     originalCollaborationId: {
       type: mongoose.Schema.Types.ObjectId,

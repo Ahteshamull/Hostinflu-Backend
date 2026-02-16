@@ -149,7 +149,6 @@ export const createCollaborationWeb = async (req, res) => {
       compensation,
       guestCount,
       deliverables,
-      payment,
       startDate,
       endDate,
     } = req.body;
@@ -239,9 +238,6 @@ export const createCollaborationWeb = async (req, res) => {
       compensation,
       guestCount,
       deliverables: finalDeliverables,
-
-      // Add negotiation-related fields
-      payment: payment || "",
 
       startDate: startDate || inTimeAndDate,
       endDate: endDate || outTimeAndDate,
@@ -1365,6 +1361,9 @@ export const updateNegotiateStatus = async (req, res) => {
     const { status, reason, rejectReason } = req.body;
     const userId = req.user?._id || req.user?.id;
 
+    // Initialize response_data object
+    let response_data = {};
+
     // Handle case where status might have leading space in key
     const actualStatus = status || req.body[" status"] || req.body.status;
     const actualReason =
@@ -1424,13 +1423,74 @@ export const updateNegotiateStatus = async (req, res) => {
       negotiation.rejectReason = actualReason || "No reason provided";
     }
 
-    // For rejection, DO NOT update any other collaboration fields
-    // For acceptance, you can update the fields if needed
+    // For acceptance, create new collaboration with negotiated terms
+    if (finalStatus === "accepted" || finalStatus === "accept") {
+      // Create new collaboration based on accepted negotiation terms
+      const newCollaboration = new Collaborations({
+        userId: negotiation.userId,
+        selectInfluencerOrHost: negotiation.selectInfluencerOrHost,
+
+        // Copy all negotiated terms from the negotiation data
+        title: negotiation.title,
+        description: negotiation.description,
+        addAirbnbLink: negotiation.addAirbnbLink,
+        inTimeAndDate: negotiation.inTimeAndDate,
+        outTimeAndDate: negotiation.outTimeAndDate,
+        compensation: negotiation.compensation,
+        guestCount: negotiation.guestCount,
+        deliverables: negotiation.deliverables,
+
+        // Use negotiated payment and other data from the negotiation
+        payment: negotiation.payment || "",
+        content: negotiation.content || "",
+        additionalRequirements: negotiation.additionalRequirements || "",
+        startDate: negotiation.startDate,
+        endDate: negotiation.endDate,
+
+        // Set as active collaboration
+        status: "ongoing",
+        negotiationStatus: "accepted",
+        paymentStatus: "pending",
+        deliverableStatus: "pending",
+
+        // Reference the negotiation that was accepted
+        originalCollaborationId: negotiation.originalCollaborationId,
+      });
+
+      const savedNewCollaboration = await newCollaboration.save();
+
+      // Update users' collaboration arrays
+      await userModel.findByIdAndUpdate(negotiation.userId, {
+        $push: {
+          collaborations: savedNewCollaboration._id,
+          redeemStars: { collaborationId: savedNewCollaboration._id },
+        },
+        $inc: { collaborationsTotal: 1 },
+      });
+
+      await userModel.findByIdAndUpdate(negotiation.selectInfluencerOrHost, {
+        $push: {
+          collaborations: savedNewCollaboration._id,
+          redeemStars: { collaborationId: savedNewCollaboration._id },
+        },
+        $inc: { collaborationsTotal: 1 },
+      });
+
+      // Send notification about new collaboration creation
+      try {
+        await createCollaborationNotification(savedNewCollaboration, "host");
+      } catch (notificationError) {
+        // Continue even if notification fails
+      }
+
+      // Update response data to include new collaboration
+      response_data.newCollaboration = savedNewCollaboration.toObject();
+    }
 
     await negotiation.save();
 
     // Explicitly ensure negotiationStatus is included in response (after save)
-    const response_data = negotiation.toObject();
+    response_data = negotiation.toObject();
     response_data.negotiationStatus = negotiation.negotiationStatus;
 
     // Populate the updated negotiation
