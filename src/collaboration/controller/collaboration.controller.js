@@ -400,9 +400,9 @@ export const getSingleCollaboration = async (req, res) => {
       success: true,
       error: false,
       message: "Collaboration retrieved successfully",
-      data: {
+      data: [
         collaboration,
-      },
+      ],
     });
   } catch (error) {
     res.status(500).json({
