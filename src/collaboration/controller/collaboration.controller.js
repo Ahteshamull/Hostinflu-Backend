@@ -197,6 +197,7 @@ export const createCollaborationWeb = async (req, res) => {
       platform: d.platform,
       contentType: d.contentType,
       quantity: d.quantity || 1,
+      platformFollowers: d.platformFollowers || {},
     }));
 
     // ---------- TARGET USER ----------
@@ -400,9 +401,7 @@ export const getSingleCollaboration = async (req, res) => {
       success: true,
       error: false,
       message: "Collaboration retrieved successfully",
-      data: [
-        collaboration,
-      ],
+      data: [collaboration],
     });
   } catch (error) {
     res.status(500).json({
@@ -1746,4 +1745,3 @@ export const getCollaborationsByUser = async (req, res) => {
     });
   }
 };
-

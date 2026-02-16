@@ -1,5 +1,46 @@
 import mongoose from "mongoose";
 
+const deliverableSchema = new mongoose.Schema(
+  {
+    platform: {
+      type: String,
+      enum: ["Instagram", "TikTok", "YouTube", "Facebook", "X"],
+      required: true,
+    },
+
+    contentType: {
+      type: String,
+      enum: ["Post", "Reel", "Story", "Video"],
+      required: true,
+    },
+
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    platformFollowers: {
+      Instagram: {
+        type: String,
+      },
+      TikTok: {
+        type: String,
+      },
+      YouTube: {
+        type: String,
+      },
+      Facebook: {
+        type: String,
+      },
+      X: {
+        type: String,
+      },
+    },
+  },
+  { _id: false },
+);
+
 const collaborationSchema = new mongoose.Schema(
   {
     userId: {
@@ -48,13 +89,10 @@ const collaborationSchema = new mongoose.Schema(
       default: 1,
     },
 
-    deliverables: [
-      {
-        platform: { type: String },
-        contentType: { type: String },
-        quantity: { type: Number, default: 1 },
-      },
-    ],
+    deliverables: {
+      type: [deliverableSchema],
+      validate: [(v) => v.length > 0, "At least one deliverable is required"],
+    },
 
     originalCollaborationId: {
       type: mongoose.Schema.Types.ObjectId,
