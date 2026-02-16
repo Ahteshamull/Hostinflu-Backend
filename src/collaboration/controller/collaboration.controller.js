@@ -149,6 +149,9 @@ export const createCollaborationWeb = async (req, res) => {
       compensation,
       guestCount,
       deliverables,
+      payment,
+      startDate,
+      endDate,
     } = req.body;
 
     // ---------- VALIDATION ----------
@@ -236,6 +239,12 @@ export const createCollaborationWeb = async (req, res) => {
       compensation,
       guestCount,
       deliverables: finalDeliverables,
+
+      // Add negotiation-related fields
+      payment: payment || "",
+
+      startDate: startDate || inTimeAndDate,
+      endDate: endDate || outTimeAndDate,
 
       status: "pending",
       negotiationStatus: "pending",
@@ -1138,9 +1147,16 @@ export const createNegotiationCollaboration = async (req, res) => {
   try {
     const { collaborationId } = req.params;
     const {
+      // Original collaboration fields that can be negotiated
+      title,
+      description,
+      addAirbnbLink,
+      inTimeAndDate,
+      outTimeAndDate,
+      compensation,
+      guestCount,
+      deliverables,
       payment,
-      content,
-      additionalRequirements,
       startDate,
       endDate,
       status,
@@ -1159,73 +1175,57 @@ export const createNegotiationCollaboration = async (req, res) => {
     }
 
     // Check if current user is either collaboration creator (host) or selected influencer
-    // Both host and influencer can negotiate
+    // Both host and influencer can create negotiations
     const currentUserId = req.user?._id || req.user?.id;
     const isHost = collaboration.userId.toString() === currentUserId;
     const isInfluencer =
       collaboration.selectInfluencerOrHost?.toString() === currentUserId;
-
-    if (!isHost && !isInfluencer) {
-      return res.status(403).json({
-        success: false,
-        error: true,
-        message: "You are not authorized to perform this action",
-      });
-    }
 
     // Now populate for the rest of the function
     await collaboration.populate("userId");
     await collaboration.populate("selectInfluencerOrHost");
     await collaboration.populate("selectDeal");
 
-    // Create negotiation history if it doesn't exist
-    if (!collaboration.negotiationHistory) {
-      collaboration.negotiationHistory = [];
-    }
+    // Create a new negotiation based on the existing collaboration
+    const newNegotiation = new Collaborations({
+      // Copy original collaboration data or use negotiated values
+      userId: isHost
+        ? collaboration.userId
+        : collaboration.selectInfluencerOrHost,
+      selectInfluencerOrHost: isHost
+        ? collaboration.selectInfluencerOrHost
+        : collaboration.userId,
 
-    // Add current state to negotiation history before updating
-    collaboration.negotiationHistory.push({
-      updatedBy: currentUserId,
-      updatedAt: new Date(),
-      proposedChanges: {
-        payment: payment !== undefined ? payment : collaboration.payment,
-        content: content !== undefined ? content : collaboration.content,
-        additionalRequirements:
-          additionalRequirements !== undefined
-            ? additionalRequirements
-            : collaboration.additionalRequirements,
-        startDate:
-          startDate !== undefined ? startDate : collaboration.startDate,
-        endDate: endDate !== undefined ? endDate : collaboration.endDate,
-        status: status !== undefined ? status : collaboration.status,
-      },
-      message: negotiationMessage || "Negotiation update",
-      action: "proposed",
+      // Use negotiated values or fall back to original
+      title: title || collaboration.title,
+      description: description || collaboration.description,
+      addAirbnbLink: addAirbnbLink || collaboration.addAirbnbLink,
+      inTimeAndDate: inTimeAndDate || collaboration.inTimeAndDate,
+      outTimeAndDate: outTimeAndDate || collaboration.outTimeAndDate,
+      compensation: compensation || collaboration.compensation,
+      guestCount: guestCount || collaboration.guestCount,
+      deliverables: deliverables || collaboration.deliverables,
+
+      // Negotiation-specific fields
+      payment: payment || collaboration.payment || "",
+      startDate: startDate || collaboration.startDate || inTimeAndDate,
+      endDate: endDate || collaboration.endDate || outTimeAndDate,
+
+      // Set status to indicate this is a negotiation
+      status: "negotiating",
+      negotiationStatus: "pending",
+      paymentStatus: "pending",
+      deliverableStatus: "pending",
+
+      // Reference the original collaboration
+      originalCollaborationId: collaborationId,
     });
 
-    // Mark as negotiating if status is not already set
-    if (!collaboration.status || collaboration.status === "pending") {
-      collaboration.status = "negotiating";
-    }
+    const savedNegotiation = await newNegotiation.save();
 
-    // Also update negotiationStatus to reflect active negotiation
-    collaboration.negotiationStatus = "pending";
-
-    // Also set to pending if it's being negotiated
-    if (
-      collaboration.status === "active" ||
-      collaboration.status === "accepted"
-    ) {
-      collaboration.status = "pending";
-    }
-
-    // DO NOT update the main collaboration fields - only track proposals
-    // Remove the direct field updates that were changing the original data
-
-    await collaboration.save();
-
-    // Send notification to other party
+    // ---------- NOTIFICATION ----------
     try {
+      // Send notification to the other party
       const notificationRecipientId = isHost
         ? collaboration.selectInfluencerOrHost
         : collaboration.userId;
@@ -1235,25 +1235,40 @@ export const createNegotiationCollaboration = async (req, res) => {
 
       await createNegotiationNotification(
         notificationRecipientId,
-        collaborationId,
+        savedNegotiation._id,
         negotiatorName,
         negotiationMessage || "New negotiation proposal",
+        {
+          title: title || collaboration.title,
+          description: description || collaboration.description,
+          addAirbnbLink: addAirbnbLink || collaboration.addAirbnbLink,
+          inTimeAndDate: inTimeAndDate || collaboration.inTimeAndDate,
+          outTimeAndDate: outTimeAndDate || collaboration.outTimeAndDate,
+          compensation: compensation || collaboration.compensation,
+          guestCount: guestCount || collaboration.guestCount,
+          deliverables: deliverables || collaboration.deliverables,
+          payment: payment || collaboration.payment,
+          startDate: startDate || collaboration.startDate,
+          endDate: endDate || collaboration.endDate,
+        },
       );
     } catch (notificationError) {
       // Continue with response even if notification fails
     }
 
-    // Return updated collaboration with all populated data
-    const updatedCollaboration = await Collaborations.findById(collaborationId)
+    // Return the new negotiation with populated data
+    const populatedNegotiation = await Collaborations.findById(
+      savedNegotiation._id,
+    )
       .populate("userId", "name email")
       .populate("selectInfluencerOrHost", "name email")
       .populate("selectDeal", "description");
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       error: false,
       message: "Negotiation created successfully",
-      data: updatedCollaboration,
+      data: populatedNegotiation,
     });
   } catch (error) {
     res.status(500).json({
@@ -1396,45 +1411,6 @@ export const updateNegotiateStatus = async (req, res) => {
     await negotiation.populate("userId", "name email");
     await negotiation.populate("selectInfluencerOrHost", "name email");
     await negotiation.populate("selectDeal", "description");
-
-    // Create negotiation history if it doesn't exist
-    if (!negotiation.negotiationHistory) {
-      negotiation.negotiationHistory = [];
-    }
-
-    // Add to negotiation history
-    negotiation.negotiationHistory.push({
-      updatedBy: userId,
-      updatedAt: new Date(),
-      action:
-        actualStatus === "rejected"
-          ? "rejected"
-          : actualStatus === "accepted" || actualStatus === "accept"
-            ? "accepted"
-            : "updated",
-      message:
-        actualStatus === "rejected"
-          ? "Negotiation rejected"
-          : actualStatus === "accepted" || actualStatus === "accept"
-            ? "Negotiation accepted"
-            : "Status updated",
-      reason:
-        actualReason ||
-        (actualStatus === "rejected" ? "No reason provided" : undefined),
-      // Save previous state when rejecting
-      previousState:
-        actualStatus === "rejected"
-          ? {
-              payment: negotiation.payment,
-              content: negotiation.content,
-              additionalRequirements: negotiation.additionalRequirements,
-              startDate: negotiation.startDate,
-              endDate: negotiation.endDate,
-              status: negotiation.status,
-              negotiationStatus: negotiation.negotiationStatus,
-            }
-          : undefined,
-    });
 
     // Update negotiation status (convert "accept" to "accepted")
     const finalStatus = actualStatus === "accept" ? "accepted" : actualStatus;

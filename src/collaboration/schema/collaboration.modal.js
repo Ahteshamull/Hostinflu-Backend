@@ -49,6 +49,26 @@ const collaborationSchema = new mongoose.Schema(
       },
     ],
 
+    payment: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    originalCollaborationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collaboration",
+      required: false,
+    },
+
+    startDate: {
+      type: Date,
+    },
+
+    endDate: {
+      type: Date,
+    },
+
     status: {
       type: String,
       enum: [
