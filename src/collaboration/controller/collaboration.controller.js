@@ -8,6 +8,7 @@ import Deal from "../../deals/schema/deal.modal.js";
 import mongoose from "mongoose";
 
 export const createCollaboration = async (req, res) => {
+  const dealId = req.params.id;
   try {
     const {
       selectInfluencerOrHost,
@@ -1718,7 +1719,7 @@ export const getCollaborationsByUser = async (req, res) => {
       .populate({
         path: "selectDeal",
         select:
-          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate guestCount status",
         model: "Deal",
         populate: {
           path: "title",

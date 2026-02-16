@@ -25,9 +25,9 @@ import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middl
 
 const router = express.Router();
 
-//localhost:3000/api/v1/collaboration/create-collaboration (user only)
+//localhost:3000/api/v1/collaboration/create-collaboration/:dealId (user only)
 router.post(
-  "/create-collaboration",
+  "/create-collaboration/:dealId",
   authenticateToken,
   requireHostOrInfluencerRole,
   createCollaboration,
