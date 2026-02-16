@@ -5,7 +5,7 @@ const legalDocSchema = new Schema(
   {
     content: {
       type: String,
-      enum: ["termsAndCondition", "privacyPolicy", "aboutUs", "faq"],
+      enum: ["termsAndCondition", "privacyPolicy", "aboutUs"],
       required: [true, "Content type is required"],
     },
     description: {
