@@ -119,7 +119,7 @@ const dealSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["active", "pending", "completed"],
+      enum: ["active", "pending", "completed", "available"],
       default: "pending",
     },
   },
