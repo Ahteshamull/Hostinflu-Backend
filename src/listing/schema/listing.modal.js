@@ -42,3 +42,5 @@ const listingSchema = new mongoose.Schema({
 });
 
 export const Listing = mongoose.model("Listing", listingSchema);
+
+export default Listing; // Add default export

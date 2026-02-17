@@ -4,6 +4,7 @@ import userModel from "../../auth/schema/auth.modal.js";
 import Notification from "../../notification/schema/notification.modal.js";
 import Payment from "../../payment/schema/payment.modal.js";
 import Deal from "../../deals/schema/deal.modal.js";
+import Listing from "../../listing/schema/listing.modal.js"; // Import Listing model
 
 import mongoose from "mongoose";
 
@@ -165,13 +166,14 @@ export const createCollaborationWeb = async (req, res) => {
       });
     }
 
-    const dealOrListingId = selectDeal || title;
-
-    if (!dealOrListingId || !mongoose.Types.ObjectId.isValid(dealOrListingId)) {
-      return res.status(400).json({ message: "Deal/Listing ID is required" });
-    }
-
-    if (!description || !inTimeAndDate || !outTimeAndDate || !compensation) {
+    // Remove deal requirement - use title as collaboration title
+    if (
+      !title ||
+      !description ||
+      !inTimeAndDate ||
+      !outTimeAndDate ||
+      !compensation
+    ) {
       return res.status(400).json({ message: "Required fields missing" });
     }
 
@@ -209,22 +211,26 @@ export const createCollaborationWeb = async (req, res) => {
 
     let resolvedDealId = null;
 
-    const dealById = await Deal.findById(dealOrListingId).select("_id");
-    if (dealById) {
-      resolvedDealId = dealById._id;
-    } else {
-      const dealByListing = await Deal.findOne({
-        title: dealOrListingId,
-      }).select("_id");
-      if (dealByListing) {
-        resolvedDealId = dealByListing._id;
-      }
-    }
+    // Try to find listing by ID (optional)
+    const listingById = await Listing.findById(selectDeal).select("_id");
 
-    if (!resolvedDealId) {
-      return res.status(404).json({
-        message: "Deal not found for the provided Listing/Deal ID",
-      });
+    if (listingById) {
+      resolvedDealId = listingById._id;
+    } else {
+      console.log("Listing not found by ID, trying to find as listing...");
+      // Try to find as listing by title
+      const listingByTitle = await Listing.findOne({
+        title: title,
+      }).select(
+        "_id title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+      );
+
+      if (listingByTitle) {
+        resolvedDealId = listingByTitle._id;
+        console.log("Found listing by title:", listingByTitle.title);
+      } else {
+        console.log("Creating collaboration without listing...");
+      }
     }
 
     // ---------- CREATE COLLABORATION ----------
@@ -232,7 +238,7 @@ export const createCollaborationWeb = async (req, res) => {
       userId: creatorId,
       selectInfluencerOrHost: targetUserId,
 
-      selectDeal: resolvedDealId,
+      title, // Use title as collaboration title
       description,
       addAirbnbLink,
       inTimeAndDate,
@@ -286,6 +292,7 @@ export const createCollaborationWeb = async (req, res) => {
         "selectInfluencerOrHost",
         "name image role email fullAddress userName socialMediaLinks",
       )
+      .populate("title", "title images location amenities")
       .populate({
         path: "selectDeal",
         select:
@@ -293,7 +300,7 @@ export const createCollaborationWeb = async (req, res) => {
         model: "Deal",
         populate: {
           path: "title",
-          select: "title images location",
+          select: "title images location amenities",
         },
       });
 
@@ -388,7 +395,18 @@ export const getSingleCollaboration = async (req, res) => {
 
     const collaboration = await Collaborations.findById(id)
       .populate("selectInfluencerOrHost", "name email")
-      .populate("userId", "name email");
+      .populate("userId", "name email")
+      .populate("title", "title images location amenities") // Populate title field
+      .populate({
+        path: "selectDeal",
+        select:
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+        model: "Listing", // Changed from Deal to Listing
+        populate: {
+          path: "title",
+          select: "title images location amenities",
+        },
+      });
 
     if (!collaboration) {
       return res.status(404).json({
@@ -1712,11 +1730,12 @@ export const getCollaborationsByUser = async (req, res) => {
         "userId",
         "name email role userName socialMediaLinks image fullAddress",
       )
+      .populate("title", "title images location amenities")
       .populate({
         path: "selectDeal",
         select:
-          "title description addAirbnbLink inTimeAndDate outTimeAndDate guestCount status",
-        model: "Deal",
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+        model: "Listing",
         populate: {
           path: "title",
           select: "title images location amenities",

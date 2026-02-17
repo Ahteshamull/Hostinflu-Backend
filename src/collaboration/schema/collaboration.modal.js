@@ -55,7 +55,11 @@ const collaborationSchema = new mongoose.Schema(
 
     selectDeal: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Deal",
+      ref: "Listing", // Changed from Deal to Listing
+    },
+    title: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Listing",
     },
 
     compensation: {
