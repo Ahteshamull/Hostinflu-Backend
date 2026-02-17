@@ -409,25 +409,92 @@ const get_all_conversations_for_user = async (userId, query) => {
     const limit = parseInt(query?.limit) || 10;
     const skip = (page - 1) * limit;
 
-    
-    const conversationsList = await conversations
-      .find({ participants: { $in: [userId] } })
-      .populate("lastMessage")
-      .populate("participants", "name image email")
-      .sort({ updatedAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    const total = await conversations.countDocuments({
-      participants: { $in: [userId] },
+    const conversationsList = await conversations.aggregate([
+      {
+        $match: {
+          participants: userObjectId,
+        },
+      },
+      {
+        $sort: { updatedAt: -1 },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+
+      // 🔥 Remove logged-in user from participants
+      {
+        $project: {
+          participants: {
+            $filter: {
+              input: "$participants",
+              as: "participant",
+              cond: { $ne: ["$$participant", userObjectId] },
+            },
+          },
+          lastMessage: 1,
+          isDelete: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+
+      // Populate participants
+      {
+        $lookup: {
+          from: "users",
+          localField: "participants",
+          foreignField: "_id",
+          as: "participants",
+        },
+      },
+
+      // Populate lastMessage
+      {
+        $lookup: {
+          from: "messages",
+          localField: "lastMessage",
+          foreignField: "_id",
+          as: "lastMessage",
+        },
+      },
+      {
+        $unwind: {
+          path: "$lastMessage",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // Select only needed participant fields
+      {
+        $project: {
+          "participants._id": 1,
+          "participants.name": 1,
+          "participants.email": 1,
+          "participants.image": 1,
+          lastMessage: 1,
+          isDelete: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    ]);
+
+    const totalData = await conversations.countDocuments({
+      participants: userObjectId,
     });
 
     return {
       conversations: conversationsList,
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalConversations: total,
+        totalPages: Math.ceil(totalData / limit),
+        totalConversations: totalData,
         conversationsPerPage: limit,
       },
     };
@@ -435,7 +502,6 @@ const get_all_conversations_for_user = async (userId, query) => {
     throw new Error("Error getting conversations: " + error.message);
   }
 };
-
 const getUserConversationId = async (userId, receiverId, options = {}) => {
   try {
     const { page = 1, limit = 20 } = options;
