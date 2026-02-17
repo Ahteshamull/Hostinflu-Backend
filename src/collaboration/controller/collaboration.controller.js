@@ -1155,7 +1155,6 @@ export const createNegotiationCollaboration = async (req, res) => {
       payment,
       startDate,
       endDate,
-      status,
       negotiationMessage,
     } = req.body;
 
