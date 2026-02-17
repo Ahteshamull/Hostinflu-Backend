@@ -155,18 +155,28 @@ export const createCollaborationWeb = async (req, res) => {
       endDate,
     } = req.body;
 
-    // ---------- VALIDATION ----------
+    // ---------- BASIC VALIDATION ----------
     if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
-      return res.status(400).json({ message: "Invalid target user ID" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid target user ID",
+      });
+    }
+
+    if (!creatorId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized user",
+      });
     }
 
     if (!["host", "influencer"].includes(creatorRole)) {
       return res.status(403).json({
+        success: false,
         message: "Only hosts and influencers can create collaborations",
       });
     }
 
-    // Remove deal requirement - use title as collaboration title
     if (
       !title ||
       !description ||
@@ -174,62 +184,69 @@ export const createCollaborationWeb = async (req, res) => {
       !outTimeAndDate ||
       !compensation
     ) {
-      return res.status(400).json({ message: "Required fields missing" });
+      return res.status(400).json({
+        success: false,
+        message: "Required fields missing",
+      });
     }
 
-    if (creatorId === targetUserId) {
-      return res
-        .status(400)
-        .json({ message: "Cannot create collaboration with yourself" });
+    if (creatorId.toString() === targetUserId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot create collaboration with yourself",
+      });
     }
-
-    // ---------- DELIVERABLES ----------
-    let finalDeliverables = deliverables;
-
-    if (typeof deliverables === "string") {
-      try {
-        finalDeliverables = JSON.parse(deliverables);
-      } catch {
-        return res
-          .status(400)
-          .json({ message: "Deliverables must be valid JSON" });
-      }
-    }
-
-    finalDeliverables = finalDeliverables.map((d) => ({
-      platform: d.platform,
-      contentType: d.contentType,
-      quantity: d.quantity || 1,
-      platformFollowers: d.platformFollowers || {},
-    }));
 
     // ---------- TARGET USER ----------
     const targetUser = await userModel.findById(targetUserId);
+
     if (!targetUser) {
-      return res.status(404).json({ message: "Target user not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Target user not found",
+      });
     }
 
+    // ---------- ROLE VALIDATION ----------
+    if (creatorRole === targetUser.role) {
+      return res.status(403).json({
+        success: false,
+        message: `${creatorRole} cannot create collaboration with another ${creatorRole}`,
+      });
+    }
+
+    // ---------- DELIVERABLES ----------
+    let finalDeliverables = [];
+
+    if (deliverables) {
+      if (typeof deliverables === "string") {
+        try {
+          finalDeliverables = JSON.parse(deliverables);
+        } catch {
+          return res.status(400).json({
+            success: false,
+            message: "Deliverables must be valid JSON",
+          });
+        }
+      } else {
+        finalDeliverables = deliverables;
+      }
+
+      finalDeliverables = finalDeliverables.map((d) => ({
+        platform: d.platform,
+        contentType: d.contentType,
+        quantity: d.quantity || 1,
+        platformFollowers: d.platformFollowers || {},
+      }));
+    }
+
+    // ---------- DEAL RESOLUTION (OPTIONAL) ----------
     let resolvedDealId = null;
 
-    // Try to find listing by ID (optional)
-    const listingById = await Listing.findById(selectDeal).select("_id");
-
-    if (listingById) {
-      resolvedDealId = listingById._id;
-    } else {
-      console.log("Listing not found by ID, trying to find as listing...");
-      // Try to find as listing by title
-      const listingByTitle = await Listing.findOne({
-        title: title,
-      }).select(
-        "_id title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
-      );
-
-      if (listingByTitle) {
-        resolvedDealId = listingByTitle._id;
-        console.log("Found listing by title:", listingByTitle.title);
-      } else {
-        console.log("Creating collaboration without listing...");
+    if (selectDeal && mongoose.Types.ObjectId.isValid(selectDeal)) {
+      const listing = await Listing.findById(selectDeal).select("_id");
+      if (listing) {
+        resolvedDealId = listing._id;
       }
     }
 
@@ -237,8 +254,9 @@ export const createCollaborationWeb = async (req, res) => {
     const newCollaboration = new Collaborations({
       userId: creatorId,
       selectInfluencerOrHost: targetUserId,
+      selectDeal: resolvedDealId,
 
-      title, // Use title as collaboration title
+      title,
       description,
       addAirbnbLink,
       inTimeAndDate,
@@ -275,12 +293,7 @@ export const createCollaborationWeb = async (req, res) => {
       $inc: { collaborationsTotal: 1 },
     });
 
-    // ---------- NOTIFICATION ----------
-    try {
-      await createCollaborationNotification(savedCollaboration, creatorRole);
-    } catch {}
-
-    // ---------- RESPONSE ----------
+    // ---------- POPULATE RESPONSE ----------
     const populatedCollaboration = await Collaborations.findById(
       savedCollaboration._id,
     )
@@ -292,22 +305,15 @@ export const createCollaborationWeb = async (req, res) => {
         "selectInfluencerOrHost",
         "name image role email fullAddress userName socialMediaLinks",
       )
-      .populate("title", "title images location amenities")
-      .populate({
-        path: "selectDeal",
-        select:
-          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
-        model: "Deal",
-        populate: {
-          path: "title",
-          select: "title images location amenities",
-        },
-      });
+      .populate(
+        "selectDeal",
+        "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+      );
 
     return res.status(201).json({
       success: true,
       message: "Collaboration created successfully",
-      data: populatedCollaboration.toObject(),
+      data: populatedCollaboration,
     });
   } catch (error) {
     return res.status(500).json({
