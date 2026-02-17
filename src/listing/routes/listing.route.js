@@ -10,6 +10,7 @@ import {
   personalTotalListings,
   personalListingsGrowth,
   userPersonalVerifyListings,
+  userTotalListings,
 } from "../controller/listing.controller.js";
 import {
   authenticateToken,
@@ -91,5 +92,8 @@ router.get(
   authenticateToken,
   userPersonalVerifyListings,
 );
+
+// localhost:3000/api/v1/listing/user-total-listings/:userId
+router.get("/user-total-listings/:userId", userTotalListings);
 
 export default router;

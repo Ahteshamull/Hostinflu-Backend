@@ -584,6 +584,7 @@ const userCreatedDeals = async (req, res) => {
   }
 };
 
+
 export {
   getAllDeals,
   getSingleDeal,

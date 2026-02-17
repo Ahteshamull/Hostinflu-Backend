@@ -658,6 +658,36 @@ const userPersonalVerifyListings = async (req, res) => {
   }
 };
 
+const userTotalListings = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const listings = await Listing.find({ userId })
+      .populate("userId", "name email role")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "User listings retrieved successfully",
+      count: listings.length,
+      data: listings,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving user listings",
+      error: error.message,
+    });
+  }
+};
+
 export {
   createListing,
   getAllListings,
@@ -667,6 +697,7 @@ export {
   deleteListing,
   adminAcceptListing,
   personalTotalListings,
-  personalListingsGrowth,
-  userPersonalVerifyListings,
+  userTotalListings,
 };
+
+export { personalListingsGrowth, userPersonalVerifyListings };
