@@ -1177,22 +1177,22 @@ export const createNegotiationCollaboration = async (req, res) => {
     const isInfluencer =
       collaboration.selectInfluencerOrHost?.toString() === currentUserId;
 
+    if (!isHost && !isInfluencer) {
+      return res.status(403).json({
+        success: false,
+        error: true,
+        message: "You are not authorized to negotiate this collaboration",
+      });
+    }
+
     // Now populate for the rest of the function
     await collaboration.populate("userId");
     await collaboration.populate("selectInfluencerOrHost");
     await collaboration.populate("selectDeal");
 
-    // Create a new negotiation based on the existing collaboration
-    const newNegotiation = new Collaborations({
-      // Copy original collaboration data or use negotiated values
-      userId: isHost
-        ? collaboration.userId
-        : collaboration.selectInfluencerOrHost,
-      selectInfluencerOrHost: isHost
-        ? collaboration.selectInfluencerOrHost
-        : collaboration.userId,
-
-      // Use negotiated values or fall back to original
+    // Update the existing collaboration with negotiated values
+    const updateData = {
+      // Use negotiated values or keep original
       title: title || collaboration.title,
       description: description || collaboration.description,
       addAirbnbLink: addAirbnbLink || collaboration.addAirbnbLink,
@@ -1212,12 +1212,17 @@ export const createNegotiationCollaboration = async (req, res) => {
       negotiationStatus: "pending",
       paymentStatus: "pending",
       deliverableStatus: "pending",
+    };
 
-      // Reference the original collaboration
-      originalCollaborationId: collaborationId,
-    });
-
-    const savedNegotiation = await newNegotiation.save();
+    // Update the existing collaboration
+    const updatedCollaboration = await Collaborations.findByIdAndUpdate(
+      collaborationId,
+      updateData,
+      { new: true, runValidators: true },
+    )
+      .populate("userId", "name email")
+      .populate("selectInfluencerOrHost", "name email")
+      .populate("selectDeal", "description");
 
     // ---------- NOTIFICATION ----------
     try {
@@ -1231,7 +1236,7 @@ export const createNegotiationCollaboration = async (req, res) => {
 
       await createNegotiationNotification(
         notificationRecipientId,
-        savedNegotiation._id,
+        updatedCollaboration._id,
         negotiatorName,
         negotiationMessage || "New negotiation proposal",
         {
@@ -1252,25 +1257,17 @@ export const createNegotiationCollaboration = async (req, res) => {
       // Continue with response even if notification fails
     }
 
-    // Return the new negotiation with populated data
-    const populatedNegotiation = await Collaborations.findById(
-      savedNegotiation._id,
-    )
-      .populate("userId", "name email")
-      .populate("selectInfluencerOrHost", "name email")
-      .populate("selectDeal", "description");
-
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       error: false,
-      message: "Negotiation created successfully",
-      data: populatedNegotiation,
+      message: "Negotiation updated successfully",
+      data: updatedCollaboration,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       error: true,
-      message: "Error creating negotiation",
+      message: "Error updating negotiation",
       error: error.message,
     });
   }
