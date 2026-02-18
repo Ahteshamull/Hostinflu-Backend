@@ -648,7 +648,7 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Validate social media links against collaboration deliverables
+   
     if (socialMediaLinks && collaboration.deliverables) {
       const dealPlatforms = collaboration.deliverables.map((d) =>
         d.platform.toLowerCase(),
