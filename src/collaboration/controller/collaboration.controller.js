@@ -654,7 +654,6 @@ export const updateCollaboration = async (req, res) => {
         d.platform.toLowerCase(),
       );
 
-      // Helper function to filter valid posts
       const filterValidPosts = (posts) => {
         if (!Array.isArray(posts)) return [];
         return posts.filter(
