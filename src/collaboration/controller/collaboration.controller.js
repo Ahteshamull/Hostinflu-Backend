@@ -566,7 +566,6 @@ export const getMyAllCollaborations = async (req, res) => {
       total = await Collaborations.countDocuments(filter);
     }
 
-    // Add action permissions and payment information to each collaboration
     const collaborationsWithActions = await Promise.all(
       collaborations.map(async (collab) => {
         const collaborationObj = collab.toObject();
@@ -574,7 +573,7 @@ export const getMyAllCollaborations = async (req, res) => {
         const isSelectedUser =
           collab.selectInfluencerOrHost._id.toString() === userId;
 
-        // Add payment information for collaborations with in_progress payment status
+ 
         if (collab.paymentStatus === "in_progress") {
           const payment = await Payment.findOne({
             title: collab._id,
