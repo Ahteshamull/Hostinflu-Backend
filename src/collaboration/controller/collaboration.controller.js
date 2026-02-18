@@ -530,7 +530,7 @@ export const getMyAllCollaborations = async (req, res) => {
 
       total = await Collaborations.countDocuments(filter);
     } else if (userRole === "influencer") {
-      // Influencer: Show collaborations where they are selected
+      
       filter.selectInfluencerOrHost = userId;
       collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role userName socialMediaLinks")
