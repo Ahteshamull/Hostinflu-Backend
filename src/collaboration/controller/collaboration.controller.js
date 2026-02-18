@@ -637,7 +637,7 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Find existing collaboration
+
     const collaboration = await Collaborations.findById(id);
 
     if (!collaboration) {
