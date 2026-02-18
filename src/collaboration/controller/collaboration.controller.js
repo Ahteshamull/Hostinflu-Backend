@@ -626,7 +626,7 @@ export const updateCollaboration = async (req, res) => {
     const { id } = req.params;
     const { socialMediaLinks } = req.body;
 
-    // Get userId and role from token
+  
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
 
