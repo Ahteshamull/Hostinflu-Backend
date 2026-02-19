@@ -670,15 +670,46 @@ const userTotalListings = async (req, res) => {
       });
     }
 
-    const listings = await Listing.find({ userId })
+    // Get only verified listings
+    const listings = await Listing.find({ userId, status: "verified" })
       .populate("userId", "name email role")
       .sort({ createdAt: -1 });
 
+    // Get counts for meta information
+    const totalUserListings = await Listing.countDocuments({ userId });
+    const verifiedListings = await Listing.countDocuments({
+      userId,
+      status: "verified",
+    });
+    const pendingListings = await Listing.countDocuments({
+      userId,
+      status: "pending",
+    });
+    const rejectedListings = await Listing.countDocuments({
+      userId,
+      status: "rejected",
+    });
+
     res.status(200).json({
       success: true,
+      error: false,
       message: "User listings retrieved successfully",
-      count: listings.length,
-      data: listings,
+      totalPages: 1,
+      currentPage: 1,
+      limit: listings.length,
+      total: listings.length,
+      meta: {
+        totalUserListings,
+        verifiedListings,
+        pendingListings,
+        rejectedListings,
+        filterApplied: {
+          status: "verified",
+        },
+      },
+      data: {
+        listings,
+      },
     });
   } catch (error) {
     res.status(500).json({
