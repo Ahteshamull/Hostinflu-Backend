@@ -86,6 +86,7 @@ export const userDashboard = async (req, res) => {
       totalListings,
       verifiedListings,
       totalDeals,
+      totalSpending,
       monthlySpending,
       lastMonthSpending,
       totalNightStays,
@@ -128,6 +129,22 @@ export const userDashboard = async (req, res) => {
 
       // Total deals
       Deal.countDocuments({ userId }),
+
+      // Total spending
+      Payment.aggregate([
+        {
+          $match: {
+            $or: [{ userId }, { selectInfluencerOrHost: userId }],
+            status: { $in: ["SUCCESS", "IN_PROGRESS", "HOLD"] },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
 
       // Monthly spending (current month)
       Payment.aggregate([
@@ -376,6 +393,7 @@ export const userDashboard = async (req, res) => {
             growth: parseFloat(earningsGrowth),
           },
           spending: {
+            total: totalSpending[0]?.total || 0,
             currentMonth: currentSpending,
             growth: parseFloat(spendingGrowth),
           },

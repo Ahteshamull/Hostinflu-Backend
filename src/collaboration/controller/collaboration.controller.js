@@ -499,7 +499,7 @@ export const getMyAllCollaborations = async (req, res) => {
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
     const { page = 1, limit = 10, status } = req.query;
-
+      
     if (!userId || !userRole) {
       return res.status(401).json({
         message: "User ID or role not found in token",
