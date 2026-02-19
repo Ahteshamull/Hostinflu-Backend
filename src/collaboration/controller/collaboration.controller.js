@@ -499,7 +499,7 @@ export const getMyAllCollaborations = async (req, res) => {
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
     const { page = 1, limit = 10, status } = req.query;
-      
+
     if (!userId || !userRole) {
       return res.status(401).json({
         message: "User ID or role not found in token",
@@ -530,7 +530,6 @@ export const getMyAllCollaborations = async (req, res) => {
 
       total = await Collaborations.countDocuments(filter);
     } else if (userRole === "influencer") {
-      
       filter.selectInfluencerOrHost = userId;
       collaborations = await Collaborations.find(filter)
         .populate("userId", "name email role userName socialMediaLinks")
@@ -573,7 +572,6 @@ export const getMyAllCollaborations = async (req, res) => {
         const isSelectedUser =
           collab.selectInfluencerOrHost._id.toString() === userId;
 
- 
         if (collab.paymentStatus === "in_progress") {
           const payment = await Payment.findOne({
             title: collab._id,
@@ -626,7 +624,6 @@ export const updateCollaboration = async (req, res) => {
     const { id } = req.params;
     const { socialMediaLinks } = req.body;
 
-  
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     const userRole = req.user?.role;
 
@@ -636,7 +633,6 @@ export const updateCollaboration = async (req, res) => {
         error: "Authentication required",
       });
     }
-
 
     const collaboration = await Collaborations.findById(id);
 
@@ -648,7 +644,6 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-   
     if (socialMediaLinks && collaboration.deliverables) {
       const dealPlatforms = collaboration.deliverables.map((d) =>
         d.platform.toLowerCase(),
@@ -1084,20 +1079,39 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
     const startDate = new Date(year, 0, 1); // January 1st
     const endDate = new Date(year, 11, 31); // December 31st
 
-    // Get total collaborations for the year
+    // Get all user collaborations to show creation dates
+    const allCollaborations = await Collaborations.find({
+      $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
+    }).select("createdAt status userId selectInfluencerOrHost");
+
+  
+    allCollaborations.forEach((collab, index) => {
+      const month = new Date(collab.createdAt).toLocaleString("default", {
+        month: "long",
+      });
+      const year = new Date(collab.createdAt).getFullYear();
+      const isCreator = collab.userId.toString() === userId.toString();
+    
+    });
+
+    // Get total collaborations for the year (as creator or partner)
     const totalCollaborations = await Collaborations.countDocuments({
-      userId: userId,
+      $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
       createdAt: {
         $gte: startDate,
         $lte: endDate,
       },
     });
 
-    // Get collaborations by month
+   
+
     const monthlyCollaborations = await Collaborations.aggregate([
       {
         $match: {
-          userId: userId,
+          $or: [
+            { userId: new mongoose.Types.ObjectId(userId) },
+            { selectInfluencerOrHost: new mongoose.Types.ObjectId(userId) },
+          ],
           createdAt: {
             $gte: startDate,
             $lte: endDate,
@@ -1115,8 +1129,30 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
       },
     ]);
 
-    // Initialize all 12 months with 0 collaborations
-    const monthlyData = [];
+  
+
+    // Also try without date filter to see if date is the issue
+    const monthlyCollaborationsNoDate = await Collaborations.aggregate([
+      {
+        $match: {
+          $or: [
+            { userId: new mongoose.Types.ObjectId(userId) },
+            { selectInfluencerOrHost: new mongoose.Types.ObjectId(userId) },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+   
     const months = [
       "Jan",
       "Feb",
@@ -1131,6 +1167,12 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
       "Nov",
       "Dec",
     ];
+    monthlyCollaborations.forEach((month) => {
+   
+    });
+
+    // Initialize all 12 months with 0 collaborations
+    const monthlyData = [];
 
     for (let i = 1; i <= 12; i++) {
       const monthData = monthlyCollaborations.find((item) => item._id === i);
