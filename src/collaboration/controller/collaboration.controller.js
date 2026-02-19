@@ -1781,7 +1781,7 @@ export const getCollaborationsByUser = async (req, res) => {
         },
       })
       .select(
-        "selectDeal description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount deliverables status negotiationStatus paymentStatus socialMediaLinks",
+        "selectDeal description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount deliverables status negotiationStatus paymentStatus socialMediaLinks negotiationMessage",
       )
       .sort({ updatedAt: -1 });
 
