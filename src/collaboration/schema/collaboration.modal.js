@@ -143,6 +143,11 @@ const collaborationSchema = new mongoose.Schema(
       trim: true,
     },
 
+    negotiationMessage: {
+      type: String,
+      default: "",
+    },
+
     socialMediaLinks: {
       instagram: [
         {

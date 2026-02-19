@@ -1084,14 +1084,12 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
       $or: [{ userId: userId }, { selectInfluencerOrHost: userId }],
     }).select("createdAt status userId selectInfluencerOrHost");
 
-  
     allCollaborations.forEach((collab, index) => {
       const month = new Date(collab.createdAt).toLocaleString("default", {
         month: "long",
       });
       const year = new Date(collab.createdAt).getFullYear();
       const isCreator = collab.userId.toString() === userId.toString();
-    
     });
 
     // Get total collaborations for the year (as creator or partner)
@@ -1102,8 +1100,6 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
         $lte: endDate,
       },
     });
-
-   
 
     const monthlyCollaborations = await Collaborations.aggregate([
       {
@@ -1129,8 +1125,6 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
       },
     ]);
 
-  
-
     // Also try without date filter to see if date is the issue
     const monthlyCollaborationsNoDate = await Collaborations.aggregate([
       {
@@ -1152,7 +1146,6 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
       },
     ]);
 
-   
     const months = [
       "Jan",
       "Feb",
@@ -1167,9 +1160,7 @@ export const userPersonalCollaborationsGrowth = async (req, res) => {
       "Nov",
       "Dec",
     ];
-    monthlyCollaborations.forEach((month) => {
-   
-    });
+    monthlyCollaborations.forEach((month) => {});
 
     // Initialize all 12 months with 0 collaborations
     const monthlyData = [];
@@ -1264,6 +1255,8 @@ export const createNegotiationCollaboration = async (req, res) => {
       compensation: compensation || collaboration.compensation,
       guestCount: guestCount || collaboration.guestCount,
       deliverables: deliverables || collaboration.deliverables,
+      negotiationMessage:
+        negotiationMessage || collaboration.negotiationMessage || "",
 
       // Negotiation-specific fields
       payment: payment || collaboration.payment || "",
