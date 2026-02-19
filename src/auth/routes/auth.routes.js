@@ -13,6 +13,7 @@ import {
   currentUserLogin,
   setUpProfile,
   deleteUser,
+  deleteMyAccount,
 } from "../controller/auth.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import {
@@ -54,5 +55,8 @@ router.patch(
 
 //localhost:3000/api/v1/auth/delete-user
 router.delete("/delete-user", authenticateToken, deleteUser); 
+
+//localhost:3000/api/v1/auth/delete-my-account
+router.delete("/delete-my-account", authenticateToken, deleteMyAccount); 
 
 export default router;

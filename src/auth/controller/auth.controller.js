@@ -8,6 +8,12 @@ import sendOtp from "../../helper/helpers/sendOtp.js";
 import { notifyAdminOnUserCreated } from "../../notification/service/notification.service.js";
 import fs from "fs";
 import path from "path";
+import Listing from "../../listing/schema/listing.modal.js";
+import Collaborations from "../../collaboration/schema/collaboration.modal.js";
+import Deal from "../../deals/schema/deal.modal.js";
+import Payment from "../../payment/schema/payment.modal.js";
+import Notification from "../../notification/schema/notification.modal.js";
+import Message from "../../message/schema/message.modal.js";
 
 export const createUser = async (req, res) => {
   // Handle form data where fields might be in different locations
@@ -1011,6 +1017,72 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Error deleting account",
+    });
+  }
+};
+
+export const deleteMyAccount = async (req, res) => {
+  try {
+    // Get user ID from token
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    // Check if user exists
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Delete user's related data
+    await Promise.all([
+      // Delete user's listings
+      Listing.deleteMany({ userId }),
+
+      // Delete user's collaborations
+      Collaborations.deleteMany({
+        $or: [{ userId }, { selectInfluencerOrHost: userId }],
+      }),
+
+      // Delete user's deals
+      Deal.deleteMany({ userId }),
+
+      // Delete user's payments
+      Payment.deleteMany({
+        $or: [{ userId }, { selectInfluencerOrHost: userId }],
+      }),
+
+      // Delete user's notifications
+      Notification.deleteMany({
+        $or: [{ receiverId: userId }, { senderId: userId }],
+      }),
+
+      // Delete user's messages
+      Message.deleteMany({
+        $or: [{ senderId: userId }, { receiverId: userId }],
+      }),
+    ]);
+
+    // Delete the user account
+    await userModel.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Account and all related data deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error deleting account",
+      error: error.message,
     });
   }
 };
