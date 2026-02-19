@@ -13,6 +13,7 @@ import {
   getPaymentStatus,
   getUserPayments,
   stripeAccountOnboarding,
+  userSpendingGrowth,
 } from "../controller/payment.controller.js";
 import { requireHostOrInfluencerRole } from "../../helper/middlewares/role.middleware.js";
 
@@ -51,5 +52,8 @@ router.get("/status/:paymentId", authenticateToken, getPaymentStatus);
 
 // localhost:3000/api/v1/payment/my-payments
 router.get("/my-payments", authenticateToken, getUserPayments);
+
+// localhost:3000/api/v1/payment/user-spending-growth
+router.get("/user-spending-growth", authenticateToken, userSpendingGrowth);
 
 export default router;

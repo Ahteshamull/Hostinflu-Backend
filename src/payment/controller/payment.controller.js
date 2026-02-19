@@ -697,3 +697,103 @@ export const getUserPayments = async (req, res) => {
     });
   }
 };
+
+export const userSpendingGrowth = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    // Create date range for the specified year
+    const startDate = new Date(year, 0, 1); // January 1st
+    const endDate = new Date(year, 11, 31); // December 31st
+
+    // Get total spending for the year (host spending)
+    const totalSpending = await Payment.aggregate([
+      {
+        $match: {
+          userId: userId, // Host ID
+          status: { $in: ["SUCCESS", "IN_PROGRESS", "HOLD"] },
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    // Get spending by month (host spending)
+    const monthlySpending = await Payment.aggregate([
+      {
+        $match: {
+          userId: userId, // Host ID
+          status: { $in: ["SUCCESS", "IN_PROGRESS", "HOLD"] },
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          amount: { $sum: "$amount" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    // Initialize all 12 months with 0 spending
+    const monthlyData = [];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    for (let i = 1; i <= 12; i++) {
+      const monthData = monthlySpending.find((item) => item._id === i);
+      monthlyData.push({
+        month: months[i - 1],
+        monthNumber: i,
+        amount: monthData ? monthData.amount : 0,
+        count: monthData ? monthData.count : 0,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User spending growth retrieved successfully",
+      data: {
+        year,
+        totalSpending: totalSpending[0]?.total || 0,
+        monthlyData,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving user spending growth",
+      error: error.message,
+    });
+  }
+};

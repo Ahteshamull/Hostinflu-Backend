@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Listing } from "../schema/listing.modal.js";
 import {
   notifyAdminOnListingCreated,
@@ -521,7 +522,7 @@ const personalListingsGrowth = async (req, res) => {
     const monthlyListings = await Listing.aggregate([
       {
         $match: {
-          userId: userId,
+          userId: new mongoose.Types.ObjectId(userId),
           createdAt: {
             $gte: startDate,
             $lte: endDate,
