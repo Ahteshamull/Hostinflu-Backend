@@ -1135,6 +1135,7 @@ export const shareMyProfile = async (req, res) => {
         platforms: {
           web: webUrl,
           mobile: mobileAppUrl,
+          universal: "https://hostinflu.com",
         },
       },
     });
