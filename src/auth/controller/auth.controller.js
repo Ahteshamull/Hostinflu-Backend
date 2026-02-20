@@ -1116,23 +1116,32 @@ export const shareMyProfile = async (req, res) => {
       });
     }
 
-    // Generate shareable link with fallback
-    const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL;
-    const shareableLink = `${frontendUrl}/profile/${user.userName}`;
+    // Generate shareable links for web and mobile
+    const webUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL;
+    const mobileAppUrl = process.env.MOBILE_APP_URL || "hostinflu://profile";
+
+    const shareableLinks = {
+      web: `${webUrl}/profile/${user.userName}`,
+      mobile: `${mobileAppUrl}/${user.userName}`,
+      universal: `https://hostinflu.com/profile/${user.userName}`, // Universal link for both
+    };
 
     res.status(200).json({
       success: true,
-      message: "Shareable link generated successfully",
+      message: "Shareable links generated successfully",
       data: {
-        shareableLink,
+        shareableLinks,
         username: user.userName,
-        frontendUrl: frontendUrl,
+        platforms: {
+          web: webUrl,
+          mobile: mobileAppUrl,
+        },
       },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error generating shareable link",
+      message: "Error generating shareable links",
       error: error.message,
     });
   }
