@@ -14,6 +14,8 @@ import {
   setUpProfile,
   deleteUser,
   deleteMyAccount,
+  shareMyProfile,
+  getPublicProfile,
 } from "../controller/auth.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import {
@@ -50,13 +52,19 @@ router.patch(
   authenticateToken,
   upload.single("image"),
   errorCheck,
-  setUpProfile
+  setUpProfile,
 );
 
 //localhost:3000/api/v1/auth/delete-user
-router.delete("/delete-user", authenticateToken, deleteUser); 
+router.delete("/delete-user", authenticateToken, deleteUser);
 
 //localhost:3000/api/v1/auth/delete-my-account
-router.delete("/delete-my-account", authenticateToken, deleteMyAccount); 
+router.delete("/delete-my-account", authenticateToken, deleteMyAccount);
+
+//localhost:3000/api/v1/auth/share-profile
+router.get("/share-profile", authenticateToken, shareMyProfile);
+
+//localhost:3000/api/v1/auth/public-profile/:username
+router.get("/public-profile/:username", getPublicProfile);
 
 export default router;

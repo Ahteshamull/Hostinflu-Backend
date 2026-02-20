@@ -1086,3 +1086,110 @@ export const deleteMyAccount = async (req, res) => {
     });
   }
 };
+
+export const shareMyProfile = async (req, res) => {
+  try {
+    // Get user ID from token
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    // Check if user exists
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if user has a username
+    if (!user.userName) {
+      return res.status(400).json({
+        success: false,
+        message: "Username not found. Please set up your profile first.",
+      });
+    }
+
+    // Generate shareable link with fallback
+    const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL;
+    const shareableLink = `${frontendUrl}/profile/${user.userName}`;
+
+    res.status(200).json({
+      success: true,
+      message: "Shareable link generated successfully",
+      data: {
+        shareableLink,
+        username: user.userName,
+        frontendUrl: frontendUrl,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error generating shareable link",
+      error: error.message,
+    });
+  }
+};
+
+export const getPublicProfile = async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: "Username is required",
+      });
+    }
+
+    // Find user by userName with only basic information
+    const user = await userModel
+      .findOne({ userName: username })
+      .select(
+        "name userName email role image bio socialMediaLinks followers following createdAt",
+      )
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found",
+      });
+    }
+
+    // Remove sensitive information
+    const publicProfile = {
+      name: user.name,
+      userName: user.userName,
+      role: user.role,
+      image: user.image,
+      bio: user.bio,
+      socialMediaLinks: user.socialMediaLinks,
+      followers: user.followers || 0,
+      following: user.following || 0,
+      createdAt: user.createdAt,
+      email: user.email ? user.email.split("@")[0] + "***" : "", // Partially hide email
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Public profile retrieved successfully",
+      data: {
+        profile: publicProfile,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving public profile",
+      error: error.message,
+    });
+  }
+};
