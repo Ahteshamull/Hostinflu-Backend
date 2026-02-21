@@ -98,7 +98,6 @@ export const userDashboard = async (req, res) => {
       collaborationGrowth,
       recentActivities,
     ] = await Promise.all([
-      // Total collaborations (as creator or partner)
       Collaborations.countDocuments({
         $or: [{ userId }, { selectInfluencerOrHost: userId }],
       }),
