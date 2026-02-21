@@ -121,10 +121,10 @@ export const userDashboard = async (req, res) => {
         status: "pending",
       }),
 
-      // Total listings (for hosts)
+  
       Listing.countDocuments({ userId }),
 
-      // Verified listings (for hosts)
+
       Listing.countDocuments({ userId, status: "verified" }),
 
      
@@ -146,7 +146,7 @@ export const userDashboard = async (req, res) => {
         },
       ]),
 
-      // Monthly spending (current month)
+    
       Payment.aggregate([
         {
           $match: {
