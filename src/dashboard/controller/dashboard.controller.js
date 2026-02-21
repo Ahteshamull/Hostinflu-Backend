@@ -103,19 +103,18 @@ export const userDashboard = async (req, res) => {
         $or: [{ userId }, { selectInfluencerOrHost: userId }],
       }),
 
-      // Completed collaborations
       Collaborations.countDocuments({
         $or: [{ userId }, { selectInfluencerOrHost: userId }],
         status: "completed",
       }),
 
-      // Ongoing collaborations
+     
       Collaborations.countDocuments({
         $or: [{ userId }, { selectInfluencerOrHost: userId }],
         status: "ongoing",
       }),
 
-      // Pending collaborations
+      
       Collaborations.countDocuments({
         $or: [{ userId }, { selectInfluencerOrHost: userId }],
         status: "pending",
