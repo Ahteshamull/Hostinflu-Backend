@@ -127,10 +127,10 @@ export const userDashboard = async (req, res) => {
       // Verified listings (for hosts)
       Listing.countDocuments({ userId, status: "verified" }),
 
-      // Total deals
+     
       Deal.countDocuments({ userId }),
 
-      // Total spending
+      
       Payment.aggregate([
         {
           $match: {
