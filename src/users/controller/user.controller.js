@@ -316,7 +316,7 @@ export const updateProfile = async (req, res) => {
       state,
       city,
       zipCode,
-      // airbnbAccountLinked,
+      airbnbAccountLinked,
       fullAddress,
       aboutMe,
       image,
