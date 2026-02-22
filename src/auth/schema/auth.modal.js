@@ -83,6 +83,10 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+
+    airbnbAccount: {
+      type: String,
+    },
     bio: {
       type: String,
     },

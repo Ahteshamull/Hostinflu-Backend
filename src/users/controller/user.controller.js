@@ -316,7 +316,7 @@ export const updateProfile = async (req, res) => {
       state,
       city,
       zipCode,
-      airbnbAccountLinked,
+      airbnbAccount,
       fullAddress,
       aboutMe,
       image,
@@ -410,10 +410,10 @@ export const updateProfile = async (req, res) => {
     }
 
     if (
-      airbnbAccountLinked !== undefined &&
-      airbnbAccountLinked !== existingUser.airbnbAccountLinked
+      airbnbAccount !== undefined &&
+      airbnbAccount !== existingUser.airbnbAccount
     ) {
-      updateData.airbnbAccountLinked = airbnbAccountLinked;
+      updateData.airbnbAccount = airbnbAccount;
       hasChanges = true;
     }
 
