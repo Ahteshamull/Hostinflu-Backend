@@ -31,26 +31,97 @@ export const createRedeem = async (req, res) => {
       return res.status(404).json({ message: "Collaboration not found" });
     }
 
+    // Only allow gifts for completed collaborations
     if (collaboration.status !== "completed") {
-      return res
-        .status(400)
-        .json({ message: "Collaboration must be completed" });
+      return res.status(400).json({
+        message: "Only completed collaborations can receive gifts",
+        currentStatus: collaboration.status,
+        requiredStatus: "completed",
+      });
     }
 
+    // Fix: Check if user is either the collaboration creator or the partner (host/influencer)
     const collaborationHostId =
-      collaboration.userId?._id?.toString() || collaboration.userId?.toString();
-    if (collaborationHostId !== hostId.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Only collaboration host can create redeem" });
+      collaboration.userId?._id?.toString() ||
+      collaboration.userId?.toString() ||
+      collaboration.userId;
+
+    const collaborationPartnerId =
+      collaboration.selectInfluencerOrHost?._id?.toString() ||
+      collaboration.selectInfluencerOrHost?.toString() ||
+      collaboration.selectInfluencerOrHost;
+
+    // Allow either the collaboration creator or the partner to create redeem (for host to give gift to influencer)
+    const isCollaborationHost =
+      collaborationHostId.toString() === hostId.toString();
+    const isCollaborationPartner =
+      collaborationPartnerId.toString() === hostId.toString();
+
+    if (!isCollaborationHost && !isCollaborationPartner) {
+      return res.status(403).json({
+        message: "Only collaboration participants can create redeem",
+        debug: {
+          tokenHostId: hostId.toString(),
+          collaborationHostId: collaborationHostId.toString(),
+          collaborationPartnerId: collaborationPartnerId.toString(),
+          isCreator: isCollaborationHost,
+          isPartner: isCollaborationPartner,
+        },
+      });
     }
 
-    const influencerId =
-      collaboration.selectInfluencerOrHost?._id?.toString() ||
-      collaboration.selectInfluencerOrHost?.toString();
+    // Determine who should receive the gift (influencer gets gift from host)
+    let influencerId;
+    let giftRecipientName;
+
+    // If current user is the host, gift goes to the influencer
+    if (
+      collaboration.selectInfluencerOrHost?.role === "host" &&
+      collaborationPartnerId.toString() === hostId.toString()
+    ) {
+      // Current user is host, gift goes to collaboration creator (influencer)
+      influencerId = collaborationHostId.toString();
+      giftRecipientName = collaboration.userId?.name;
+    } else if (
+      collaboration.userId?.role === "host" &&
+      collaborationHostId.toString() === hostId.toString()
+    ) {
+      // Current user is host (creator), gift goes to partner (influencer)
+      influencerId = collaborationPartnerId.toString();
+      giftRecipientName = collaboration.selectInfluencerOrHost?.name;
+    } else {
+      // Default: gift goes to the influencer (not host)
+      if (collaboration.userId?.role === "influencer") {
+        influencerId = collaborationHostId.toString();
+        giftRecipientName = collaboration.userId?.name;
+      } else if (collaboration.selectInfluencerOrHost?.role === "influencer") {
+        influencerId = collaborationPartnerId.toString();
+        giftRecipientName = collaboration.selectInfluencerOrHost?.name;
+      } else {
+        // Fallback to partner
+        influencerId = collaborationPartnerId.toString();
+        giftRecipientName = collaboration.selectInfluencerOrHost?.name;
+      }
+    }
 
     if (!influencerId) {
-      return res.status(400).json({ message: "Influencer not found" });
+      return res.status(400).json({
+        message: "Influencer not found",
+        debug: {
+          collaborationUserId: collaboration.userId,
+          collaborationPartnerId: collaboration.selectInfluencerOrHost,
+          hostId: hostId,
+        },
+      });
+    }
+
+    // Validate influencer exists
+    const influencerExists = await userModel.findById(influencerId);
+    if (!influencerExists) {
+      return res.status(400).json({
+        message: "Influencer user not found in database",
+        influencerId: influencerId,
+      });
     }
 
     const alreadyGifted = await Gift.exists({
@@ -82,15 +153,29 @@ export const createRedeem = async (req, res) => {
       stars: finalStars,
     });
 
-    await userModel.findByIdAndUpdate(influencerId, {
-      $push: {
-        redeemStars: {
-          collaborationId: collaboration._id,
-          stars: finalStars,
+    // Update influencer's redeem stars and night credits
+    try {
+      await userModel.findByIdAndUpdate(influencerId, {
+        $push: {
+          redeemStars: {
+            collaborationId: collaboration._id,
+            stars: finalStars,
+          },
         },
-      },
-      $inc: { nightCredits: finalStars },
-    });
+        $inc: { nightCredits: finalStars },
+      });
+    } catch (updateError) {
+      console.error("Error updating user redeem stars:", updateError);
+      // If nightCredits field doesn't exist, try without it
+      await userModel.findByIdAndUpdate(influencerId, {
+        $push: {
+          redeemStars: {
+            collaborationId: collaboration._id,
+            stars: finalStars,
+          },
+        },
+      });
+    }
 
     const updatedInfluencer = await userModel
       .findById(influencerId)

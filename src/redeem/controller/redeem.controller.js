@@ -1,6 +1,7 @@
 import Redeem from "../schema/redeem.modal.js";
 import userModel from "../../auth/schema/auth.modal.js";
 import Collaborations from "../../collaboration/schema/collaboration.modal.js";
+import Gift from "../../gift/schema/gift.modal.js";
 
 export const allRedeemStar = async (req, res) => {
   try {
@@ -64,24 +65,8 @@ export const getUserRedeemStars = async (req, res) => {
       });
     }
 
-    // Find user with populated redeem stars
-    const user = await userModel.findById(userId).populate({
-      path: "redeemStars.collaborationId",
-      populate: [
-        { path: "userId", select: "name email role" },
-        { path: "selectInfluencerOrHost", select: "name email role" },
-        {
-          path: "selectDeal",
-          select:
-            "title description location images amenities propertyType price compensation",
-        },
-        {
-          path: "title",
-          select:
-            "title description location images amenities propertyType price",
-        },
-      ],
-    });
+    // Get user information
+    const user = await userModel.findById(userId);
 
     if (!user) {
       return res.status(404).json({
@@ -90,8 +75,32 @@ export const getUserRedeemStars = async (req, res) => {
       });
     }
 
-    // Clean up orphaned redeemStars entries (collaboration deleted)
+    // Get all gifts received by this user with populated collaboration data
+    const gifts = await Gift.find({ toUser: userId })
+      .populate({
+        path: "collaborationId",
+        populate: [
+          { path: "userId", select: "name email role" },
+          { path: "selectInfluencerOrHost", select: "name email role" },
+          {
+            path: "selectDeal",
+            select:
+              "title description location images amenities propertyType price compensation",
+          },
+          {
+            path: "title",
+            select:
+              "title description location images amenities propertyType price",
+          },
+        ],
+      })
+      .populate("fromUser", "name email role")
+      .sort({ createdAt: -1 });
+
+    // Get night credits from user's redeemStars (completed collaborations)
+    let nightCreditsData = [];
     if (user.redeemStars && user.redeemStars.length > 0) {
+      // Clean up orphaned redeemStars entries
       const validRedeemStars = [];
       for (const redeemStar of user.redeemStars) {
         const collaborationExists = await Collaborations.exists({
@@ -109,105 +118,216 @@ export const getUserRedeemStars = async (req, res) => {
         });
         user.redeemStars = validRedeemStars;
       }
+
+      // Populate valid redeem stars with collaboration data
+      const populatedRedeemStars = await userModel.findById(userId).populate({
+        path: "redeemStars.collaborationId",
+        populate: [
+          { path: "userId", select: "name email role" },
+          { path: "selectInfluencerOrHost", select: "name email role" },
+          {
+            path: "selectDeal",
+            select:
+              "title description location images amenities propertyType price compensation",
+          },
+          {
+            path: "title",
+            select:
+              "title description location images amenities propertyType price",
+          },
+        ],
+      });
+
+      // Filter only completed collaborations and format night credits data
+      nightCreditsData = populatedRedeemStars.redeemStars
+        .filter(
+          (item) =>
+            item.collaborationId && item.collaborationId.status === "completed",
+        )
+        .map((item) => {
+          const collaboration = item.collaborationId;
+          const nightCredits =
+            collaboration?.selectDeal?.compensation?.numberOfNights ||
+            collaboration?.compensation?.numberOfNights ||
+            0;
+
+          const collaborationTitle =
+            collaboration?.selectDeal?.title ||
+            collaboration?.title?.title ||
+            collaboration?.title ||
+            "Untitled Collaboration";
+
+          return {
+            type: "nightCredits",
+            collaborationId: collaboration._id,
+            collaborationTitle: collaborationTitle,
+            nightCreditsEarned: nightCredits,
+            collaborationDetails: {
+              title: collaborationTitle,
+              description: collaboration.description || "No description",
+              status: collaboration.status,
+              negotiationStatus: collaboration.negotiationStatus,
+              paymentStatus: collaboration.paymentStatus,
+              startDate: collaboration.startDate,
+              endDate: collaboration.endDate,
+              createdAt: collaboration.createdAt,
+              completedAt: collaboration.updatedAt,
+            },
+            dealDetails: collaboration.selectDeal
+              ? {
+                  title: collaboration.selectDeal.title || "No Deal Title",
+                  description: collaboration.selectDeal.description,
+                  compensation: collaboration.selectDeal.compensation,
+                  location: collaboration.selectDeal.location || "No Location",
+                  images: collaboration.selectDeal.images || [],
+                  amenities: collaboration.selectDeal.amenities || {},
+                  propertyType:
+                    collaboration.selectDeal.propertyType || "Not specified",
+                  price: collaboration.selectDeal.price || 0,
+                }
+              : collaboration.title
+                ? {
+                    title: collaboration.title.title || "No Deal Title",
+                    description: collaboration.title.description,
+                    compensation: collaboration.compensation,
+                    location: collaboration.title.location || "No Location",
+                    images: collaboration.title.images || [],
+                    amenities: collaboration.title.amenities || {},
+                    propertyType:
+                      collaboration.title.propertyType || "Not specified",
+                    price: collaboration.title.price || 0,
+                  }
+                : null,
+            participants: {
+              creator: collaboration.userId
+                ? {
+                    _id: collaboration.userId._id,
+                    name: collaboration.userId.name,
+                    email: collaboration.userId.email,
+                    role: collaboration.userId.role,
+                  }
+                : null,
+              partner: collaboration.selectInfluencerOrHost
+                ? {
+                    _id: collaboration.selectInfluencerOrHost._id,
+                    name: collaboration.selectInfluencerOrHost.name,
+                    email: collaboration.selectInfluencerOrHost.email,
+                    role: collaboration.selectInfluencerOrHost.role,
+                  }
+                : null,
+            },
+            earnedAt: item.createdAt,
+          };
+        });
     }
 
-    // Filter only valid redeem stars (with collaborationId and completed status)
-    const filteredRedeemStars = user.redeemStars.filter(
-      (item) =>
-        item.collaborationId && item.collaborationId.status === "completed",
+    // Format gifts data
+    const giftsData = gifts
+      .filter((gift) => gift.collaborationId) // Filter out gifts with null collaborationId
+      .map((gift) => {
+        const collaboration = gift.collaborationId;
+
+        if (!collaboration) {
+          return null; // Skip if collaboration is null
+        }
+
+        const collaborationTitle =
+          collaboration?.selectDeal?.title ||
+          collaboration?.title?.title ||
+          collaboration?.title ||
+          "Untitled Collaboration";
+
+        return {
+          type: "gift",
+          giftId: gift._id,
+          collaborationId: collaboration._id,
+          collaborationTitle: collaborationTitle,
+          starsReceived: gift.stars,
+          collaborationDetails: {
+            title: collaborationTitle,
+            description: collaboration.description || "No description",
+            status: collaboration.status || "unknown",
+            negotiationStatus: collaboration.negotiationStatus,
+            paymentStatus: collaboration.paymentStatus,
+            startDate: collaboration.startDate,
+            endDate: collaboration.endDate,
+            createdAt: collaboration.createdAt,
+            completedAt: collaboration.updatedAt,
+          },
+          dealDetails: collaboration.selectDeal
+            ? {
+                title: collaboration.selectDeal.title || "No Deal Title",
+                description: collaboration.selectDeal.description,
+                compensation: collaboration.selectDeal.compensation,
+                location: collaboration.selectDeal.location || "No Location",
+                images: collaboration.selectDeal.images || [],
+                amenities: collaboration.selectDeal.amenities || {},
+                propertyType:
+                  collaboration.selectDeal.propertyType || "Not specified",
+                price: collaboration.selectDeal.price || 0,
+              }
+            : collaboration.title
+              ? {
+                  title: collaboration.title.title || "No Deal Title",
+                  description: collaboration.title.description,
+                  compensation: collaboration.compensation,
+                  location: collaboration.title.location || "No Location",
+                  images: collaboration.title.images || [],
+                  amenities: collaboration.title.amenities || {},
+                  propertyType:
+                    collaboration.title.propertyType || "Not specified",
+                  price: collaboration.title.price || 0,
+                }
+              : null,
+          participants: {
+            creator: collaboration.userId
+              ? {
+                  _id: collaboration.userId._id,
+                  name: collaboration.userId.name,
+                  email: collaboration.userId.email,
+                  role: collaboration.userId.role,
+                }
+              : null,
+            partner: collaboration.selectInfluencerOrHost
+              ? {
+                  _id: collaboration.selectInfluencerOrHost._id,
+                  name: collaboration.selectInfluencerOrHost.name,
+                  email: collaboration.selectInfluencerOrHost.email,
+                  role: collaboration.selectInfluencerOrHost.role,
+                }
+              : null,
+          },
+          giftFrom: gift.fromUser
+            ? {
+                _id: gift.fromUser._id,
+                name: gift.fromUser.name,
+                email: gift.fromUser.email,
+                role: gift.fromUser.role,
+              }
+            : null,
+          receivedAt: gift.createdAt,
+        };
+      })
+      .filter((item) => item !== null); // Remove null entries
+
+    // Combine all rewards (night credits + gifts)
+    const allRewards = [...nightCreditsData, ...giftsData].sort(
+      (a, b) =>
+        new Date(b.earnedAt || b.receivedAt) -
+        new Date(a.earnedAt || a.receivedAt),
     );
 
-    // Format the response with detailed collaboration information
-    const collaborationDetails = filteredRedeemStars.map((item) => {
-      const collaboration = item.collaborationId;
-      const nightCredits =
-        collaboration?.selectDeal?.compensation?.numberOfNights ||
-        collaboration?.compensation?.numberOfNights ||
-        0;
-
-      // Get the title from populated deal or title field (both reference Listing)
-      const collaborationTitle =
-        collaboration?.selectDeal?.title ||
-        collaboration?.title?.title ||
-        collaboration?.title ||
-        "Untitled Collaboration";
-
-      return {
-        collaborationId: collaboration._id,
-        nightCreditsEarned: nightCredits,
-        collaborationDetails: {
-          title: collaborationTitle,
-          description: collaboration.description || "No description",
-          status: collaboration.status,
-          negotiationStatus: collaboration.negotiationStatus,
-          paymentStatus: collaboration.paymentStatus,
-          startDate: collaboration.startDate,
-          endDate: collaboration.endDate,
-          createdAt: collaboration.createdAt,
-          completedAt: collaboration.updatedAt, // When it was marked as completed
-        },
-        dealDetails: collaboration.selectDeal
-          ? {
-              title: collaboration.selectDeal.title || "No Deal Title",
-              description: collaboration.selectDeal.description,
-              compensation: collaboration.selectDeal.compensation,
-              totalNights: nightCredits,
-              location: collaboration.selectDeal.location || "No Location",
-              images: collaboration.selectDeal.images || [],
-              amenities: collaboration.selectDeal.amenities || {},
-              propertyType:
-                collaboration.selectDeal.propertyType || "Not specified",
-              price: collaboration.selectDeal.price || 0,
-            }
-          : collaboration.title
-            ? {
-                title: collaboration.title.title || "No Deal Title",
-                description: collaboration.title.description,
-                compensation: collaboration.compensation,
-                totalNights: nightCredits,
-                location: collaboration.title.location || "No Location",
-                images: collaboration.title.images || [],
-                amenities: collaboration.title.amenities || {},
-                propertyType:
-                  collaboration.title.propertyType || "Not specified",
-                price: collaboration.title.price || 0,
-              }
-            : null,
-        participants: {
-          creator: collaboration.userId
-            ? {
-                _id: collaboration.userId._id,
-                name: collaboration.userId.name,
-                email: collaboration.userId.email,
-                role: collaboration.userId.role,
-              }
-            : null,
-          partner: collaboration.selectInfluencerOrHost
-            ? {
-                _id: collaboration.selectInfluencerOrHost._id,
-                name: collaboration.selectInfluencerOrHost.name,
-                email: collaboration.selectInfluencerOrHost.email,
-                role: collaboration.selectInfluencerOrHost.role,
-              }
-            : null,
-        },
-        earnedAt: item.createdAt,
-      };
-    });
-
     // Calculate totals
-    const totalCollaborations = collaborationDetails.length;
-    const totalNightCredits = collaborationDetails.reduce(
+    const totalNightCredits = nightCreditsData.reduce(
       (sum, item) => sum + item.nightCreditsEarned,
       0,
     );
-
-    // Group by status for additional insights
-    const collaborationsByStatus = collaborationDetails.reduce((acc, item) => {
-      const status = item.collaborationDetails.status;
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {});
+    const totalGiftStars = giftsData.reduce(
+      (sum, item) => sum + item.starsReceived,
+      0,
+    );
+    const totalCollaborations = nightCreditsData.length;
+    const totalGifts = giftsData.length;
 
     res.status(200).json({
       success: true,
@@ -221,26 +341,48 @@ export const getUserRedeemStars = async (req, res) => {
           totalReviews: user.totalReviews,
           status: user.status,
         },
-        collaborationDetails: collaborationDetails,
+        rewards: allRewards,
         summary: {
-          totalCollaborations,
-          totalNightCredits,
-          averageNightCreditsPerCollaboration:
-            totalCollaborations > 0
-              ? Math.round((totalNightCredits / totalCollaborations) * 100) /
-                100
-              : 0,
-          collaborationsByStatus,
+          nightCredits: {
+            totalCollaborations,
+            totalNightCredits,
+            averageNightCreditsPerCollaboration:
+              totalCollaborations > 0
+                ? Math.round((totalNightCredits / totalCollaborations) * 100) /
+                  100
+                : 0,
+          },
+          gifts: {
+            totalGifts,
+            totalGiftStars,
+            averageStarsPerGift:
+              totalGifts > 0
+                ? Math.round((totalGiftStars / totalGifts) * 100) / 100
+                : 0,
+          },
+          overall: {
+            totalRewards: allRewards.length,
+            totalNightCredits,
+            totalGiftStars,
+          },
         },
         breakdown: {
-          nightCreditsSource: collaborationDetails.map((item) => ({
+          nightCreditsSource: nightCreditsData.map((item) => ({
             collaborationId: item.collaborationId,
-            collaborationTitle: item.collaborationDetails.title,
+            collaborationTitle: item.collaborationTitle,
             nightCreditsEarned: item.nightCreditsEarned,
             completedDate: item.collaborationDetails.completedAt,
             partnerName:
               item.participants.partner?.name ||
               item.participants.creator?.name,
+          })),
+          giftsSource: giftsData.map((item) => ({
+            giftId: item.giftId,
+            collaborationId: item.collaborationId,
+            collaborationTitle: item.collaborationTitle,
+            starsReceived: item.starsReceived,
+            receivedDate: item.receivedAt,
+            giftFrom: item.giftFrom?.name || "Unknown",
           })),
         },
       },

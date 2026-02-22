@@ -80,8 +80,7 @@ const userSchema = new Schema(
       type: String,
     },
     airbnbAccountLinked: {
-      type: Boolean,
-      default: false,
+      type: String,
     },
     bio: {
       type: String,
@@ -97,7 +96,6 @@ const userSchema = new Schema(
         },
         followers: {
           type: String,
-          
         },
       },
     ],
