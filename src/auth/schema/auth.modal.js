@@ -79,10 +79,10 @@ const userSchema = new Schema(
     refreshToken: {
       type: String,
     },
-    airbnbAccountLinked: {
-      type: Boolean,
-      default: false,
-    },
+    // airbnbAccountLinked: {
+    //   type: Boolean,
+    //   default: false,
+    // },
 
     airbnbAccount: {
       type: String,
