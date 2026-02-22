@@ -97,133 +97,15 @@ export const getUserRedeemStars = async (req, res) => {
       .populate("fromUser", "name email role")
       .sort({ createdAt: -1 });
 
-    // Get night credits from user's redeemStars (completed collaborations)
-    let nightCreditsData = [];
-    if (user.redeemStars && user.redeemStars.length > 0) {
-      // Clean up orphaned redeemStars entries
-      const validRedeemStars = [];
-      for (const redeemStar of user.redeemStars) {
-        const collaborationExists = await Collaborations.exists({
-          _id: redeemStar.collaborationId,
-        });
-        if (collaborationExists) {
-          validRedeemStars.push(redeemStar);
-        }
-      }
-
-      // Update user with only valid redeemStars
-      if (validRedeemStars.length !== user.redeemStars.length) {
-        await userModel.findByIdAndUpdate(userId, {
-          redeemStars: validRedeemStars,
-        });
-        user.redeemStars = validRedeemStars;
-      }
-
-      // Populate valid redeem stars with collaboration data
-      const populatedRedeemStars = await userModel.findById(userId).populate({
-        path: "redeemStars.collaborationId",
-        populate: [
-          { path: "userId", select: "name email role" },
-          { path: "selectInfluencerOrHost", select: "name email role" },
-          {
-            path: "selectDeal",
-            select:
-              "title description location images amenities propertyType price compensation",
-          },
-          {
-            path: "title",
-            select:
-              "title description location images amenities propertyType price",
-          },
-        ],
-      });
-
-      // Filter only completed collaborations and format night credits data
-      nightCreditsData = populatedRedeemStars.redeemStars
-        .filter(
-          (item) =>
-            item.collaborationId && item.collaborationId.status === "completed",
-        )
-        .map((item) => {
-          const collaboration = item.collaborationId;
-          const nightCredits =
-            collaboration?.selectDeal?.compensation?.numberOfNights ||
-            collaboration?.compensation?.numberOfNights ||
-            0;
-
-          const collaborationTitle =
-            collaboration?.selectDeal?.title ||
-            collaboration?.title?.title ||
-            collaboration?.title ||
-            "Untitled Collaboration";
-
-          return {
-            type: "nightCredits",
-            collaborationId: collaboration._id,
-            collaborationTitle: collaborationTitle,
-            nightCreditsEarned: nightCredits,
-            collaborationDetails: {
-              title: collaborationTitle,
-              description: collaboration.description || "No description",
-              status: collaboration.status,
-              negotiationStatus: collaboration.negotiationStatus,
-              paymentStatus: collaboration.paymentStatus,
-              startDate: collaboration.startDate,
-              endDate: collaboration.endDate,
-              createdAt: collaboration.createdAt,
-              completedAt: collaboration.updatedAt,
-            },
-            dealDetails: collaboration.selectDeal
-              ? {
-                  title: collaboration.selectDeal.title || "No Deal Title",
-                  description: collaboration.selectDeal.description,
-                  compensation: collaboration.selectDeal.compensation,
-                  location: collaboration.selectDeal.location || "No Location",
-                  images: collaboration.selectDeal.images || [],
-                  amenities: collaboration.selectDeal.amenities || {},
-                  propertyType:
-                    collaboration.selectDeal.propertyType || "Not specified",
-                  price: collaboration.selectDeal.price || 0,
-                }
-              : collaboration.title
-                ? {
-                    title: collaboration.title.title || "No Deal Title",
-                    description: collaboration.title.description,
-                    compensation: collaboration.compensation,
-                    location: collaboration.title.location || "No Location",
-                    images: collaboration.title.images || [],
-                    amenities: collaboration.title.amenities || {},
-                    propertyType:
-                      collaboration.title.propertyType || "Not specified",
-                    price: collaboration.title.price || 0,
-                  }
-                : null,
-            participants: {
-              creator: collaboration.userId
-                ? {
-                    _id: collaboration.userId._id,
-                    name: collaboration.userId.name,
-                    email: collaboration.userId.email,
-                    role: collaboration.userId.role,
-                  }
-                : null,
-              partner: collaboration.selectInfluencerOrHost
-                ? {
-                    _id: collaboration.selectInfluencerOrHost._id,
-                    name: collaboration.selectInfluencerOrHost.name,
-                    email: collaboration.selectInfluencerOrHost.email,
-                    role: collaboration.selectInfluencerOrHost.role,
-                  }
-                : null,
-            },
-            earnedAt: item.createdAt,
-          };
-        });
-    }
-
-    // Format gifts data
+    // Filter gifts for completed collaborations only
     const giftsData = gifts
-      .filter((gift) => gift.collaborationId) // Filter out gifts with null collaborationId
+      .filter((gift) => {
+        // Filter out gifts with null collaborationId
+        if (!gift.collaborationId) return false;
+
+        // Only include gifts from completed collaborations
+        return gift.collaborationId.status === "completed";
+      })
       .map((gift) => {
         const collaboration = gift.collaborationId;
 
@@ -254,31 +136,31 @@ export const getUserRedeemStars = async (req, res) => {
             createdAt: collaboration.createdAt,
             completedAt: collaboration.updatedAt,
           },
-          dealDetails: collaboration.selectDeal
-            ? {
-                title: collaboration.selectDeal.title || "No Deal Title",
-                description: collaboration.selectDeal.description,
-                compensation: collaboration.selectDeal.compensation,
-                location: collaboration.selectDeal.location || "No Location",
-                images: collaboration.selectDeal.images || [],
-                amenities: collaboration.selectDeal.amenities || {},
-                propertyType:
-                  collaboration.selectDeal.propertyType || "Not specified",
-                price: collaboration.selectDeal.price || 0,
-              }
-            : collaboration.title
-              ? {
-                  title: collaboration.title.title || "No Deal Title",
-                  description: collaboration.title.description,
-                  compensation: collaboration.compensation,
-                  location: collaboration.title.location || "No Location",
-                  images: collaboration.title.images || [],
-                  amenities: collaboration.title.amenities || {},
-                  propertyType:
-                    collaboration.title.propertyType || "Not specified",
-                  price: collaboration.title.price || 0,
-                }
-              : null,
+          dealDetails: collaboration.selectDeal,
+            // ? {
+            //     title: collaboration.selectDeal.title || "No Deal Title",
+            //     description: collaboration.selectDeal.description,
+            //     compensation: collaboration.selectDeal.compensation,
+            //     location: collaboration.selectDeal.location || "No Location",
+            //     images: collaboration.selectDeal.images || [],
+            //     amenities: collaboration.selectDeal.amenities || {},
+            //     propertyType:
+            //       collaboration.selectDeal.propertyType || "Not specified",
+            //     price: collaboration.selectDeal.price || 0,
+            //   }
+            // : collaboration.title
+            //   ? {
+            //       title: collaboration.title.title || "No Deal Title",
+            //       description: collaboration.title.description,
+            //       compensation: collaboration.compensation,
+            //       location: collaboration.title.location || "No Location",
+            //       images: collaboration.title.images || [],
+            //       amenities: collaboration.title.amenities || {},
+            //       propertyType:
+            //         collaboration.title.propertyType || "Not specified",
+            //       price: collaboration.title.price || 0,
+            //     }
+            //   : null,
           participants: {
             creator: collaboration.userId
               ? {
@@ -310,28 +192,21 @@ export const getUserRedeemStars = async (req, res) => {
       })
       .filter((item) => item !== null); // Remove null entries
 
-    // Combine all rewards (night credits + gifts)
-    const allRewards = [...nightCreditsData, ...giftsData].sort(
-      (a, b) =>
-        new Date(b.earnedAt || b.receivedAt) -
-        new Date(a.earnedAt || a.receivedAt),
-    );
-
-    // Calculate totals
-    const totalNightCredits = nightCreditsData.reduce(
-      (sum, item) => sum + item.nightCreditsEarned,
-      0,
-    );
+    // Calculate totals for gifts only
+    const totalGifts = giftsData.length;
     const totalGiftStars = giftsData.reduce(
       (sum, item) => sum + item.starsReceived,
       0,
     );
-    const totalCollaborations = nightCreditsData.length;
-    const totalGifts = giftsData.length;
+
+    // Sort gifts by received date (newest first)
+    const sortedGifts = giftsData.sort(
+      (a, b) => new Date(b.receivedAt) - new Date(a.receivedAt),
+    );
 
     res.status(200).json({
       success: true,
-      message: "User redeem stars retrieved successfully",
+      message: "User gifts retrieved successfully",
       data: {
         user: {
           _id: user._id,
@@ -341,42 +216,17 @@ export const getUserRedeemStars = async (req, res) => {
           totalReviews: user.totalReviews,
           status: user.status,
         },
-        rewards: allRewards,
+        gifts: sortedGifts,
         summary: {
-          nightCredits: {
-            totalCollaborations,
-            totalNightCredits,
-            averageNightCreditsPerCollaboration:
-              totalCollaborations > 0
-                ? Math.round((totalNightCredits / totalCollaborations) * 100) /
-                  100
-                : 0,
-          },
-          gifts: {
-            totalGifts,
-            totalGiftStars,
-            averageStarsPerGift:
-              totalGifts > 0
-                ? Math.round((totalGiftStars / totalGifts) * 100) / 100
-                : 0,
-          },
-          overall: {
-            totalRewards: allRewards.length,
-            totalNightCredits,
-            totalGiftStars,
-          },
+          totalGifts,
+          totalGiftStars,
+          averageStarsPerGift:
+            totalGifts > 0
+              ? Math.round((totalGiftStars / totalGifts) * 100) / 100
+              : 0,
         },
         breakdown: {
-          nightCreditsSource: nightCreditsData.map((item) => ({
-            collaborationId: item.collaborationId,
-            collaborationTitle: item.collaborationTitle,
-            nightCreditsEarned: item.nightCreditsEarned,
-            completedDate: item.collaborationDetails.completedAt,
-            partnerName:
-              item.participants.partner?.name ||
-              item.participants.creator?.name,
-          })),
-          giftsSource: giftsData.map((item) => ({
+          giftsSource: sortedGifts.map((item) => ({
             giftId: item.giftId,
             collaborationId: item.collaborationId,
             collaborationTitle: item.collaborationTitle,
@@ -390,7 +240,7 @@ export const getUserRedeemStars = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message || "Error retrieving user redeem stars",
+      message: error.message || "Error retrieving user gifts",
     });
   }
 };
