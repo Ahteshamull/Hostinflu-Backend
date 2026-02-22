@@ -316,7 +316,7 @@ export const updateProfile = async (req, res) => {
       state,
       city,
       zipCode,
-      airbnbAccountLinked,
+      // airbnbAccountLinked,
       fullAddress,
       aboutMe,
       image,
@@ -409,13 +409,13 @@ export const updateProfile = async (req, res) => {
       hasChanges = true;
     }
 
-    if (
-      airbnbAccountLinked !== undefined &&
-      airbnbAccountLinked !== existingUser.airbnbAccountLinked
-    ) {
-      updateData.airbnbAccountLinked = airbnbAccountLinked;
-      hasChanges = true;
-    }
+    // if (
+    //   airbnbAccountLinked !== undefined &&
+    //   airbnbAccountLinked !== existingUser.airbnbAccountLinked
+    // ) {
+    //   updateData.airbnbAccountLinked = airbnbAccountLinked;
+    //   hasChanges = true;
+    // }
 
     // ✅ influencer only
     if (existingUser.role === "influencer" && socialMediaLinks !== undefined) {
