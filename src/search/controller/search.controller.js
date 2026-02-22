@@ -273,7 +273,7 @@ const specificSearch = async (req, res) => {
           collab.freeStay && collab.startDate && collab.endDate
             ? `${Math.ceil(
                 (new Date(collab.endDate) - new Date(collab.startDate)) /
-                  (1000 * 60 * 60 * 24)
+                  (1000 * 60 * 60 * 24),
               )} nights`
             : "N/A";
 

@@ -72,7 +72,13 @@ export const getUserRedeemStars = async (req, res) => {
         { path: "selectInfluencerOrHost", select: "name email role" },
         {
           path: "selectDeal",
-          select: "dealTitle description compensation status",
+          select:
+            "title description location images amenities propertyType price compensation",
+        },
+        {
+          path: "title",
+          select:
+            "title description location images amenities propertyType price",
         },
       ],
     });
@@ -83,8 +89,6 @@ export const getUserRedeemStars = async (req, res) => {
         message: "User not found",
       });
     }
-
- 
 
     // Clean up orphaned redeemStars entries (collaboration deleted)
     if (user.redeemStars && user.redeemStars.length > 0) {
@@ -105,8 +109,6 @@ export const getUserRedeemStars = async (req, res) => {
         });
         user.redeemStars = validRedeemStars;
       }
-
-
     }
 
     // Filter only valid redeem stars (with collaborationId and completed status)
@@ -115,55 +117,97 @@ export const getUserRedeemStars = async (req, res) => {
         item.collaborationId && item.collaborationId.status === "completed",
     );
 
-    
+    // Format the response with detailed collaboration information
+    const collaborationDetails = filteredRedeemStars.map((item) => {
+      const collaboration = item.collaborationId;
+      const nightCredits =
+        collaboration?.selectDeal?.compensation?.numberOfNights ||
+        collaboration?.compensation?.numberOfNights ||
+        0;
 
-    // Format the response
-    const formattedRedeemStars = filteredRedeemStars.map((item) => ({
-      _id: item._id,
-      stars:
-        item.collaborationId?.selectDeal?.compensation?.numberOfNights || 0, // Get from selectDeal.compensation
-      createdAt: item.createdAt,
-      collaboration: item.collaborationId
-        ? {
-            _id: item.collaborationId._id,
-            payment: item.collaborationId.payment,
-            numberOfNights:
-              item.collaborationId.selectDeal?.compensation?.numberOfNights ||
-              0,
-            status: item.collaborationId.status,
-            negotiationStatus: item.collaborationId.negotiationStatus,
-            startDate: item.collaborationId.startDate,
-            endDate: item.collaborationId.endDate,
-            createdAt: item.collaborationId.createdAt,
-            // User info
-            creator: item.collaborationId.userId
-              ? {
-                  _id: item.collaborationId.userId._id,
-                  name: item.collaborationId.userId.name,
-                  email: item.collaborationId.userId.email,
-                  role: item.collaborationId.userId.role,
-                }
-              : null,
-            // Target user info
-            target: item.collaborationId.selectInfluencerOrHost
-              ? {
-                  _id: item.collaborationId.selectInfluencerOrHost._id,
-                  name: item.collaborationId.selectInfluencerOrHost.name,
-                  email: item.collaborationId.selectInfluencerOrHost.email,
-                  role: item.collaborationId.selectInfluencerOrHost.role,
-                }
-              : null,
-            // Deal info
-            deal: item.collaborationId.selectDeal
-              ? {
-                  _id: item.collaborationId.selectDeal._id,
-                  description: item.collaborationId.selectDeal.description,
-                  compensation: item.collaborationId.selectDeal.compensation,
-                }
-              : null,
-          }
-        : null,
-    }));
+      // Get the title from populated deal or title field (both reference Listing)
+      const collaborationTitle =
+        collaboration?.selectDeal?.title ||
+        collaboration?.title?.title ||
+        collaboration?.title ||
+        "Untitled Collaboration";
+
+      return {
+        collaborationId: collaboration._id,
+        nightCreditsEarned: nightCredits,
+        collaborationDetails: {
+          title: collaborationTitle,
+          description: collaboration.description || "No description",
+          status: collaboration.status,
+          negotiationStatus: collaboration.negotiationStatus,
+          paymentStatus: collaboration.paymentStatus,
+          startDate: collaboration.startDate,
+          endDate: collaboration.endDate,
+          createdAt: collaboration.createdAt,
+          completedAt: collaboration.updatedAt, // When it was marked as completed
+        },
+        dealDetails: collaboration.selectDeal
+          ? {
+              title: collaboration.selectDeal.title || "No Deal Title",
+              description: collaboration.selectDeal.description,
+              compensation: collaboration.selectDeal.compensation,
+              totalNights: nightCredits,
+              location: collaboration.selectDeal.location || "No Location",
+              images: collaboration.selectDeal.images || [],
+              amenities: collaboration.selectDeal.amenities || {},
+              propertyType:
+                collaboration.selectDeal.propertyType || "Not specified",
+              price: collaboration.selectDeal.price || 0,
+            }
+          : collaboration.title
+            ? {
+                title: collaboration.title.title || "No Deal Title",
+                description: collaboration.title.description,
+                compensation: collaboration.compensation,
+                totalNights: nightCredits,
+                location: collaboration.title.location || "No Location",
+                images: collaboration.title.images || [],
+                amenities: collaboration.title.amenities || {},
+                propertyType:
+                  collaboration.title.propertyType || "Not specified",
+                price: collaboration.title.price || 0,
+              }
+            : null,
+        participants: {
+          creator: collaboration.userId
+            ? {
+                _id: collaboration.userId._id,
+                name: collaboration.userId.name,
+                email: collaboration.userId.email,
+                role: collaboration.userId.role,
+              }
+            : null,
+          partner: collaboration.selectInfluencerOrHost
+            ? {
+                _id: collaboration.selectInfluencerOrHost._id,
+                name: collaboration.selectInfluencerOrHost.name,
+                email: collaboration.selectInfluencerOrHost.email,
+                role: collaboration.selectInfluencerOrHost.role,
+              }
+            : null,
+        },
+        earnedAt: item.createdAt,
+      };
+    });
+
+    // Calculate totals
+    const totalCollaborations = collaborationDetails.length;
+    const totalNightCredits = collaborationDetails.reduce(
+      (sum, item) => sum + item.nightCreditsEarned,
+      0,
+    );
+
+    // Group by status for additional insights
+    const collaborationsByStatus = collaborationDetails.reduce((acc, item) => {
+      const status = item.collaborationDetails.status;
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
 
     res.status(200).json({
       success: true,
@@ -177,11 +221,28 @@ export const getUserRedeemStars = async (req, res) => {
           totalReviews: user.totalReviews,
           status: user.status,
         },
-        redeemStars: formattedRedeemStars,
-        totalStars: formattedRedeemStars.reduce(
-          (sum, item) => sum + item.stars,
-          0,
-        ),
+        collaborationDetails: collaborationDetails,
+        summary: {
+          totalCollaborations,
+          totalNightCredits,
+          averageNightCreditsPerCollaboration:
+            totalCollaborations > 0
+              ? Math.round((totalNightCredits / totalCollaborations) * 100) /
+                100
+              : 0,
+          collaborationsByStatus,
+        },
+        breakdown: {
+          nightCreditsSource: collaborationDetails.map((item) => ({
+            collaborationId: item.collaborationId,
+            collaborationTitle: item.collaborationDetails.title,
+            nightCreditsEarned: item.nightCreditsEarned,
+            completedDate: item.collaborationDetails.completedAt,
+            partnerName:
+              item.participants.partner?.name ||
+              item.participants.creator?.name,
+          })),
+        },
       },
     });
   } catch (error) {
