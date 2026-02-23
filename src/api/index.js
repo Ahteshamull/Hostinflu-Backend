@@ -19,7 +19,7 @@ import earning from "../earning/routes/index.js";
 import review from "../review/routes/index.js";
 import gift from "../gift/routes/index.js";
 import faq from "../faq/routes/index.js";
-import report from "../report/routes/report.route.js";
+import report from "../report/routes/index.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
