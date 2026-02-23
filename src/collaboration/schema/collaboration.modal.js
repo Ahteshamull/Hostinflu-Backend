@@ -148,49 +148,30 @@ const collaborationSchema = new mongoose.Schema(
       default: "",
     },
 
-    socialMediaLinks: {
-      instagram: [
-        {
-          url: { type: String, default: "" },
-          contentType: { type: String, default: "" },
-          postDate: { type: Date },
+    socialMediaLinks: [
+      {
+        url: { type: String, default: "" },
+        postType: {
+          type: String,
+          enum: ["post", "story", "reel", "video", "image"],
         },
-      ],
-      facebook: [
-        {
-          url: { type: String, default: "" },
-          contentType: { type: String, default: "" },
-          postDate: { type: Date },
+        totalItems: {
+          type: Number,
+          default: 0,
         },
-      ],
-      twitter: [
-        {
-          url: { type: String, default: "" },
-          contentType: { type: String, default: "" },
-          postDate: { type: Date },
+        platform: {
+          type: String,
+          enum: ["instagram", "facebook", "twitter", "youtube", "tiktok"],
+          default: "",
         },
-      ],
-      youtube: [
-        {
-          url: { type: String, default: "" },
-          contentType: { type: String, default: "" },
-          postDate: { type: Date },
+        postDate: { type: Date },
+        status: {
+          type: String,
+          enum: ["pending", "in_progress", "completed"],
+          default: "pending",
         },
-      ],
-      tiktok: [
-        {
-          url: { type: String, default: "" },
-          contentType: { type: String, default: "" },
-          postDate: { type: Date },
-        },
-      ],
-    },
-
-    deliverableStatus: {
-      type: String,
-      enum: ["pending", "in_progress", "completed"],
-      default: "pending",
-    },
+      },
+    ],
   },
   { timestamps: true },
 );

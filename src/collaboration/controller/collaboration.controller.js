@@ -644,45 +644,6 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    if (socialMediaLinks && collaboration.deliverables) {
-      const dealPlatforms = collaboration.deliverables.map((d) =>
-        d.platform.toLowerCase(),
-      );
-
-      const filterValidPosts = (posts) => {
-        if (!Array.isArray(posts)) return [];
-        return posts.filter(
-          (post) =>
-            post &&
-            typeof post === "object" &&
-            post.url &&
-            post.url.trim() !== "",
-        );
-      };
-
-      const providedPlatforms = Object.keys(socialMediaLinks).filter(
-        (platform) => {
-          const validPosts = filterValidPosts(socialMediaLinks[platform]);
-          return validPosts.length > 0;
-        },
-      );
-
-      // Check if provided platforms match deal deliverables
-      const invalidPlatforms = providedPlatforms.filter(
-        (platform) => !dealPlatforms.includes(platform.toLowerCase()),
-      );
-
-      if (invalidPlatforms.length > 0) {
-        return res.status(400).json({
-          success: false,
-          error: true,
-          message: `Invalid platforms provided. This deal only requires: ${dealPlatforms.join(", ")}. You provided: ${invalidPlatforms.join(", ")}`,
-          requiredPlatforms: dealPlatforms,
-          providedPlatforms: invalidPlatforms,
-        });
-      }
-    }
-
     // Check if user has permission to update this collaboration
     // Only influencers can update collaborations they were selected for
     if (userRole !== "influencer") {
@@ -709,7 +670,7 @@ export const updateCollaboration = async (req, res) => {
     const updateData = {};
 
     // Allow influencers to update social media links
-    if (socialMediaLinks) {
+    if (socialMediaLinks && Array.isArray(socialMediaLinks)) {
       // Helper function to filter valid posts
       const filterValidPosts = (posts) => {
         if (!Array.isArray(posts)) return [];
@@ -722,28 +683,97 @@ export const updateCollaboration = async (req, res) => {
         );
       };
 
-      updateData.socialMediaLinks = {
-        instagram:
-          filterValidPosts(socialMediaLinks.instagram) ||
-          collaboration.socialMediaLinks?.instagram ||
-          [],
-        facebook:
-          filterValidPosts(socialMediaLinks.facebook) ||
-          collaboration.socialMediaLinks?.facebook ||
-          [],
-        twitter:
-          filterValidPosts(socialMediaLinks.twitter) ||
-          collaboration.socialMediaLinks?.twitter ||
-          [],
-        youtube:
-          filterValidPosts(socialMediaLinks.youtube) ||
-          collaboration.socialMediaLinks?.youtube ||
-          [],
-        tiktok:
-          filterValidPosts(socialMediaLinks.tiktok) ||
-          collaboration.socialMediaLinks?.tiktok ||
-          [],
-      };
+      // Get required platforms and quantities from deliverables
+      const requiredDeliverables = {};
+      if (collaboration.deliverables) {
+        collaboration.deliverables.forEach((deliverable) => {
+          const platform = deliverable.platform.toLowerCase();
+          requiredDeliverables[platform] = deliverable.quantity;
+        });
+      }
+
+      // Filter and validate new social media links array
+      const newValidLinks = filterValidPosts(socialMediaLinks);
+
+      // Get existing links
+      const existingLinks = collaboration.socialMediaLinks || [];
+
+      // Count existing links per platform
+      const existingLinksCount = {};
+      existingLinks.forEach((link) => {
+        if (link.platform) {
+          const platform = link.platform.toLowerCase();
+          existingLinksCount[platform] =
+            (existingLinksCount[platform] || 0) + 1;
+        }
+      });
+
+      // Count new links per platform
+      const newLinksCount = {};
+      newValidLinks.forEach((link) => {
+        if (link.platform) {
+          const platform = link.platform.toLowerCase();
+          newLinksCount[platform] = (newLinksCount[platform] || 0) + 1;
+        }
+      });
+
+      // Validate that new links don't exceed required quantities
+      const invalidLinks = [];
+      Object.keys(newLinksCount).forEach((platform) => {
+        const requiredQuantity = requiredDeliverables[platform] || 0;
+        const existingQuantity = existingLinksCount[platform] || 0;
+        const newQuantity = newLinksCount[platform];
+        const totalQuantity = existingQuantity + newQuantity;
+
+        if (totalQuantity > requiredQuantity) {
+          invalidLinks.push({
+            platform,
+            required: requiredQuantity,
+            existing: existingQuantity,
+            new: newQuantity,
+            total: totalQuantity,
+            allowed: requiredQuantity - existingQuantity,
+          });
+        }
+      });
+
+      // Check if trying to add links for platforms not in deliverables
+      const invalidPlatforms = [];
+      Object.keys(newLinksCount).forEach((platform) => {
+        if (!requiredDeliverables[platform]) {
+          invalidPlatforms.push(platform);
+        }
+      });
+
+      if (invalidLinks.length > 0 || invalidPlatforms.length > 0) {
+        let errorMessage = "Invalid social media links:\n";
+
+        if (invalidPlatforms.length > 0) {
+          errorMessage += `- Platforms not allowed: ${invalidPlatforms.join(", ")}\n`;
+        }
+
+        if (invalidLinks.length > 0) {
+          invalidLinks.forEach((invalid) => {
+            errorMessage += `- ${invalid.platform}: Required ${invalid.required}, Already have ${invalid.existing}, Can add ${invalid.allowed} more\n`;
+          });
+        }
+
+        return res.status(400).json({
+          success: false,
+          error: true,
+          message: errorMessage.trim(),
+          requiredDeliverables,
+          existingLinksCount,
+          newLinksCount,
+          invalidLinks,
+          invalidPlatforms,
+        });
+      }
+
+      // Combine existing links with new links
+      const combinedLinks = [...existingLinks, ...newValidLinks];
+
+      updateData.socialMediaLinks = combinedLinks;
     }
 
     // Check if collaboration should be marked as completed
@@ -756,38 +786,33 @@ export const updateCollaboration = async (req, res) => {
       const currentLinks =
         updateData.socialMediaLinks || collaboration.socialMediaLinks;
 
-      // Helper function to filter valid posts
-      const filterValidPosts = (posts) => {
-        if (!Array.isArray(posts)) return [];
-        return posts.filter(
-          (post) =>
-            post &&
-            typeof post === "object" &&
-            post.url &&
-            post.url.trim() !== "",
-        );
-      };
-
       // Get required platforms from deliverables
       const requiredPlatforms = collaboration.deliverables.map((d) =>
         d.platform.toLowerCase(),
       );
 
       // Check if all required platforms have links provided
-      const allRequiredLinksProvided = requiredPlatforms.every((platform) => {
-        const links = currentLinks[platform];
-        const validLinks = filterValidPosts(links);
-        return validLinks.length > 0;
-      });
+      const providedPlatforms = currentLinks
+        .map((link) => (link.platform ? link.platform.toLowerCase() : ""))
+        .filter((platform) => platform !== "");
+
+      const allRequiredLinksProvided = requiredPlatforms.every((platform) =>
+        providedPlatforms.includes(platform),
+      );
 
       // Check if any required platform has a link (in progress)
-      const anyLinkProvided = requiredPlatforms.some((platform) => {
-        const links = currentLinks[platform];
-        const validLinks = filterValidPosts(links);
-        return validLinks.length > 0;
-      });
+      const anyLinkProvided = providedPlatforms.length > 0;
 
-      if (allRequiredLinksProvided && requiredPlatforms.length > 0) {
+      // Check if all items are completed
+      const allItemsCompleted = currentLinks.every(
+        (link) => link.status === "completed",
+      );
+
+      if (
+        allRequiredLinksProvided &&
+        allItemsCompleted &&
+        requiredPlatforms.length > 0
+      ) {
         updateData.deliverableStatus = "completed";
 
         // Also mark main status as completed if payment is ongoing
