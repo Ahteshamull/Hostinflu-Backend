@@ -180,8 +180,8 @@ export const userPersonalTransaction = async (req, res) => {
     // Get user's transactions with pagination
     const transactions = await paymentModal
       .find(filter)
-      .populate("userId", "name image")
-      .populate("selectInfluencerOrHost", "name image")
+      .populate("userId", "name image role")
+      .populate("selectInfluencerOrHost", "name image role")
       .populate({
         path: "title",
         populate: {
@@ -224,11 +224,13 @@ export const userPersonalTransaction = async (req, res) => {
             _id: transaction.userId?._id,
             name: transaction.userId?.name,
             image: transaction.userId?.image,
+            role: transaction.userId?.role,
           },
           selectInfluencerOrHost: {
             _id: transaction.selectInfluencerOrHost?._id,
             name: transaction.selectInfluencerOrHost?.name,
             image: transaction.selectInfluencerOrHost?.image,
+            role: transaction.selectInfluencerOrHost?.role,
           },
           title: transaction.title?.title || "No title",
           paymentBy: transaction.userId?.name, // Payment by user name
