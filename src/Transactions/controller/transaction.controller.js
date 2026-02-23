@@ -231,6 +231,12 @@ export const userPersonalTransaction = async (req, res) => {
             image: transaction.selectInfluencerOrHost?.image,
           },
           title: transaction.title?.title || "No title",
+          paymentBy: transaction.userId?.name, // Payment by user name
+          paymentTo: transaction.selectInfluencerOrHost?.name, // Payment to user name
+          paymentAmount: transaction.amount, // Payment amount
+          paymentCurrency: transaction.currency || "USD", // Payment currency
+          paymentStatus: transaction.status, // Payment status
+          paymentDate: transaction.createdAt, // Payment date
         })),
         pagination: {
           currentPage: pageNum,
