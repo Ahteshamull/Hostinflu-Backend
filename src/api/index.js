@@ -19,6 +19,7 @@ import earning from "../earning/routes/index.js";
 import review from "../review/routes/index.js";
 import gift from "../gift/routes/index.js";
 import faq from "../faq/routes/index.js";
+import report from "../report/routes/report.route.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
@@ -43,6 +44,7 @@ router.use(baseurl, earning);
 router.use(baseurl, review);
 router.use(baseurl, gift);
 router.use(baseurl, faq);
+router.use(baseurl, report);
 
 // Update code
 router.use(baseurl, (req, res) => {
