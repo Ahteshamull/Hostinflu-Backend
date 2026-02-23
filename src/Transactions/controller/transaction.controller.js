@@ -180,11 +180,13 @@ export const userPersonalTransaction = async (req, res) => {
     // Get user's transactions with pagination
     const transactions = await paymentModal
       .find(filter)
+      .populate("userId", "name image")
+      .populate("selectInfluencerOrHost", "name image")
       .populate({
         path: "title",
         populate: {
           path: "title", // Populate the nested title field
-          select: "title status", // Only get the title and status fields
+          select: "title", // Only get the title field
         },
       })
       .sort({ createdAt: -1 })
