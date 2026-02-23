@@ -218,7 +218,20 @@ export const userPersonalTransaction = async (req, res) => {
       success: true,
       message: "User transactions retrieved successfully",
       data: {
-        transactions,
+        transactions: transactions.map((transaction) => ({
+          ...transaction.toObject(),
+          userId: {
+            _id: transaction.userId?._id,
+            name: transaction.userId?.name,
+            image: transaction.userId?.image,
+          },
+          selectInfluencerOrHost: {
+            _id: transaction.selectInfluencerOrHost?._id,
+            name: transaction.selectInfluencerOrHost?.name,
+            image: transaction.selectInfluencerOrHost?.image,
+          },
+          title: transaction.title?.title || "No title",
+        })),
         pagination: {
           currentPage: pageNum,
           totalPages: Math.ceil(total / limitNum),
