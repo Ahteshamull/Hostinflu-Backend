@@ -26,7 +26,11 @@ router.get("/my-reports/:userId", authenticateToken, getMyReports);
 
 // Get reports against current user
 // localhost:3000/api/v1/report/reports-against-me/userId
-router.get("/reports-against-me/:userId", authenticateToken, getReportsAgainstMe);
+router.get(
+  "/reports-against-me/:userId",
+  authenticateToken,
+  getReportsAgainstMe,
+);
 
 // Get single report by ID (admin or involved users)
 // localhost:3000/api/v1/report/:reportId
