@@ -1267,10 +1267,11 @@ export const createNegotiationCollaboration = async (req, res) => {
       });
     }
 
-    // Now populate for the rest of the function
-    await collaboration.populate("userId");
-    await collaboration.populate("selectInfluencerOrHost");
+    // Now populate for rest of the function
+    await collaboration.populate("userId", "name email role");
+    await collaboration.populate("selectInfluencerOrHost", "name email role");
     await collaboration.populate("selectDeal");
+    await collaboration.populate("title", "title");
 
     // Update the existing collaboration with negotiated values
     const updateData = {
@@ -1296,6 +1297,19 @@ export const createNegotiationCollaboration = async (req, res) => {
       negotiationStatus: "pending",
       paymentStatus: "pending",
       deliverableStatus: "pending",
+
+      // Track who created this negotiation
+      creatorNegotiation: {
+        userId: currentUserId,
+        name: isHost
+          ? collaboration.userId?.name || "Host"
+          : collaboration.selectInfluencerOrHost?.name || "Influencer",
+        email: isHost
+          ? collaboration.userId?.email
+          : collaboration.selectInfluencerOrHost?.email,
+        role: isHost ? "host" : "influencer",
+        createdAt: new Date(),
+      },
     };
 
     // Update the existing collaboration
@@ -1306,7 +1320,8 @@ export const createNegotiationCollaboration = async (req, res) => {
     )
       .populate("userId", "name email")
       .populate("selectInfluencerOrHost", "name email")
-      .populate("selectDeal", "description");
+      .populate("selectDeal", "description")
+      .populate("title", "title");
 
     // ---------- NOTIFICATION ----------
     try {

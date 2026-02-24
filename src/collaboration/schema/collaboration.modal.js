@@ -148,6 +148,30 @@ const collaborationSchema = new mongoose.Schema(
       default: "",
     },
 
+    creatorNegotiation: {
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      name: {
+        type: String,
+        default: "",
+      },
+      email: {
+        type: String,
+        default: "",
+      },
+      role: {
+        type: String,
+        enum: ["host", "influencer"],
+        default: "",
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+
     socialMediaLinks: [
       {
         url: { type: String, default: "" },
