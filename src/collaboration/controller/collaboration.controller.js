@@ -272,6 +272,33 @@ export const createCollaborationWeb = async (req, res) => {
       negotiationStatus: "pending",
       paymentStatus: "pending",
       deliverableStatus: "pending",
+
+      // Auto-generate social media links from deliverables
+      socialMediaLinks: (function () {
+        const links = [];
+        console.log("Deliverables received:", finalDeliverables);
+
+        if (finalDeliverables && Array.isArray(finalDeliverables)) {
+          finalDeliverables.forEach((deliverable) => {
+            console.log("Processing deliverable:", deliverable);
+            for (let i = 0; i < deliverable.quantity; i++) {
+              const link = {
+                url: "",
+                postType: deliverable.contentType.toLowerCase(),
+                totalItems: 1,
+                platform: deliverable.platform.toLowerCase(),
+                postDate: new Date(),
+                status: "pending",
+              };
+              links.push(link);
+              console.log("Added link:", link);
+            }
+          });
+        }
+
+        console.log("Generated social media links:", links);
+        return links;
+      })(),
     });
 
     const savedCollaboration = await newCollaboration.save();
@@ -632,8 +659,9 @@ export const updateCollaboration = async (req, res) => {
 
     if (!userId || !userRole) {
       return res.status(401).json({
-        message: "User ID or role not found in token",
-        error: "Authentication required",
+        success: false,
+        error: true,
+        message: "Authentication required",
       });
     }
 
@@ -647,8 +675,6 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Check if user has permission to update this collaboration
-    // Only influencers can update collaborations they were selected for
     if (userRole !== "influencer") {
       return res.status(403).json({
         success: false,
@@ -657,7 +683,6 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Check if this influencer was selected for this collaboration
     if (
       !collaboration.selectInfluencerOrHost ||
       collaboration.selectInfluencerOrHost.toString() !== userId.toString()
@@ -669,196 +694,157 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    // Prepare update object
     const updateData = {};
 
-    // Allow influencers to update social media links
+    // ================= SOCIAL MEDIA LINK VALIDATION =================
+
     if (socialMediaLinks && Array.isArray(socialMediaLinks)) {
-      // Helper function to filter valid posts
-      const filterValidPosts = (posts) => {
-        if (!Array.isArray(posts)) return [];
-        return posts.filter(
+      const filterValidPosts = (posts) =>
+        posts.filter(
           (post) =>
             post &&
             typeof post === "object" &&
             post.url &&
-            post.url.trim() !== "",
+            post.url.trim() !== "" &&
+            post.platform &&
+            post.postType,
         );
-      };
 
-      // Get required platforms and quantities from deliverables
-      const requiredDeliverables = {};
-      if (collaboration.deliverables) {
-        collaboration.deliverables.forEach((deliverable) => {
-          const platform = deliverable.platform.toLowerCase();
-          requiredDeliverables[platform] = deliverable.quantity;
-        });
-      }
-
-      // Filter and validate new social media links array
       const newValidLinks = filterValidPosts(socialMediaLinks);
-
-      // Get existing links
       const existingLinks = collaboration.socialMediaLinks || [];
 
-      // Count existing links per platform
-      const existingLinksCount = {};
+      // Build required deliverables map
+      const requiredDeliverables = {};
+
+      (collaboration.deliverables || []).forEach((d) => {
+        const platform = d.platform.toLowerCase();
+        const type = d.contentType.toLowerCase();
+
+        if (!requiredDeliverables[platform]) {
+          requiredDeliverables[platform] = {};
+        }
+
+        requiredDeliverables[platform][type] = d.quantity;
+      });
+
+      // Count existing links
+      const existingCount = {};
+
       existingLinks.forEach((link) => {
-        if (link.platform) {
-          const platform = link.platform.toLowerCase();
-          existingLinksCount[platform] =
-            (existingLinksCount[platform] || 0) + 1;
-        }
+        const platform = link.platform?.toLowerCase();
+        const type = link.postType?.toLowerCase();
+        if (!platform || !type) return;
+
+        if (!existingCount[platform]) existingCount[platform] = {};
+        existingCount[platform][type] =
+          (existingCount[platform][type] || 0) + 1;
       });
 
-      // Count new links per platform
-      const newLinksCount = {};
-      newValidLinks.forEach((link) => {
-        if (link.platform) {
-          const platform = link.platform.toLowerCase();
-          newLinksCount[platform] = (newLinksCount[platform] || 0) + 1;
-        }
-      });
-
-      // Validate that new links don't exceed required quantities
       const invalidLinks = [];
-      Object.keys(newLinksCount).forEach((platform) => {
-        const requiredQuantity = requiredDeliverables[platform] || 0;
-        const existingQuantity = existingLinksCount[platform] || 0;
-        const newQuantity = newLinksCount[platform];
-        const totalQuantity = existingQuantity + newQuantity;
 
-        if (totalQuantity > requiredQuantity) {
+      // Validate new links
+      newValidLinks.forEach((link) => {
+        const platform = link.platform.toLowerCase();
+        const type = link.postType.toLowerCase();
+
+        // Platform not allowed
+        if (!requiredDeliverables[platform]) {
           invalidLinks.push({
             platform,
-            required: requiredQuantity,
-            existing: existingQuantity,
-            new: newQuantity,
-            total: totalQuantity,
-            allowed: requiredQuantity - existingQuantity,
+            contentType: type,
+            message: "Platform not allowed for this collaboration",
           });
+          return;
+        }
+
+        // Post type not allowed
+        if (!requiredDeliverables[platform][type]) {
+          invalidLinks.push({
+            platform,
+            contentType: type,
+            message: "Post type not required for this platform",
+          });
+          return;
+        }
+
+        const required = requiredDeliverables[platform][type];
+        const existing = existingCount[platform]?.[type] || 0;
+
+        if (existing + 1 > required) {
+          invalidLinks.push({
+            platform,
+            contentType: type,
+            required,
+            existing,
+            canAdd: required - existing > 0 ? required - existing : 0,
+          });
+        } else {
+          if (!existingCount[platform]) existingCount[platform] = {};
+          existingCount[platform][type] =
+            (existingCount[platform][type] || 0) + 1;
         }
       });
 
-      // Check if trying to add links for platforms not in deliverables
-      const invalidPlatforms = [];
-      Object.keys(newLinksCount).forEach((platform) => {
-        if (!requiredDeliverables[platform]) {
-          invalidPlatforms.push(platform);
-        }
-      });
-
-      if (invalidLinks.length > 0 || invalidPlatforms.length > 0) {
-        let errorMessage = "Invalid social media links:\n";
-
-        if (invalidPlatforms.length > 0) {
-          errorMessage += `- Platforms not allowed: ${invalidPlatforms.join(", ")}\n`;
-        }
-
-        if (invalidLinks.length > 0) {
-          invalidLinks.forEach((invalid) => {
-            errorMessage += `- ${invalid.platform}: Required ${invalid.required}, Already have ${invalid.existing}, Can add ${invalid.allowed} more\n`;
-          });
-        }
-
+      if (invalidLinks.length > 0) {
         return res.status(400).json({
           success: false,
           error: true,
-          message: errorMessage.trim(),
-          requiredDeliverables,
-          existingLinksCount,
-          newLinksCount,
+          message: "Invalid social media links",
           invalidLinks,
-          invalidPlatforms,
         });
       }
 
-      // Combine existing links with new links
-      const combinedLinks = [...existingLinks, ...newValidLinks];
-
-      updateData.socialMediaLinks = combinedLinks;
+      updateData.socialMediaLinks = [...existingLinks, ...newValidLinks];
     }
 
-    // Check if collaboration should be marked as completed
-    // Collaboration is completed when:
-    // 1. Status is "ongoing" (payment completed)
-    // 2. All required deliverable platforms have social media links provided
-    let shouldComplete = false;
+    // ================= DELIVERABLE COMPLETION CHECK =================
 
     if (collaboration.deliverables) {
       const currentLinks =
-        updateData.socialMediaLinks || collaboration.socialMediaLinks;
+        updateData.socialMediaLinks || collaboration.socialMediaLinks || [];
 
-      // Get required platforms from deliverables
       const requiredPlatforms = collaboration.deliverables.map((d) =>
         d.platform.toLowerCase(),
       );
 
-      // Check if all required platforms have links provided
       const providedPlatforms = currentLinks
-        .map((link) => (link.platform ? link.platform.toLowerCase() : ""))
-        .filter((platform) => platform !== "");
+        .map((link) => link.platform?.toLowerCase())
+        .filter(Boolean);
 
-      const allRequiredLinksProvided = requiredPlatforms.every((platform) =>
+      const allPlatformsCovered = requiredPlatforms.every((platform) =>
         providedPlatforms.includes(platform),
       );
 
-      // Check if any required platform has a link (in progress)
-      const anyLinkProvided = providedPlatforms.length > 0;
-
-      // Check if all items are completed
-      const allItemsCompleted = currentLinks.every(
-        (link) => link.status === "completed",
-      );
-
-      if (
-        allRequiredLinksProvided &&
-        allItemsCompleted &&
-        requiredPlatforms.length > 0
-      ) {
+      if (allPlatformsCovered && currentLinks.length > 0) {
         updateData.deliverableStatus = "completed";
 
-        // Also mark main status as completed if payment is ongoing
         if (collaboration.status === "ongoing") {
-          shouldComplete = true;
           updateData.status = "completed";
         }
-      } else if (anyLinkProvided) {
+      } else if (currentLinks.length > 0) {
         updateData.deliverableStatus = "in_progress";
       } else {
         updateData.deliverableStatus = "pending";
       }
     }
 
-    // Update the collaboration
     const updatedCollaboration = await Collaborations.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true },
     ).populate([
-      {
-        path: "userId",
-        select: "name email",
-      },
-      {
-        path: "selectInfluencerOrHost",
-        select: "name email",
-      },
+      { path: "userId", select: "name email" },
+      { path: "selectInfluencerOrHost", select: "name email" },
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       error: false,
-      message: shouldComplete
-        ? "Collaboration completed successfully! Social media links have been provided."
-        : "Collaboration updated successfully",
-      data: {
-        collaboration: updatedCollaboration,
-        statusChanged: shouldComplete,
-      },
+      message: "Collaboration updated successfully",
+      data: updatedCollaboration,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: true,
       message: "Error updating collaboration",

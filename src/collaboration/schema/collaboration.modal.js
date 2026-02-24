@@ -164,7 +164,6 @@ const collaborationSchema = new mongoose.Schema(
       role: {
         type: String,
         enum: ["host", "influencer"],
-        default: "",
       },
       createdAt: {
         type: Date,
