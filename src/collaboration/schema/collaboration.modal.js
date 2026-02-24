@@ -6,16 +6,25 @@ const deliverableSchema = new mongoose.Schema(
   {
     platform: {
       type: String,
-      enum: ["instagram", "tiktok", "youtube", "facebook", "twitter"],
-      required: true,
+      enum: {
+        values: ["instagram", "tiktok", "youtube", "facebook", "twitter"],
+        message:
+          "Platform must be one of: instagram, tiktok, youtube, facebook, twitter",
+      },
+      required: [true, "Platform is required"],
       lowercase: true,
+      trim: true,
     },
 
     contentType: {
       type: String,
-      enum: ["post", "reel", "story", "video"],
-      required: true,
+      enum: {
+        values: ["post", "reel", "story", "video"],
+        message: "Content type must be one of: post, reel, story, video",
+      },
+      required: [true, "Content type is required"],
       lowercase: true,
+      trim: true,
     },
 
     quantity: {
