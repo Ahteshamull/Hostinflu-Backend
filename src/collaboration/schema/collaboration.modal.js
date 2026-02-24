@@ -1,17 +1,21 @@
 import mongoose from "mongoose";
 
+/* ================= DELIVERABLE SCHEMA ================= */
+
 const deliverableSchema = new mongoose.Schema(
   {
     platform: {
       type: String,
-      enum: ["Instagram", "TikTok", "YouTube", "Facebook", "X"],
+      enum: ["instagram", "tiktok", "youtube", "facebook", "twitter"],
       required: true,
+      lowercase: true,
     },
 
     contentType: {
       type: String,
-      enum: ["Post", "Reel", "Story", "Video"],
+      enum: ["post", "reel", "story", "video"],
       required: true,
+      lowercase: true,
     },
 
     quantity: {
@@ -20,26 +24,60 @@ const deliverableSchema = new mongoose.Schema(
       min: 1,
     },
 
-    platformFollowers: {
-      Instagram: {
+    urls: [
+      {
         type: String,
+        trim: true,
       },
-      TikTok: {
-        type: String,
-      },
-      YouTube: {
-        type: String,
-      },
-      Facebook: {
-        type: String,
-      },
-      X: {
-        type: String,
-      },
-    },
+    ],
+
+    // platformFollowers: {
+    //   type: String,
+    //   default: "",
+    // },
   },
   { _id: false },
 );
+
+/* ================= SOCIAL MEDIA LINK SCHEMA ================= */
+
+// const socialMediaLinkSchema = new mongoose.Schema(
+//   {
+//     url: {
+//       type: String,
+//       required: true,
+//       trim: true,
+//     },
+
+//     postType: {
+//       type: String,
+//       enum: ["post", "story", "reel", "video"],
+//       required: true,
+//       lowercase: true,
+//     },
+
+//     platform: {
+//       type: String,
+//       enum: ["instagram", "facebook", "twitter", "youtube", "tiktok"],
+//       required: true,
+//       lowercase: true,
+//     },
+
+//     postDate: {
+//       type: Date,
+//       default: Date.now,
+//     },
+
+//     status: {
+//       type: String,
+//       enum: ["pending", "in_progress", "completed"],
+//       default: "pending",
+//     },
+//   },
+//   { _id: false },
+// );
+
+/* ================= MAIN COLLABORATION SCHEMA ================= */
 
 const collaborationSchema = new mongoose.Schema(
   {
@@ -55,8 +93,9 @@ const collaborationSchema = new mongoose.Schema(
 
     selectDeal: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Listing", // Changed from Deal to Listing
+      ref: "Listing",
     },
+
     title: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Listing",
@@ -76,17 +115,12 @@ const collaborationSchema = new mongoose.Schema(
 
     addAirbnbLink: {
       type: String,
-      default: "",
       trim: true,
+      default: "",
     },
 
-    inTimeAndDate: {
-      type: Date,
-    },
-
-    outTimeAndDate: {
-      type: Date,
-    },
+    inTimeAndDate: Date,
+    outTimeAndDate: Date,
 
     guestCount: {
       type: Number,
@@ -98,19 +132,8 @@ const collaborationSchema = new mongoose.Schema(
       validate: [(v) => v.length > 0, "At least one deliverable is required"],
     },
 
-    originalCollaborationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Collaboration",
-      required: false,
-    },
-
-    startDate: {
-      type: Date,
-    },
-
-    endDate: {
-      type: Date,
-    },
+    startDate: Date,
+    endDate: Date,
 
     status: {
       type: String,
@@ -139,8 +162,8 @@ const collaborationSchema = new mongoose.Schema(
 
     rejectReason: {
       type: String,
-      default: "",
       trim: true,
+      default: "",
     },
 
     negotiationMessage: {
@@ -148,53 +171,7 @@ const collaborationSchema = new mongoose.Schema(
       default: "",
     },
 
-    creatorNegotiation: {
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-      name: {
-        type: String,
-        default: "",
-      },
-      email: {
-        type: String,
-        default: "",
-      },
-      role: {
-        type: String,
-        enum: ["host", "influencer"],
-      },
-      createdAt: {
-        type: Date,
-        default: Date.now,
-      },
-    },
-
-    socialMediaLinks: [
-      {
-        url: { type: String, default: "" },
-        postType: {
-          type: String,
-          enum: ["post", "story", "reel", "video", "image"],
-        },
-        totalItems: {
-          type: Number,
-          default: 0,
-        },
-        platform: {
-          type: String,
-          enum: ["instagram", "facebook", "twitter", "youtube", "tiktok"],
-          default: "",
-        },
-        postDate: { type: Date },
-        status: {
-          type: String,
-          enum: ["pending", "in_progress", "completed"],
-          default: "pending",
-        },
-      },
-    ],
+    // socialMediaLinks: [socialMediaLinkSchema],
   },
   { timestamps: true },
 );

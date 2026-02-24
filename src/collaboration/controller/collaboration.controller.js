@@ -236,6 +236,7 @@ export const createCollaborationWeb = async (req, res) => {
         platform: d.platform,
         contentType: d.contentType,
         quantity: d.quantity || 1,
+        urls: d.urls || [],
         platformFollowers: d.platformFollowers || {},
       }));
     }
@@ -273,32 +274,27 @@ export const createCollaborationWeb = async (req, res) => {
       paymentStatus: "pending",
       deliverableStatus: "pending",
 
-      // Auto-generate social media links from deliverables
-      socialMediaLinks: (function () {
-        const links = [];
-        console.log("Deliverables received:", finalDeliverables);
+      // Auto-generate URLs from deliverables
+      // socialMediaLinks: (function () {
+      //   const links = [];
+      //   console.log("Deliverables received:", finalDeliverables);
 
-        if (finalDeliverables && Array.isArray(finalDeliverables)) {
-          finalDeliverables.forEach((deliverable) => {
-            console.log("Processing deliverable:", deliverable);
-            for (let i = 0; i < deliverable.quantity; i++) {
-              const link = {
-                url: "",
-                postType: deliverable.contentType.toLowerCase(),
-                totalItems: 1,
-                platform: deliverable.platform.toLowerCase(),
-                postDate: new Date(),
-                status: "pending",
-              };
-              links.push(link);
-              console.log("Added link:", link);
-            }
-          });
-        }
+      //   if (finalDeliverables && Array.isArray(finalDeliverables)) {
+      //     finalDeliverables.forEach((deliverable) => {
+      //       console.log("Processing deliverable:", deliverable);
+      //       for (let i = 0; i < deliverable.quantity; i++) {
+      //         const link = {
+      //           url: `https://${deliverable.platform.toLowerCase()}.example.com/${deliverable.contentType.toLowerCase()}-${i + 1}`,
+      //         };
+      //         links.push(link);
+      //         console.log("Added URL:", link);
+      //       }
+      //     });
+      //   }
 
-        console.log("Generated social media links:", links);
-        return links;
-      })(),
+      //   console.log("Generated URLs:", links);
+      //   return links;
+      // })(),
     });
 
     const savedCollaboration = await newCollaboration.save();
@@ -328,10 +324,11 @@ export const createCollaborationWeb = async (req, res) => {
         "userId",
         "name image role email fullAddress userName socialMediaLinks",
       )
-      .populate(
-        "selectInfluencerOrHost",
-        "name image role email fullAddress userName socialMediaLinks",
-      )
+      .populate({
+        path: "selectInfluencerOrHost",
+        select: "name image role email fullAddress userName socialMediaLinks",
+        model: "User",
+      })
       .populate(
         "selectDeal",
         "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
@@ -362,6 +359,23 @@ export const getAllCollaboration = async (req, res) => {
 
     const collaborations = await Collaborations.find(filter)
       .populate("userId", "name email role")
+      .populate({
+        path: "selectInfluencerOrHost",
+        select: "name email role image userName fullAddress socialMediaLinks",
+        model: "User",
+      })
+      // .populate({
+      //   path: "selectDeal",
+      //   select:
+      //     "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
+      //   model: "Listing",
+      // })
+      .populate({
+        path: "title",
+        select:
+          "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status images",
+        model: "Listing",
+      })
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -652,16 +666,16 @@ export const getMyAllCollaborations = async (req, res) => {
 export const updateCollaboration = async (req, res) => {
   try {
     const { id } = req.params;
-    const { socialMediaLinks } = req.body;
+    const { deliverables } = req.body;
 
-    const userId = req.user?.id || req.user?._id || req.user?.userId;
+    const userId = req.user?._id || req.user?.id || req.user?.userId;
     const userRole = req.user?.role;
 
-    if (!userId || !userRole) {
+    if (!userId || userRole !== "influencer") {
       return res.status(401).json({
         success: false,
         error: true,
-        message: "Authentication required",
+        message: "Only influencer can update collaboration",
       });
     }
 
@@ -675,14 +689,7 @@ export const updateCollaboration = async (req, res) => {
       });
     }
 
-    if (userRole !== "influencer") {
-      return res.status(403).json({
-        success: false,
-        error: true,
-        message: "Only influencers can update collaboration content",
-      });
-    }
-
+    // Ensure influencer is selected
     if (
       !collaboration.selectInfluencerOrHost ||
       collaboration.selectInfluencerOrHost.toString() !== userId.toString()
@@ -690,142 +697,98 @@ export const updateCollaboration = async (req, res) => {
       return res.status(403).json({
         success: false,
         error: true,
-        message: "You can only update collaborations you were selected for",
+        message: "You are not selected for this collaboration",
       });
     }
 
-    const updateData = {};
+    if (!Array.isArray(deliverables) || deliverables.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Provide at least one deliverable",
+      });
+    }
 
-    // ================= SOCIAL MEDIA LINK VALIDATION =================
+    // ================= VALIDATION =================
+    // Check if requested deliverables exceed the allowed quantity
+    for (const incomingDeliverable of deliverables) {
+      const existingDeliverable = collaboration.deliverables.find(
+        (d) =>
+          d.platform === incomingDeliverable.platform &&
+          d.contentType === incomingDeliverable.contentType,
+      );
 
-    if (socialMediaLinks && Array.isArray(socialMediaLinks)) {
-      const filterValidPosts = (posts) =>
-        posts.filter(
-          (post) =>
-            post &&
-            typeof post === "object" &&
-            post.url &&
-            post.url.trim() !== "" &&
-            post.platform &&
-            post.postType,
+      if (existingDeliverable) {
+        const existingUrls = existingDeliverable.urls || [];
+        const newUrls = incomingDeliverable.urls || [];
+        const totalUrls = [...existingUrls, ...newUrls].filter(
+          (url) => url && url.trim() !== "",
         );
 
-      const newValidLinks = filterValidPosts(socialMediaLinks);
-      const existingLinks = collaboration.socialMediaLinks || [];
-
-      // Build required deliverables map
-      const requiredDeliverables = {};
-
-      (collaboration.deliverables || []).forEach((d) => {
-        const platform = d.platform.toLowerCase();
-        const type = d.contentType.toLowerCase();
-
-        if (!requiredDeliverables[platform]) {
-          requiredDeliverables[platform] = {};
-        }
-
-        requiredDeliverables[platform][type] = d.quantity;
-      });
-
-      // Count existing links
-      const existingCount = {};
-
-      existingLinks.forEach((link) => {
-        const platform = link.platform?.toLowerCase();
-        const type = link.postType?.toLowerCase();
-        if (!platform || !type) return;
-
-        if (!existingCount[platform]) existingCount[platform] = {};
-        existingCount[platform][type] =
-          (existingCount[platform][type] || 0) + 1;
-      });
-
-      const invalidLinks = [];
-
-      // Validate new links
-      newValidLinks.forEach((link) => {
-        const platform = link.platform.toLowerCase();
-        const type = link.postType.toLowerCase();
-
-        // Platform not allowed
-        if (!requiredDeliverables[platform]) {
-          invalidLinks.push({
-            platform,
-            contentType: type,
-            message: "Platform not allowed for this collaboration",
+        if (totalUrls.length > existingDeliverable.quantity) {
+          return res.status(400).json({
+            success: false,
+            error: true,
+            message: `Cannot add more than ${existingDeliverable.quantity} deliverables for ${incomingDeliverable.platform} ${incomingDeliverable.contentType}`,
           });
-          return;
         }
-
-        // Post type not allowed
-        if (!requiredDeliverables[platform][type]) {
-          invalidLinks.push({
-            platform,
-            contentType: type,
-            message: "Post type not required for this platform",
-          });
-          return;
-        }
-
-        const required = requiredDeliverables[platform][type];
-        const existing = existingCount[platform]?.[type] || 0;
-
-        if (existing + 1 > required) {
-          invalidLinks.push({
-            platform,
-            contentType: type,
-            required,
-            existing,
-            canAdd: required - existing > 0 ? required - existing : 0,
-          });
-        } else {
-          if (!existingCount[platform]) existingCount[platform] = {};
-          existingCount[platform][type] =
-            (existingCount[platform][type] || 0) + 1;
-        }
-      });
-
-      if (invalidLinks.length > 0) {
-        return res.status(400).json({
-          success: false,
-          error: true,
-          message: "Invalid social media links",
-          invalidLinks,
-        });
       }
-
-      updateData.socialMediaLinks = [...existingLinks, ...newValidLinks];
     }
 
-    // ================= DELIVERABLE COMPLETION CHECK =================
+    // ================= UPDATE DELIVERABLES =================
+    // Handle multiple deliverables based on quantity
+    const updatedDeliverables = collaboration.deliverables.map(
+      (existingDeliverable) => {
+        const matchingDeliverable = deliverables.find(
+          (incoming) =>
+            incoming.platform === existingDeliverable.platform &&
+            incoming.contentType === existingDeliverable.contentType,
+        );
 
-    if (collaboration.deliverables) {
-      const currentLinks =
-        updateData.socialMediaLinks || collaboration.socialMediaLinks || [];
-
-      const requiredPlatforms = collaboration.deliverables.map((d) =>
-        d.platform.toLowerCase(),
-      );
-
-      const providedPlatforms = currentLinks
-        .map((link) => link.platform?.toLowerCase())
-        .filter(Boolean);
-
-      const allPlatformsCovered = requiredPlatforms.every((platform) =>
-        providedPlatforms.includes(platform),
-      );
-
-      if (allPlatformsCovered && currentLinks.length > 0) {
-        updateData.deliverableStatus = "completed";
-
-        if (collaboration.status === "ongoing") {
-          updateData.status = "completed";
+        if (
+          matchingDeliverable &&
+          matchingDeliverable.urls &&
+          matchingDeliverable.urls.length > 0
+        ) {
+          return {
+            platform: existingDeliverable.platform,
+            contentType: existingDeliverable.contentType,
+            quantity: existingDeliverable.quantity,
+            urls: [
+              ...(existingDeliverable.urls || []),
+              ...matchingDeliverable.urls.filter(
+                (url) => url && url.trim() !== "",
+              ),
+            ],
+          };
         }
-      } else if (currentLinks.length > 0) {
-        updateData.deliverableStatus = "in_progress";
-      } else {
-        updateData.deliverableStatus = "pending";
+
+        return existingDeliverable;
+      },
+    );
+
+    const updateData = {
+      deliverables: updatedDeliverables,
+      deliverableStatus: "in_progress",
+    };
+
+    // ================= CHECK COMPLETION =================
+    let allCompleted = true;
+    for (const deliverable of updatedDeliverables) {
+      const requiredUrls = deliverable.quantity;
+      const providedUrls = (deliverable.urls || []).filter(
+        (url) => url && url.trim() !== "",
+      );
+
+      if (providedUrls.length < requiredUrls) {
+        allCompleted = false;
+        break;
       }
+    }
+
+    if (allCompleted) {
+      updateData.deliverableStatus = "completed";
+      updateData.status = "completed";
     }
 
     const updatedCollaboration = await Collaborations.findByIdAndUpdate(
@@ -847,7 +810,7 @@ export const updateCollaboration = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: true,
-      message: "Error updating collaboration",
+      message: "Server error",
       error: error.message,
     });
   }
