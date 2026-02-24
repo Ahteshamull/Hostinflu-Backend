@@ -524,6 +524,7 @@ export const getMyAllCollaborations = async (req, res) => {
           "selectInfluencerOrHost",
           "name email role userName socialMediaLinks",
         )
+        .populate("title", "title")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip(skip);
@@ -537,6 +538,7 @@ export const getMyAllCollaborations = async (req, res) => {
           "selectInfluencerOrHost",
           "name email role userName socialMediaLinks",
         )
+        .populate("title", "title")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip(skip);
@@ -555,6 +557,7 @@ export const getMyAllCollaborations = async (req, res) => {
           "selectDeal",
           "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
         )
+        .populate("title", "title")
         .populate(
           "title description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount status",
         )
