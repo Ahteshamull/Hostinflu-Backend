@@ -30,6 +30,13 @@ export const stripeAccountOnboarding = async (req, res) => {
       });
     }
 
+    // Validate environment URLs
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3001";
+    const refreshUrl =
+      process.env.ONBOARDING_REFRESH_URL || `${frontendUrl}/stripe-refresh`;
+    const returnUrl =
+      process.env.ONBOARDING_RETURN_URL || `${frontendUrl}/stripe-return`;
+
     // Find user
     const user = await userModel.findById(userId);
 
@@ -66,8 +73,8 @@ export const stripeAccountOnboarding = async (req, res) => {
       // if not verified → generate onboarding link
       const accountLinks = await stripe.accountLinks.create({
         account: user.stripeAccountId,
-        refresh_url: `${process.env.ONBOARDING_REFRESH_URL}?accountId=${user.stripeAccountId}`,
-        return_url: `${process.env.ONBOARDING_RETURN_URL}?accountId=${user.stripeAccountId}`,
+        refresh_url: `${refreshUrl}?accountId=${user.stripeAccountId}`,
+        return_url: `${returnUrl}?accountId=${user.stripeAccountId}`,
         type: "account_onboarding",
       });
 
@@ -110,8 +117,8 @@ export const stripeAccountOnboarding = async (req, res) => {
 
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: `${process.env.ONBOARDING_REFRESH_URL}?accountId=${account.id}`,
-      return_url: `${process.env.ONBOARDING_RETURN_URL}?accountId=${account.id}`,
+      refresh_url: `${refreshUrl}?accountId=${account.id}`,
+      return_url: `${returnUrl}?accountId=${account.id}`,
       type: "account_onboarding",
     });
 
