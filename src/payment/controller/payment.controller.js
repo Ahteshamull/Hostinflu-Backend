@@ -193,13 +193,13 @@ export const createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Check if collaboration belongs to user
-    if (collaboration.userId.toString() !== userId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "You can only create payment for your own collaborations",
-      });
-    }
+    // // Check if collaboration belongs to user
+    // if (collaboration.userId.toString() !== userId.toString()) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "You can only create payment for your own collaborations",
+    //   });
+    // }
 
     // Calculate amount from collaboration compensation
     let amount = 0;
