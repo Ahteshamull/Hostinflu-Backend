@@ -67,36 +67,28 @@ export const createReview = async (req, res) => {
       });
     }
 
-    // Determine reviewer and reviewee based on review type
+    // Determine reviewer and reviewee based on user's role in collaboration
     let reviewerId, revieweeId;
 
-    if (reviewType === "host_to_influencer") {
+    // Check if the authenticated user is the host or influencer
+    const isHost = collaboration.userId._id.toString() === userId.toString();
+    const isInfluencer =
+      collaboration.selectInfluencerOrHost._id.toString() === userId.toString();
+
+    if (isHost) {
       // Host is reviewing influencer
       reviewerId = collaboration.userId._id.toString();
       revieweeId = collaboration.selectInfluencerOrHost._id.toString();
-
-      // Check if reviewer is actually the host
-      if (reviewerId !== userId.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: "Only host can create this type of review",
-        });
-      }
-    } else {
+    } else if (isInfluencer) {
       // Influencer is reviewing host
       reviewerId = collaboration.selectInfluencerOrHost._id.toString();
       revieweeId = collaboration.userId._id.toString();
-
-      // Check if reviewer is actually the influencer
-      if (reviewerId !== userId.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: "Only the influencer can create this type of review",
-        });
-      }
-
-      // Check if influencer has completed content upload (this would depend on your content delivery system)
-      // For now, we'll assume if collaboration is completed, influencer has done their part
+    } else {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You are not authorized to create a review for this collaboration",
+      });
     }
 
     // Check if review already exists for this collaboration and review type
