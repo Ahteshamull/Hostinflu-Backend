@@ -58,24 +58,29 @@ const getCollaborationNotifications = async (req, res) => {
       type: "negotiation",
       receiverId: userId, // Only show notifications for this user
     };
+    const filter3 = {
+      type: "influencer_city_visit",
+      receiverId: userId, // Only show notifications for this user
+    };
 
     if (isRead !== undefined) {
       filter.isRead = isRead === "true";
       filter2.isRead = isRead === "true";
+      filter3.isRead = isRead === "true";
     }
 
     const notifications = await Notification.find({
-      $or: [filter, filter2],
+      $or: [filter, filter2, filter3],
     })
       .populate("collaborationId", "selectDeal payment")
-      .populate("createdBy", "name email")
+      .populate("createdBy", "name email image role")
       .populate("receiverId", "name email")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
     const total = await Notification.countDocuments({
-      $or: [filter, filter2],
+      $or: [filter, filter2, filter3],
     });
 
     res.status(200).json({

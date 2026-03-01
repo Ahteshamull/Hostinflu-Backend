@@ -52,16 +52,28 @@ export const createCalenderController = async (req, res) => {
       "name email image role",
     );
 
-    // Find all hosts in the same city
+    // Find all hosts in the same city (exact match, case-insensitive)
+    const normalizedCity = city.toLowerCase().trim();
+   
+
     const hostsInCity = await userModel.find({
       role: "host",
-      city: { $regex: new RegExp(`^${city}$`, "i") }, // Case-insensitive city match
     });
 
+
+    // Filter hosts by exact city match (case-insensitive)
+    const matchedHosts = hostsInCity.filter((host) => {
+      const hostCity = (host.city || "").toLowerCase().trim();
+      const isMatch = hostCity === normalizedCity;
+   
+      return isMatch;
+    });
+
+
     // Create notifications for all hosts in the city
-    if (hostsInCity.length > 0) {
+    if (matchedHosts.length > 0) {
       const influencerName = populatedCalender.creatorId.name;
-      const notificationPromises = hostsInCity.map((host) => {
+      const notificationPromises = matchedHosts.map((host) => {
         return Notification.create({
           type: "influencer_city_visit",
           title: "Influencer Visiting Your City",
@@ -80,7 +92,7 @@ export const createCalenderController = async (req, res) => {
       success: true,
       message: "Calendar created successfully",
       data: populatedCalender,
-      hostsNotified: hostsInCity.length,
+      hostsNotified: matchedHosts.length,
     });
   } catch (error) {
     console.error("Error creating calendar:", error);
