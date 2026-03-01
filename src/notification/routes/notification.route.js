@@ -10,13 +10,13 @@ import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 const router = express.Router();
 
 // localhost:3000/api/v1/notification/list
-router.get("/list", listNotifications);
+router.get("/list", authenticateToken, listNotifications);
 
 // localhost:3000/api/v1/notification/mark/:id
-router.patch("/mark/:id", markNotification);
+router.patch("/mark/:id", authenticateToken, markNotification);
 
 // localhost:3000/api/v1/notification/mark-all
-router.patch("/mark-all", markAllNotifications);
+router.patch("/mark-all", authenticateToken, markAllNotifications);
 
 // localhost:3000/api/v1/notification/collaboration
 router.get("/collaboration", authenticateToken, getCollaborationNotifications);

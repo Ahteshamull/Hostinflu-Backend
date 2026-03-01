@@ -110,7 +110,7 @@ const markNotification = async (req, res) => {
     const notification = await Notification.findByIdAndUpdate(
       id,
       { isRead },
-      { new: true }
+      { new: true },
     );
 
     if (!notification) {
@@ -135,7 +135,21 @@ const markAllNotifications = async (req, res) => {
   try {
     const { isRead } = req.body;
 
-    await Notification.updateMany({}, { isRead });
+    // Get user ID from authenticated user (from JWT token)
+    const userId = req.user?.id || req.user?._id;
+
+    // Validate user authentication
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User authentication required",
+      });
+    }
+
+    await Notification.updateMany(
+      { receiverId: userId }, // Only update notifications for the authenticated user
+      { isRead },
+    );
 
     res.status(200).json({
       message: `All notifications marked as ${isRead ? "read" : "unread"}`,
@@ -151,7 +165,7 @@ const markAllNotifications = async (req, res) => {
 // Internal helper function for creating collaboration notifications
 const createCollaborationNotification = async (
   collaborationData,
-  creatorRole
+  creatorRole,
 ) => {
   try {
     const { selectInfluencerOrHost, userId, _id } = collaborationData;
@@ -193,11 +207,9 @@ const createCollaborationNotification = async (
 
     return savedNotification;
   } catch (error) {
-    
     throw error;
   }
 };
-
 
 export {
   listNotifications,
