@@ -88,9 +88,12 @@ const single_new_message = async (req, res) => {
 };
 
 const get_my_single_specific_chatList_controller = async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+
   const result = await MessageService.get_my_single_specific_chatList(
     req.params.conversationId,
     req.query,
+    userId,
   );
 
   res.status(200).json({

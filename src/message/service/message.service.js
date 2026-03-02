@@ -357,7 +357,11 @@ const single_new_message_IntoDb = async (user, data, files = null) => {
   }
 };
 
-const get_my_single_specific_chatList = async (conversationId, query) => {
+const get_my_single_specific_chatList = async (
+  conversationId,
+  query,
+  currentUserId = null,
+) => {
   try {
     const page = parseInt(query?.page) || 1;
     const limit = parseInt(query?.limit) || 10;
@@ -389,8 +393,23 @@ const get_my_single_specific_chatList = async (conversationId, query) => {
 
     const total = await messages.countDocuments({ conversationId });
 
+    // Get other participant's info with isActive and updatedAt
+    let otherParticipant = null;
+    if (conversation.participants && conversation.participants.length > 0) {
+      const otherUserId = conversation.participants.find(
+        (p) => p.toString() !== currentUserId?.toString(),
+      );
+
+      if (otherUserId) {
+        otherParticipant = await userModal
+          .findById(otherUserId)
+          .select("name image email isActive status updatedAt");
+      }
+    }
+
     return {
       messages: messagesList,
+      otherParticipant,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
