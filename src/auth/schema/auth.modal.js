@@ -218,6 +218,10 @@ const userSchema = new Schema(
       type: String,
       default: "active",
     },
+    isActive: {
+      type: Boolean,
+      default: false,
+    },
     referralCode: { type: String, unique: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     referralCount: { type: Number, default: 0 },

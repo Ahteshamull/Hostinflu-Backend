@@ -477,6 +477,8 @@ const get_all_conversations_for_user = async (userId, query) => {
           "participants.name": 1,
           "participants.email": 1,
           "participants.image": 1,
+          "participants.isActive": 1,
+          "participants.updatedAt": 1,
           lastMessage: 1,
           isDelete: 1,
           createdAt: 1,

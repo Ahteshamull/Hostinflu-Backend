@@ -29,8 +29,6 @@ export const initializeSocket = (server) => {
   }
 
   io.on("connection", async (socket) => {
-
-
     // Get user ID from query parameters
     const userId = socket.handshake.query?.userId || socket.handshake.query?.id;
 
@@ -59,6 +57,20 @@ export const initializeSocket = (server) => {
 
     const currentUserId = currentUser._id.toString();
 
+    const user = await userModal.findByIdAndUpdate(
+      currentUserId,
+      {
+        $set: {
+          isActive: true,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true, upsert: true },
+    );
+    if (!user) {
+      throw new Error("issues by updating user status");
+    }
+
     // Store user info
     onlineUsers.set(currentUserId, {
       socketId: socket.id,
@@ -68,8 +80,6 @@ export const initializeSocket = (server) => {
     // Join user to their personal room
     socket.join(`user-${currentUserId}`);
 
-
-
     // Find and join user's conversations
     const userConversations = await conversations
       .find({
@@ -77,25 +87,35 @@ export const initializeSocket = (server) => {
       })
       .select("_id");
 
-
-
     userConversations.forEach((conv) => socket.join(conv._id.toString()));
 
     // Handle user online event
     socket.on("user-online", (userData) => {
       const { userId: onlineUserId, role } = userData;
-      
     });
 
     // Call event handlers for chat messages
 
     handleChatEvents(io, socket, currentUserId);
 
-    socket.on("disconnect", () => {
-      
+    socket.on("disconnect", async () => {
+      const user = await userModal.findByIdAndUpdate(
+        currentUserId,
+        {
+          $set: {
+            isActive: false,
+            updatedAt: new Date(),
+          },
+        },
+        { new: true, upsert: true },
+      );
+
+      if (!user) {
+        throw new Error("issues by updating user status");
+      }
+
       // Remove user from online map
       onlineUsers.delete(currentUserId);
-     
     });
   });
 
