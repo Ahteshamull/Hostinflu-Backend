@@ -720,6 +720,91 @@ const userTotalListings = async (req, res) => {
   }
 };
 
+const toggleFavorite = async (req, res) => {
+  try {
+    const { listingId } = req.params;
+    const user = req.user;
+
+    if (!listingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Listing ID is required",
+      });
+    }
+
+    const listing = await Listing.findById(listingId);
+    if (!listing) {
+      return res.status(404).json({
+        success: false,
+        message: "Listing not found",
+      });
+    }
+
+    // Toggle favorite status
+    listing.isFavorite = !listing.isFavorite;
+    await listing.save();
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: listing.isFavorite
+        ? "Listing added to favorites"
+        : "Listing removed from favorites",
+      data: {
+        listing,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error toggling favorite status",
+      error: error.message,
+    });
+  }
+};
+
+const myAllFavorites = async (req, res) => {
+  try {
+    const user = req.user;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const favorites = await Listing.find({ userId: user._id, isFavorite: true })
+      .populate("userId", "name email role")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Listing.countDocuments({
+      userId: user._id,
+      isFavorite: true,
+    });
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "User favorites retrieved successfully",
+      data: {
+        favorites,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalFavorites: total,
+          favoritesPerPage: limit,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving user favorites",
+      error: error.message,
+    });
+  }
+};
+
 export {
   createListing,
   getAllListings,
@@ -730,6 +815,8 @@ export {
   adminAcceptListing,
   personalTotalListings,
   userTotalListings,
+  toggleFavorite,
+  myAllFavorites,
 };
 
 export { personalListingsGrowth, userPersonalVerifyListings };

@@ -36,6 +36,7 @@ const listingSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  isFavorite: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },

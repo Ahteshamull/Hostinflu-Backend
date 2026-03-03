@@ -11,6 +11,8 @@ import {
   personalListingsGrowth,
   userPersonalVerifyListings,
   userTotalListings,
+  myAllFavorites,
+  toggleFavorite,
 } from "../controller/listing.controller.js";
 import {
   authenticateToken,
@@ -95,5 +97,11 @@ router.get(
 
 // localhost:3000/api/v1/listing/user-total-listings/:userId
 router.get("/user-total-listings/:userId", userTotalListings);
+
+// localhost:3000/api/v1/listing/my-all-favorites
+router.get("/my-all-favorites", authenticateToken, myAllFavorites);
+
+// localhost:3000/api/v1/listing/toggle-favorite/:listingId
+router.patch("/toggle-favorite/:listingId", authenticateToken, toggleFavorite);
 
 export default router;
