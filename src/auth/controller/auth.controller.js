@@ -1203,3 +1203,78 @@ export const getPublicProfile = async (req, res) => {
     });
   }
 };
+
+export const toggleFavorite = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    user.isFavorite = !user.isFavorite;
+    await user.save({ validateBeforeSave: false });
+    res.status(200).json({
+      success: true,
+      message: "Favorite toggled successfully",
+      data: {
+        isFavorite: user.isFavorite,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error toggling favorite",
+      error: error.message,
+    });
+  }
+};
+
+export const myAllFavorites = async (req, res) => {
+  try {
+    const user = await userModel.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const favorites = await userModel
+      .find({ isFavorite: true })
+      .select(
+        "name email image role city country aboutMe averageRating totalReviews",
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await userModel.countDocuments({ isFavorite: true });
+
+    res.status(200).json({
+      success: true,
+      message: "Favorites retrieved successfully",
+      data: {
+        favorites,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalFavorites: total,
+          favoritesPerPage: limit,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving favorites",
+      error: error.message,
+    });
+  }
+};

@@ -222,6 +222,10 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    isFavorite: {
+      type: Boolean,
+      default: false,
+    },
     referralCode: { type: String, unique: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     referralCount: { type: Number, default: 0 },

@@ -16,6 +16,8 @@ import {
   deleteMyAccount,
   shareMyProfile,
   getPublicProfile,
+  toggleFavorite,
+  myAllFavorites,
 } from "../controller/auth.controller.js";
 import { authenticateToken } from "../../helper/middlewares/auth.middleware.js";
 import {
@@ -66,5 +68,11 @@ router.get("/share-profile", authenticateToken, shareMyProfile);
 
 //localhost:3000/api/v1/auth/public-profile/:username
 router.get("/public-profile/:username", getPublicProfile);
+
+//localhost:3000/api/v1/auth/toggle-favorite/:userId
+router.patch("/toggle-favorite/:userId", authenticateToken, toggleFavorite);
+
+//localhost:3000/api/v1/auth/my-all-favorites
+router.get("/my-all-favorites", authenticateToken, myAllFavorites);
 
 export default router;
