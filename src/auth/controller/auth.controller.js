@@ -1248,7 +1248,7 @@ export const myAllFavorites = async (req, res) => {
     const favorites = await userModel
       .find({ isFavorite: true })
       .select(
-        "name email image role city country aboutMe averageRating totalReviews status isActive userName phone dateOfBirth gender state zipCode fullAddress listingsTotal dealsTotal completeDealsTotal collaborationsTotal responseRate avgResponseTime issn totalReviews status referralCount redeemStars nightCredits socialMediaLinks averageRating aboutMe",
+        "name email image role city country aboutMe averageRating totalReviews status isActive userName phone dateOfBirth gender state zipCode fullAddress listingsTotal dealsTotal completeDealsTotal collaborationsTotal responseRate avgResponseTime issn totalReviews status referralCount redeemStars nightCredits socialMediaLinks averageRating aboutMe isFavorite",
       )
       .sort({ createdAt: -1 })
       .skip(skip)
