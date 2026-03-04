@@ -787,13 +787,25 @@ const myAllFavorites = async (req, res) => {
       error: false,
       message: "User favorites retrieved successfully",
       data: {
-        favorites,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
-          totalFavorites: total,
-          favoritesPerPage: limit,
+          total,
+          limit,
         },
+        meta: {
+          totalFavorites: total,
+          totalListings: await Listing.countDocuments({ userId: user._id }),
+          favoriteRate:
+            (await Listing.countDocuments({ userId: user._id })) > 0
+              ? (
+                  (total /
+                    (await Listing.countDocuments({ userId: user._id }))) *
+                  100
+                ).toFixed(2)
+              : 0,
+        },
+        listings: favorites,
       },
     });
   } catch (error) {
