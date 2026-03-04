@@ -1241,7 +1241,6 @@ export const myAllFavorites = async (req, res) => {
         message: "User not found",
       });
     }
-
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -1249,7 +1248,7 @@ export const myAllFavorites = async (req, res) => {
     const favorites = await userModel
       .find({ isFavorite: true })
       .select(
-        "name email image role city country aboutMe averageRating totalReviews",
+        "name email image role city country aboutMe averageRating totalReviews status isActive userName phone dateOfBirth gender state zipCode fullAddress listingsTotal dealsTotal completeDealsTotal collaborationsTotal responseRate avgResponseTime issn totalReviews status referralCount redeemStars nightCredits socialMediaLinks averageRating aboutMe",
       )
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -1260,15 +1259,13 @@ export const myAllFavorites = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Favorites retrieved successfully",
-      data: {
-        favorites,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(total / limit),
-          totalFavorites: total,
-          favoritesPerPage: limit,
-        },
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalUsers: total,
+        limit,
       },
+      data: favorites,
     });
   } catch (error) {
     res.status(500).json({
