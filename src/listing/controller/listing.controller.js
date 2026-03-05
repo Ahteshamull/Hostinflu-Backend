@@ -747,9 +747,7 @@ const toggleFavorite = async (req, res) => {
     res.status(200).json({
       success: true,
       error: false,
-      message: listing.isFavorite
-        ? "Listing added to favorites"
-        : "Listing removed from favorites",
+      message: "Listing removed from favorites",
       data: {
         listing,
       },
@@ -788,7 +786,20 @@ const myAllFavorites = async (req, res) => {
       });
     }
 
-    const filter = { userId: user._id, isFavorite: true };
+    // Fix existing favorites: Find listings with isFavorite=true but no favoritedBy array
+    const favoritesToFix = await Listing.find({
+      isFavorite: true,
+      $or: [{ favoritedBy: { $exists: false } }, { favoritedBy: { $size: 0 } }],
+    });
+
+    // Add current user to favoritedBy for these listings (one-time fix)
+    for (const listing of favoritesToFix) {
+      listing.favoritedBy = [{ userId: user._id, favoritedAt: new Date() }];
+      await listing.save();
+    }
+
+    // Now get the user's favorites
+    const filter = { "favoritedBy.userId": user._id };
 
     // Add optional filters
     const { status, propertyType } = req.query;
@@ -801,7 +812,7 @@ const myAllFavorites = async (req, res) => {
 
     const favorites = await Listing.find(filter)
       .populate("userId", "name email role")
-      .sort({ createdAt: -1 })
+      .sort({ "favoritedBy.favoritedAt": -1 })
       .skip(skip)
       .limit(limit);
 
@@ -810,7 +821,7 @@ const myAllFavorites = async (req, res) => {
     // Get comprehensive meta data like getAllListings
     const activeListings = await Listing.countDocuments({
       userId: user._id,
-      status: "active",
+      status: "verified",
     });
     const pendingListings = await Listing.countDocuments({
       userId: user._id,
@@ -848,12 +859,14 @@ const myAllFavorites = async (req, res) => {
         activeListings,
         pendingListings,
         propertyTypeStats,
+        fixedCount: favoritesToFix.length,
       },
       data: {
         listings: favorites,
       },
     });
   } catch (error) {
+    console.error("Error in myAllFavorites:", error);
     res.status(500).json({
       success: false,
       message: "Error retrieving user favorites",

@@ -37,6 +37,12 @@ const listingSchema = new mongoose.Schema({
     default: null,
   },
   isFavorite: { type: Boolean, default: false },
+  favoritedBy: [
+    {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      favoritedAt: { type: Date, default: Date.now },
+    },
+  ],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
