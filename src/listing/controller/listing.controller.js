@@ -771,40 +771,85 @@ const myAllFavorites = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const favorites = await Listing.find({ userId: user._id, isFavorite: true })
+    // Validate pagination parameters
+    if (isNaN(page) || page < 1) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Invalid page number",
+      });
+    }
+
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Invalid limit number (must be between 1 and 100)",
+      });
+    }
+
+    const filter = { userId: user._id, isFavorite: true };
+
+    // Add optional filters
+    const { status, propertyType } = req.query;
+    if (status) {
+      filter.status = status;
+    }
+    if (propertyType) {
+      filter.propertyType = propertyType;
+    }
+
+    const favorites = await Listing.find(filter)
       .populate("userId", "name email role")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Listing.countDocuments({
+    const total = await Listing.countDocuments(filter);
+
+    // Get comprehensive meta data like getAllListings
+    const activeListings = await Listing.countDocuments({
       userId: user._id,
-      isFavorite: true,
+      status: "active",
     });
+    const pendingListings = await Listing.countDocuments({
+      userId: user._id,
+      status: "pending",
+    });
+    const totalUserListings = await Listing.countDocuments({
+      userId: user._id,
+    });
+
+    // Get property type distribution for user's listings
+    const propertyTypeStats = await Listing.aggregate([
+      { $match: { userId: user._id } },
+      { $group: { _id: "$propertyType", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
 
     res.status(200).json({
       success: true,
       error: false,
       message: "User favorites retrieved successfully",
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+      meta: {
+        totalPage: Math.ceil(total / limit),
+        currentPage: page,
+        total,
+        limit,
+        totalFavorites: total,
+        totalUserListings,
+        favoriteRate:
+          totalUserListings > 0
+            ? ((total / totalUserListings) * 100).toFixed(2)
+            : 0,
+        activeListings,
+        pendingListings,
+        propertyTypeStats,
+      },
       data: {
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(total / limit),
-          total,
-          limit,
-        },
-        meta: {
-          totalFavorites: total,
-          totalListings: await Listing.countDocuments({ userId: user._id }),
-          favoriteRate:
-            (await Listing.countDocuments({ userId: user._id })) > 0
-              ? (
-                  (total /
-                    (await Listing.countDocuments({ userId: user._id }))) *
-                  100
-                ).toFixed(2)
-              : 0,
-        },
         listings: favorites,
       },
     });
