@@ -1207,22 +1207,57 @@ export const getPublicProfile = async (req, res) => {
 export const toggleFavorite = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await userModel.findById(userId);
-    if (!user) {
+    const currentUser = await userModel.findById(req.user._id);
+    const targetUser = await userModel.findById(userId);
+
+    if (!currentUser || !targetUser) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
-    user.isFavorite = !user.isFavorite;
-    await user.save({ validateBeforeSave: false });
-    res.status(200).json({
-      success: true,
-      message: "Favorite toggled successfully",
-      data: {
-        isFavorite: user.isFavorite,
-      },
-    });
+
+    // Prevent users from favoriting themselves
+    if (currentUser._id.toString() === targetUser._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot favorite yourself",
+      });
+    }
+
+    const isAlreadyFavorited = currentUser.favoriteList.some(
+      (id) => id.toString() === targetUser._id.toString(),
+    );
+
+    if (isAlreadyFavorited) {
+      // Remove from favorites
+      currentUser.favoriteList = currentUser.favoriteList.filter(
+        (id) => id.toString() !== targetUser._id.toString(),
+      );
+      await currentUser.save({ validateBeforeSave: false });
+
+      res.status(200).json({
+        success: true,
+        message: "User removed from favorites",
+        data: {
+          isFavorited: false,
+          user: targetUser,
+        },
+      });
+    } else {
+      // Add to favorites
+      currentUser.favoriteList.push(targetUser._id);
+      await currentUser.save({ validateBeforeSave: false });
+
+      res.status(200).json({
+        success: true,
+        message: "User added to favorites",
+        data: {
+          isFavorited: true,
+          user: targetUser,
+        },
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -1246,15 +1281,15 @@ export const myAllFavorites = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const favorites = await userModel
-      .find({ isFavorite: true })
+      .find({ _id: { $in: user.favoriteList } })
       .select(
-        "name email image role city country aboutMe averageRating totalReviews status isActive userName phone dateOfBirth gender state zipCode fullAddress listingsTotal dealsTotal completeDealsTotal collaborationsTotal responseRate avgResponseTime issn totalReviews status referralCount redeemStars nightCredits socialMediaLinks averageRating aboutMe isFavorite",
+        "name email image role city country aboutMe averageRating totalReviews status isActive userName phone dateOfBirth gender state zipCode fullAddress listingsTotal dealsTotal completeDealsTotal collaborationsTotal responseRate avgResponseTime issn totalReviews status referralCount redeemStars nightCredits socialMediaLinks averageRating aboutMe",
       )
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await userModel.countDocuments({ isFavorite: true });
+    const total = user.favoriteList.length;
 
     res.status(200).json({
       success: true,

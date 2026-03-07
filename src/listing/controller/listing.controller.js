@@ -7,6 +7,21 @@ import {
 import fs from "fs";
 import path from "path";
 import userModel from "../../auth/schema/auth.modal.js";
+import Collaboration from "../../collaboration/schema/collaboration.modal.js";
+
+// Helper function to get active collaborations count
+const getActiveCollaborationsCount = async (userId) => {
+  try {
+    const count = await Collaboration.countDocuments({
+      userId: userId,
+      status: { $ne: "deleted" },
+    });
+    return count;
+  } catch (error) {
+    console.error("Error getting active collaborations count:", error);
+    return 0;
+  }
+};
 
 const createListing = async (req, res) => {
   try {
@@ -118,10 +133,24 @@ const getAllListings = async (req, res) => {
     }
 
     const listings = await Listing.find(filter)
-      .populate("userId")
+      .populate(
+        "userId",
+        "-isFavorite -favorites -favoritedBy -collaborations -deals -redeemStars -password -confirmPassword -refreshToken",
+      )
+      .select("-isFavorite -favoritedBy")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip((pageNum - 1) * limitNum);
+
+    // Update collaborationsTotal for each user to show only active collaborations
+    for (let listing of listings) {
+      if (listing.userId) {
+        const activeCount = await getActiveCollaborationsCount(
+          listing.userId._id,
+        );
+        listing.userId.collaborationsTotal = activeCount;
+      }
+    }
 
     const total = await Listing.countDocuments(filter);
 
@@ -740,22 +769,45 @@ const toggleFavorite = async (req, res) => {
       });
     }
 
-    // Toggle favorite status
-    listing.isFavorite = !listing.isFavorite;
-    await listing.save();
+    const isAlreadyFavorited = listing.favoriteList.some(
+      (id) => id.toString() === user._id.toString(),
+    );
 
-    res.status(200).json({
-      success: true,
-      error: false,
-      message: "Listing removed from favorites",
-      data: {
-        listing,
-      },
-    });
+    if (isAlreadyFavorited) {
+      // Remove from favorites
+      listing.favoriteList = listing.favoriteList.filter(
+        (id) => id.toString() !== user._id.toString(),
+      );
+      await listing.save();
+
+      res.status(200).json({
+        success: true,
+        error: false,
+        message: "Listing removed from favorites",
+        data: {
+          isFavorited: false,
+          listing,
+        },
+      });
+    } else {
+      // Add to favorites
+      listing.favoriteList.push(user._id);
+      await listing.save();
+
+      res.status(200).json({
+        success: true,
+        error: false,
+        message: "Listing added to favorites",
+        data: {
+          isFavorited: true,
+          listing,
+        },
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error toggling favorite status",
+      message: "Error toggling favorite",
       error: error.message,
     });
   }
@@ -786,20 +838,8 @@ const myAllFavorites = async (req, res) => {
       });
     }
 
-    // Fix existing favorites: Find listings with isFavorite=true but no favoritedBy array
-    const favoritesToFix = await Listing.find({
-      isFavorite: true,
-      $or: [{ favoritedBy: { $exists: false } }, { favoritedBy: { $size: 0 } }],
-    });
-
-    // Add current user to favoritedBy for these listings (one-time fix)
-    for (const listing of favoritesToFix) {
-      listing.favoritedBy = [{ userId: user._id, favoritedAt: new Date() }];
-      await listing.save();
-    }
-
-    // Now get the user's favorites
-    const filter = { "favoritedBy.userId": user._id };
+    // Get the user's favorited listings
+    const filter = { favoriteList: user._id };
 
     // Add optional filters
     const { status, propertyType } = req.query;
@@ -812,7 +852,7 @@ const myAllFavorites = async (req, res) => {
 
     const favorites = await Listing.find(filter)
       .populate("userId", "name email role")
-      .sort({ "favoritedBy.favoritedAt": -1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
@@ -859,7 +899,6 @@ const myAllFavorites = async (req, res) => {
         activeListings,
         pendingListings,
         propertyTypeStats,
-        fixedCount: favoritesToFix.length,
       },
       data: {
         listings: favorites,

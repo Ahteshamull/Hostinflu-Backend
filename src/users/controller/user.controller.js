@@ -19,6 +19,7 @@ export const allUser = async (req, res) => {
 
     const users = await userModel
       .find(filter)
+      .select("-isFavorite")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });

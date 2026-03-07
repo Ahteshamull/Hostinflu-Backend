@@ -222,9 +222,10 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    isFavorite: {
-      type: Boolean,
-      default: false,
+    favoriteList: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
     },
     referralCode: { type: String, unique: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
