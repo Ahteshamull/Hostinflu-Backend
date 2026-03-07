@@ -36,11 +36,7 @@ const listingSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
-  favoriteList: {
-    type: [mongoose.Schema.Types.ObjectId],
-    ref: "Listing",
-    default: [],
-  },
+ 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },

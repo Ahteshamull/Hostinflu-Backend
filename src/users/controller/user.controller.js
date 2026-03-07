@@ -5,6 +5,12 @@ import Collaborations from "../../collaboration/schema/collaboration.modal.js";
 
 export const allUser = async (req, res) => {
   try {
+    // Log bearer token if present
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -19,7 +25,6 @@ export const allUser = async (req, res) => {
 
     const users = await userModel
       .find(filter)
-      .select("-isFavorite")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
@@ -81,26 +86,35 @@ export const singleUser = async (req, res) => {
       });
     }
 
+    /* =========================
+       1. Check Favorite
+    ========================= */
+
+    /* =========================
+       2. Validate Redeem Stars
+    ========================= */
+
     if (userData.redeemStars && userData.redeemStars.length > 0) {
       const validRedeemStars = [];
+
       for (const redeemStar of userData.redeemStars) {
         const collaborationExists = await Collaborations.exists({
           _id: redeemStar.collaborationId,
         });
+
         if (collaborationExists) {
           validRedeemStars.push(redeemStar);
         }
       }
 
-      // Update user with only valid redeemStars
       if (validRedeemStars.length !== userData.redeemStars.length) {
         await userModel.findByIdAndUpdate(id, {
           redeemStars: validRedeemStars,
         });
+
         userData.redeemStars = validRedeemStars;
       }
 
-      // Populate collaboration details for redeemStars
       userData.redeemStars = await Promise.all(
         userData.redeemStars.map(async (redeemStar) => {
           const collaboration = await Collaborations.findById(
@@ -142,57 +156,78 @@ export const singleUser = async (req, res) => {
       );
     }
 
-    // Filter out deleted deals and listings
+    /* =========================
+       3. Import Deal & Listing
+    ========================= */
+
     const Deal = (await import("../../deals/schema/deal.modal.js")).default;
     const Listing = (await import("../../listing/schema/listing.modal.js"))
       .Listing;
 
-    // Filter out deleted deals
+    /* =========================
+       4. Filter Deals
+    ========================= */
+
     let activeDeals = [];
+
     if (userData.deals && userData.deals.length > 0) {
       const existingDeals = await Deal.find({
         _id: { $in: userData.deals },
         status: { $ne: "rejected" },
       }).select("_id");
+
       activeDeals = existingDeals.map((deal) => deal._id.toString());
     }
 
-    // Filter out deleted listings
+    /* =========================
+       5. Filter Listings
+    ========================= */
+
     let activeListings = [];
+
     if (userData.listings && userData.listings.length > 0) {
       const existingListings = await Listing.find({
         _id: { $in: userData.listings },
         status: { $ne: "rejected" },
       }).select("_id");
+
       activeListings = existingListings.map((listing) =>
         listing._id.toString(),
       );
     }
 
-    // Get total listings count (including rejected)
+    /* =========================
+       6. Total Listings
+    ========================= */
+
     let totalListings = [];
+
     if (userData.listings && userData.listings.length > 0) {
       const allListings = await Listing.find({
         _id: { $in: userData.listings },
       }).select("_id");
+
       totalListings = allListings.map((listing) => listing._id.toString());
     }
 
-    // Calculate redeem stars from completed collaborations
-    let totalRedeemStars = 0;
+    /* =========================
+       7. Redeem Stars
+    ========================= */
+
     const userCompletedCollaborations = await Collaborations.find({
       status: "completed",
       $or: [{ userId: userData._id }, { selectInfluencerOrHost: userData._id }],
     });
 
-    totalRedeemStars = userCompletedCollaborations.reduce(
+    const totalRedeemStars = userCompletedCollaborations.reduce(
       (total, collab) => total + (collab.compensation?.numberOfNights || 0),
       0,
     );
 
     /* =========================
-       2. Collaboration Stats
+       8. Collaboration Stats
     ========================= */
+
     const collaborationStats = await Collaborations.aggregate([
       {
         $match: {
@@ -214,21 +249,8 @@ export const singleUser = async (req, res) => {
       },
     ]);
 
-    /* =========================
-       3. Completed Details
-    ========================= */
-    const completedCollaborations = await Collaborations.find({
-      status: "completed",
-      $or: [{ userId: userData._id }, { selectInfluencerOrHost: userData._id }],
-    })
-      .populate("selectInfluencerOrHost", "name email role")
-      .populate("userId", "name email role")
-      .select("status payment selectInfluencerOrHost userId");
-
-    /* =========================
-       4. Format Stats
-    ========================= */
     const stats = {};
+
     collaborationStats.forEach((stat) => {
       stats[stat._id] = {
         count: stat.count || 0,
@@ -248,25 +270,32 @@ export const singleUser = async (req, res) => {
     });
 
     /* =========================
-       5. Response
+       9. Response
     ========================= */
+
     return res.status(200).json({
       success: true,
       message: "User retrieved successfully",
       data: {
         ...userData.toObject(),
+
         deals: activeDeals,
         dealsTotal: activeDeals.length,
+
         listings: activeListings,
         listingsTotal: activeListings.length,
         totalListings: totalListings.length,
+
         collaborationsTotal: userData.collaborations
           ? userData.collaborations.length
           : 0,
+
         completeDealsTotal: userData.completeDeals
           ? userData.completeDeals.length
           : 0,
-        totalRedeemStars: totalRedeemStars,
+
+        totalRedeemStars,
+
         collaborationStats: {
           total: Object.values(stats).reduce(
             (sum, s) => sum + (s.count || 0),
