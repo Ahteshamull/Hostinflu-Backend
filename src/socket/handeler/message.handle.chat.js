@@ -3,6 +3,7 @@ import conversations from "../../conversition/schema/conversition.modal.js";
 import ConversationService from "../../conversition/service/conversition.service.js";
 import MessageService from "../../message/service/message.service.js";
 import { handleSingleSendMessage } from "./message.handler.js";
+import handleSeenMessage from "./handleSeenMessage.js";
 
 const handleChatEvents = async (io, socket, currentUserId) => {
   // Join conversation
@@ -28,7 +29,7 @@ const handleChatEvents = async (io, socket, currentUserId) => {
       // use ConversationService to fetch conversations
       const conversationsList = await ConversationService.getConversation(
         currentUserId,
-        query
+        query,
       );
       socket.emit("conversation-list", conversationsList);
     } catch (err) {
@@ -43,7 +44,7 @@ const handleChatEvents = async (io, socket, currentUserId) => {
       const query = { page, limit, sort };
       const result = await MessageService.findBySpecificConversationInDb(
         conversationId,
-        query
+        query,
       );
       socket.emit("message-page-result", { conversationId, ...result });
     } catch (err) {
@@ -63,7 +64,11 @@ const handleChatEvents = async (io, socket, currentUserId) => {
   });
 
   socket.on("single-chat-send-message", (data) =>
-    handleSingleSendMessage(io, socket, currentUserId, data)
+    handleSingleSendMessage(io, socket, currentUserId, data),
+  );
+
+  socket.on("seen-message", (data) =>
+    handleSeenMessage(io, socket, currentUserId, data.conversationId),
   );
 };
 

@@ -431,22 +431,38 @@ const get_all_conversations_for_user = async (userId, query) => {
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
     const conversationsList = await conversations.aggregate([
+      // Match conversations containing user
       {
         $match: {
           participants: userObjectId,
         },
       },
+      // Populate lastMessage first for sorting
       {
-        $sort: { updatedAt: -1 },
+        $lookup: {
+          from: "messages",
+          localField: "lastMessage",
+          foreignField: "_id",
+          as: "lastMessage",
+        },
       },
       {
-        $skip: skip,
+        $unwind: {
+          path: "$lastMessage",
+          preserveNullAndEmptyArrays: true,
+        },
       },
+      // Sort by seen status first (unread first), then updatedAt
       {
-        $limit: limit,
+        $sort: {
+          "lastMessage.seen": 1, // false (unread) comes first
+          updatedAt: -1,
+        },
       },
-
-      // 🔥 Remove logged-in user from participants
+      // Pagination
+      { $skip: skip },
+      { $limit: limit },
+      // Remove logged-in user from participants
       {
         $project: {
           participants: {
@@ -462,7 +478,6 @@ const get_all_conversations_for_user = async (userId, query) => {
           updatedAt: 1,
         },
       },
-
       // Populate participants
       {
         $lookup: {
@@ -472,23 +487,6 @@ const get_all_conversations_for_user = async (userId, query) => {
           as: "participants",
         },
       },
-
-      // Populate lastMessage
-      {
-        $lookup: {
-          from: "messages",
-          localField: "lastMessage",
-          foreignField: "_id",
-          as: "lastMessage",
-        },
-      },
-      {
-        $unwind: {
-          path: "$lastMessage",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
       // Select only needed participant fields
       {
         $project: {
