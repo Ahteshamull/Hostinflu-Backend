@@ -11,7 +11,8 @@ import {
   personalListingsGrowth,
   userPersonalVerifyListings,
   userTotalListings,
- 
+  createFavoriteListing,
+  getMyFavoriteListings,
 } from "../controller/listing.controller.js";
 import {
   authenticateToken,
@@ -96,6 +97,12 @@ router.get(
 
 // localhost:3000/api/v1/listing/user-total-listings/:userId
 router.get("/user-total-listings/:userId", userTotalListings);
+
+// localhost:3000/api/v1/listing/create-favorite/:listingId
+router.post("/create-favorite/:listingId", authenticateToken, createFavoriteListing);
+
+// localhost:3000/api/v1/listing/my-favorites
+router.get("/my-favorites", authenticateToken, getMyFavoriteListings);
 
 
 

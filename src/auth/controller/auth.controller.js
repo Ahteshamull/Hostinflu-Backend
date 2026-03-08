@@ -14,6 +14,7 @@ import Deal from "../../deals/schema/deal.modal.js";
 import Payment from "../../payment/schema/payment.modal.js";
 import Notification from "../../notification/schema/notification.modal.js";
 import Message from "../../message/schema/message.modal.js";
+import favoriteModel from "../schema/favorite.modal.js";
 
 export const createUser = async (req, res) => {
   // Handle form data where fields might be in different locations
@@ -1204,4 +1205,86 @@ export const getPublicProfile = async (req, res) => {
   }
 };
 
+export const createFavorite = async (req, res) => {
+  try {
+    // Get user ID from token
+    const userId = req.user?.id || req.user?._id;
+    // Get favorited user ID from request parameters
+    const { favoritedUserId } = req.params;
 
+    if (!userId || !favoritedUserId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "User authentication required and favorited user ID parameter is required",
+      });
+    }
+
+    // Check if already favorited
+    const existingFavorite = await favoriteModel.findOne({
+      myId: userId,
+      favoritedUserId,
+    });
+
+    if (existingFavorite) {
+      // Remove from favorites
+      await favoriteModel.deleteOne({ _id: existingFavorite._id });
+      res.status(200).json({
+        success: true,
+        message: "User removed from favorites successfully",
+      });
+    } else {
+      // Add to favorites
+      const favorite = new favoriteModel({
+        myId: userId,
+        favoritedUserId,
+      });
+
+      await favorite.save();
+      res.status(201).json({
+        success: true,
+        message: "User added to favorites successfully",
+        data: favorite,
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error toggling favorite",
+      error: error.message,
+    });
+  }
+};
+
+export const getMyFavoriteUsers = async (req, res) => {
+  try {
+    // Get user ID from token
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User authentication required",
+      });
+    }
+
+    // Get all favorite users
+    const favorites = await favoriteModel
+      .find({ myId: userId })
+      .populate("favoritedUserId");
+
+    res.status(200).json({
+      success: true,
+      message: "Favorite users retrieved successfully",
+      data: {
+        favorites,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving favorite users",
+      error: error.message,
+    });
+  }
+};

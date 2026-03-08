@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import userModel from "../../auth/schema/auth.modal.js";
 import Collaboration from "../../collaboration/schema/collaboration.modal.js";
+import FavoriteListing from "../schema/favorite.modal.js";
 
 // Helper function to get active collaborations count
 const getActiveCollaborationsCount = async (userId) => {
@@ -749,6 +750,103 @@ const userTotalListings = async (req, res) => {
   }
 };
 
+const createFavoriteListing = async (req, res) => {
+  try {
+    const { listingId } = req.params;
+    const userId = req.user?.id || req.user?._id;
+
+    if (!listingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Listing ID is required",
+      });
+    }
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Check if listing exists
+    const listing = await Listing.findById(listingId);
+    if (!listing) {
+      return res.status(404).json({
+        success: false,
+        message: "Listing not found",
+      });
+    }
+
+    // Check if user already favorited this listing
+    const existingFavorite = await FavoriteListing.findOne({
+      myId: userId,
+      favoriteListingId: listingId,
+    });
+
+    if (existingFavorite) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already favorited this listing",
+      });
+    }
+
+    // Create new favorite
+    const favorite = new FavoriteListing({
+      myId: userId,
+      favoriteListingId: listingId,
+    });
+
+    await favorite.save();
+
+    res.status(201).json({
+      success: true,
+      error: false,
+      message: "Listing favorited successfully",
+      data: favorite,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error favoriting listing",
+      error: error.message,
+    });
+  }
+};
+
+const getMyFavoriteListings = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Get all favorite listings
+    const favorites = await FavoriteListing.find({ myId: userId }).populate(
+      "favoriteListingId",
+    );
+
+    res.status(200).json({
+      success: true,
+      error: false,
+      message: "My favorite listings retrieved successfully",
+      data: favorites,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving my favorite listings",
+      error: error.message,
+    });
+  }
+};
+
 export {
   createListing,
   getAllListings,
@@ -759,6 +857,8 @@ export {
   adminAcceptListing,
   personalTotalListings,
   userTotalListings,
+  createFavoriteListing,
+  getMyFavoriteListings,
 };
 
 export { personalListingsGrowth, userPersonalVerifyListings };
