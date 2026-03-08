@@ -1273,12 +1273,23 @@ export const getMyFavoriteUsers = async (req, res) => {
       .find({ myId: userId })
       .populate("favoritedUserId");
 
+    // Extract user data and add isFavoritedByMe field
+    const favoriteUsers = favorites.map((fav) => {
+      const user = fav.favoritedUserId.toObject();
+      user.isFavoritedByMe = true;
+      return user;
+    });
+
     res.status(200).json({
       success: true,
       message: "Favorite users retrieved successfully",
-      data: {
-        favorites,
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalUsers: favoriteUsers.length,
+        limit: favoriteUsers.length,
       },
+      data: favoriteUsers,
     });
   } catch (error) {
     res.status(500).json({

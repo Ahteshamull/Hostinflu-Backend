@@ -2,13 +2,36 @@ import userModel from "../../auth/schema/auth.modal.js";
 import fs from "fs";
 import path from "path";
 import Collaborations from "../../collaboration/schema/collaboration.modal.js";
+import jwt from "jsonwebtoken";
+import favoriteModel from "../../auth/schema/favorite.modal.js";
 
 export const allUser = async (req, res) => {
   try {
     // Log bearer token if present
     const authHeader = req.headers.authorization;
+    let userFavorites = [];
+    let userId = null;
+
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
+
+      // Decode and log token payload
+      try {
+        const decoded = jwt.decode(token);
+
+        // Get user's favorite data
+        userId = decoded._id;
+        const favorites = await favoriteModel
+          .find({ myId: userId })
+          .populate("favoritedUserId", "_id");
+
+        // Extract favorited user IDs
+        userFavorites = favorites.map((fav) =>
+          fav.favoritedUserId._id.toString(),
+        );
+      } catch (decodeError) {
+        // Ignore token decoding errors
+      }
     }
 
     const page = parseInt(req.query.page) || 1;
@@ -29,6 +52,13 @@ export const allUser = async (req, res) => {
       .limit(limit)
       .sort({ createdAt: -1 });
 
+    // Add isFavoritedByMe field to each user
+    const usersWithFavoriteStatus = users.map((user) => {
+      const userObj = user.toObject();
+      userObj.isFavoritedByMe = userFavorites.includes(user._id.toString());
+      return userObj;
+    });
+
     const totalPages = Math.ceil(totalUsers / limit);
 
     return res.status(200).json({
@@ -40,7 +70,7 @@ export const allUser = async (req, res) => {
         totalUsers,
         limit,
       },
-      data: users,
+      data: usersWithFavoriteStatus,
     });
   } catch (error) {
     return res.status(500).json({
