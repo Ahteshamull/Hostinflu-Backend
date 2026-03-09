@@ -9,6 +9,7 @@ import path from "path";
 import userModel from "../../auth/schema/auth.modal.js";
 import Collaboration from "../../collaboration/schema/collaboration.modal.js";
 import FavoriteListing from "../schema/favorite.modal.js";
+import jwt from "jsonwebtoken";
 
 // Helper function to get active collaborations count
 const getActiveCollaborationsCount = async (userId) => {
@@ -19,7 +20,7 @@ const getActiveCollaborationsCount = async (userId) => {
     });
     return count;
   } catch (error) {
-    console.error("Error getting active collaborations count:", error);
+    // //
     return 0;
   }
 };
@@ -103,6 +104,37 @@ const getAllListings = async (req, res) => {
   try {
     const { currentPage = 1, limit = 10, status, propertyType } = req.query;
 
+    // Get user favorites from token if present
+    const authHeader = req.headers.authorization;
+    
+    let userFavoriteListings = [];
+    let userId = null;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+     
+
+      try {
+        const decoded = jwt.decode(token);
+
+
+        // Get user's favorite listings
+        userId = decoded._id;
+        const favorites = await FavoriteListing.find({ myId: userId }).populate(
+          "favoriteListingId",
+          "_id",
+        );
+     
+
+        // Extract favorited listing IDs
+        userFavoriteListings = favorites.map((fav) =>
+          fav.favoriteListingId._id.toString(),
+        );
+      } catch (decodeError) {
+        // Ignore token decoding errors
+      }
+    }
+
     // Convert to numbers and validate
     const pageNum = parseInt(currentPage, 10);
     const limitNum = parseInt(limit, 10);
@@ -153,6 +185,18 @@ const getAllListings = async (req, res) => {
       }
     }
 
+    // Add isFavoritedByMe field to each listing and remove unwanted fields
+    const listingsWithFavoriteStatus = listings.map((listing) => {
+      const listingObj = listing.toObject();
+      listingObj.isFavoritedByMe = userFavoriteListings.includes(
+        listing._id.toString(),
+      );
+      // Remove isFavorite and favoriteList fields
+      delete listingObj.isFavorite;
+      delete listingObj.favoriteList;
+      return listingObj;
+    });
+
     const total = await Listing.countDocuments(filter);
 
     // Get additional meta data
@@ -181,7 +225,7 @@ const getAllListings = async (req, res) => {
         limit: limitNum,
       },
       data: {
-        listings,
+        listings: listingsWithFavoriteStatus,
       },
     });
   } catch (error) {
@@ -765,7 +809,7 @@ const createFavoriteListing = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "User ID is required",
+        message: "User authentication required",
       });
     }
 
@@ -785,31 +829,30 @@ const createFavoriteListing = async (req, res) => {
     });
 
     if (existingFavorite) {
-      return res.status(400).json({
-        success: false,
-        message: "You have already favorited this listing",
+      // Remove from favorites
+      await FavoriteListing.deleteOne({ _id: existingFavorite._id });
+      res.status(200).json({
+        success: true,
+        message: "Listing removed from favorites successfully",
+      });
+    } else {
+      // Add to favorites
+      const favorite = new FavoriteListing({
+        myId: userId,
+        favoriteListingId: listingId,
+      });
+
+      await favorite.save();
+      res.status(201).json({
+        success: true,
+        message: "Listing added to favorites successfully",
+        data: favorite,
       });
     }
-
-    // Create new favorite
-    const favorite = new FavoriteListing({
-      myId: userId,
-      favoriteListingId: listingId,
-    });
-
-    await favorite.save();
-
-    res.status(201).json({
-      success: true,
-      error: false,
-      message: "Listing favorited successfully",
-      data: favorite,
-    });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: true,
-      message: "Error favoriting listing",
+      message: "Error toggling favorite listing",
       error: error.message,
     });
   }
@@ -822,7 +865,7 @@ const getMyFavoriteListings = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "User ID is required",
+        message: "User authentication required",
       });
     }
 
@@ -831,17 +874,28 @@ const getMyFavoriteListings = async (req, res) => {
       "favoriteListingId",
     );
 
+    // Extract listing data and add isFavoritedByMe field
+    const favoriteListings = favorites.map((fav) => {
+      const listing = fav.favoriteListingId.toObject();
+      listing.isFavoritedByMe = true;
+      return listing;
+    });
+
     res.status(200).json({
       success: true,
-      error: false,
-      message: "My favorite listings retrieved successfully",
-      data: favorites,
+      message: "Favorite listings retrieved successfully",
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalUsers: favoriteListings.length,
+        limit: favoriteListings.length,
+      },
+      data: favoriteListings,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: true,
-      message: "Error retrieving my favorite listings",
+      message: "Error retrieving favorite listings",
       error: error.message,
     });
   }

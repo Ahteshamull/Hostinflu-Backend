@@ -40,7 +40,7 @@ router.post(
 );
 
 // localhost:3000/api/v1/listing/all-listings
-router.get("/all-listings", getAllListings);
+router.get("/all-listings", authenticateToken, getAllListings);
 
 // localhost:3000/api/v1/listing/single-listing/:id
 router.get("/single-listing/:id", getSingleListing);
@@ -99,11 +99,13 @@ router.get(
 router.get("/user-total-listings/:userId", userTotalListings);
 
 // localhost:3000/api/v1/listing/create-favorite/:listingId
-router.post("/create-favorite/:listingId", authenticateToken, createFavoriteListing);
+router.post(
+  "/create-favorite/:listingId",
+  authenticateToken,
+  createFavoriteListing,
+);
 
 // localhost:3000/api/v1/listing/my-favorites
 router.get("/my-favorites", authenticateToken, getMyFavoriteListings);
-
-
 
 export default router;
