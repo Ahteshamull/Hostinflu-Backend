@@ -867,9 +867,12 @@ const getMyFavoriteListings = async (req, res) => {
     }
 
     // Get all favorite listings
-    const favorites = await FavoriteListing.find({ myId: userId }).populate(
-      "favoriteListingId",
-    );
+    const favorites = await FavoriteListing.find({ myId: userId }).populate({
+      path: "favoriteListingId",
+      populate: {
+        path: "userId",
+      },
+    });
 
     // Extract listing data and add isFavoritedByMe field
     const favoriteListings = favorites.map((fav) => {
