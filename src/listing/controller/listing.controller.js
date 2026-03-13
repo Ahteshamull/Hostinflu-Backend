@@ -106,17 +106,15 @@ const getAllListings = async (req, res) => {
 
     // Get user favorites from token if present
     const authHeader = req.headers.authorization;
-    
+
     let userFavoriteListings = [];
     let userId = null;
 
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
-     
 
       try {
         const decoded = jwt.decode(token);
-
 
         // Get user's favorite listings
         userId = decoded._id;
@@ -124,7 +122,6 @@ const getAllListings = async (req, res) => {
           "favoriteListingId",
           "_id",
         );
-     
 
         // Extract favorited listing IDs
         userFavoriteListings = favorites.map((fav) =>
@@ -890,7 +887,9 @@ const getMyFavoriteListings = async (req, res) => {
         totalUsers: favoriteListings.length,
         limit: favoriteListings.length,
       },
-      data: favoriteListings,
+      data: {
+        listings: favoriteListings,
+      },
     });
   } catch (error) {
     res.status(500).json({
