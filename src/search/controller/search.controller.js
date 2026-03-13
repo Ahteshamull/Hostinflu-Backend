@@ -54,7 +54,7 @@ const globalSearch = async (req, res) => {
 
     // Search Listings
     if (searchType === "all" || searchType === "listings") {
-      const listingFilter = {};
+      const listingFilter = { status: "verified" };
 
       if (query) {
         listingFilter.$or = [
@@ -222,7 +222,7 @@ const specificSearch = async (req, res) => {
 
     // 🏠 LISTINGS - search if collection is "listings" or "all"
     if (actualCollection === "listings" || actualCollection === "all") {
-      const listings = await Listing.find({})
+      const listings = await Listing.find({ status: "verified" })
         .populate("userId")
         .sort({ createdAt: -1 })
         .lean();
