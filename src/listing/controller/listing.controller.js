@@ -132,7 +132,7 @@ const getAllListings = async (req, res) => {
       }
     }
 
-    // Convert to numbers and validate
+
     const pageNum = parseInt(currentPage, 10);
     const limitNum = parseInt(limit, 10);
 
