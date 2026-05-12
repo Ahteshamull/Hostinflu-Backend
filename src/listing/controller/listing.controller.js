@@ -102,7 +102,13 @@ const createListing = async (req, res) => {
 
 const getAllListings = async (req, res) => {
   try {
-    const { currentPage = 1, limit = 10, status, propertyType } = req.query;
+    const {
+      currentPage = 1,
+      limit = 10,
+      status,
+      propertyType,
+      search,
+    } = req.query;
 
     // Get user favorites from token if present
     const authHeader = req.headers.authorization;
@@ -132,7 +138,6 @@ const getAllListings = async (req, res) => {
       }
     }
 
-
     const pageNum = parseInt(currentPage, 10);
     const limitNum = parseInt(limit, 10);
 
@@ -160,6 +165,15 @@ const getAllListings = async (req, res) => {
 
     if (propertyType) {
       filter.propertyType = propertyType;
+    }
+
+    // Add search functionality for city, country, and name
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { "location.city": { $regex: search, $options: "i" } },
+        { "location.country": { $regex: search, $options: "i" } },
+      ];
     }
 
     const listings = await Listing.find(filter)

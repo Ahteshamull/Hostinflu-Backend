@@ -37,11 +37,19 @@ export const allUser = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { role } = req.query;
+    const { role, search } = req.query;
 
     let filter = {};
     if (role) {
       filter.role = role;
+    }
+
+    // Add search functionality for name and email
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
     }
 
     const totalUsers = await userModel.countDocuments(filter);
@@ -65,7 +73,7 @@ export const allUser = async (req, res) => {
       success: true,
       message: "All users retrieved successfully",
       pagination: {
-        page: page,
+        currentPage: page,
         totalPages,
         totalUsers,
         limit,
