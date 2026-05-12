@@ -65,7 +65,7 @@ export const allUser = async (req, res) => {
       success: true,
       message: "All users retrieved successfully",
       pagination: {
-        currentPage: page,
+        page: page,
         totalPages,
         totalUsers,
         limit,
