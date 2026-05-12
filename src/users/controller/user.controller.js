@@ -783,15 +783,18 @@ export const deleteUser = async (req, res) => {
 export const discoverHost = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
+    const limitNum = parseInt(limit);
+    const pageNum = parseInt(page);
 
-    // Find only 4 hosts with their deals and count deals
+    // Find hosts with their deals and count deals
     const hosts = await userModel
       .find({ role: "host" })
-      .populate("deals") // Simple population without selectListing
-      .select("") // Select all fields to ensure we get all available data
-      .sort({ createdAt: -1 })
-      .limit(4) // Only 4 hosts
-      .skip((page - 1) * 4); // Skip based on 4 per page
+      .select(
+        "-redeemStars -deals -password -confirmPassword -refreshToken -__v",
+      ) // Exclude sensitive fields but keep listings and collaborations for sorting
+      .sort({ collaborationsTotal: -1, listingsTotal: -1, createdAt: -1 }) // Sort by collaborations, then listings, then creation date
+      .limit(limitNum)
+      .skip((pageNum - 1) * limitNum);
 
     // Add deal count to each host
     const hostsWithDealCount = await Promise.all(
@@ -801,8 +804,13 @@ export const discoverHost = async (req, res) => {
           .select("deals")
           .then((user) => (user ? user.deals.length : 0));
 
+        const hostObj = host.toObject();
+        // Remove listings and collaborations from final response
+        delete hostObj.listings;
+        delete hostObj.collaborations;
+
         return {
-          ...host.toObject(),
+          ...hostObj,
           dealCount,
         };
       }),
@@ -816,10 +824,10 @@ export const discoverHost = async (req, res) => {
       data: {
         hosts: hostsWithDealCount,
         pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(total / 4), // Fixed for 4 per page
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
           total,
-          limit: 4, // Fixed to 4
+          limit: limitNum,
         },
         metadata: {
           totalHosts: total,

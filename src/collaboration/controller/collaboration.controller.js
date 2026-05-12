@@ -107,10 +107,12 @@ export const createCollaboration = async (req, res) => {
 
     await userModel.findByIdAndUpdate(selectInfluencerOrHost, {
       $push: {
+        collaborations: savedCollaboration._id,
         redeemStars: {
           collaborationId: savedCollaboration._id,
         },
       },
+      $inc: { collaborationsTotal: 1 },
     });
 
     try {
