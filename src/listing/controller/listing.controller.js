@@ -103,7 +103,8 @@ const createListing = async (req, res) => {
 const getAllListings = async (req, res) => {
   try {
     const {
-      currentPage = 1,
+      page,
+      currentPage,
       limit = 10,
       status,
       propertyType,
@@ -138,7 +139,8 @@ const getAllListings = async (req, res) => {
       }
     }
 
-    const pageNum = parseInt(currentPage, 10);
+    const pageValue = page || currentPage || 1;
+    const pageNum = parseInt(pageValue, 10);
     const limitNum = parseInt(limit, 10);
 
     if (isNaN(pageNum) || pageNum < 1) {
@@ -250,10 +252,11 @@ const getAllListings = async (req, res) => {
 const getMyAllListings = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
-    const { currentPage = 1, limit = 10, status } = req.query;
+    const { page, currentPage, limit = 10, status } = req.query;
+    const pageValue = page || currentPage || 1;
 
     // Convert to numbers and validate
-    const pageNum = parseInt(currentPage, 10);
+    const pageNum = parseInt(pageValue, 10);
     const limitNum = parseInt(limit, 10);
 
     if (isNaN(pageNum) || pageNum < 1) {
