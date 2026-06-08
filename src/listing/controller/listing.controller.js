@@ -173,8 +173,7 @@ const getAllListings = async (req, res) => {
     if (search) {
       filter.$or = [
         { title: { $regex: search, $options: "i" } },
-        { "location.city": { $regex: search, $options: "i" } },
-        { "location.country": { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
       ];
     }
 
