@@ -688,8 +688,8 @@ const userPersonalVerifyListings = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
 
     // Convert pagination parameters
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
     const skip = (pageNum - 1) * limitNum;
 
     // Build filter
@@ -758,10 +758,17 @@ const userTotalListings = async (req, res) => {
       });
     }
 
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
     // Get only verified listings
     const listings = await Listing.find({ userId, status: "verified" })
       .populate("userId", "name email role")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
 
     // Get counts for meta information
     const totalUserListings = await Listing.countDocuments({ userId });
@@ -782,10 +789,10 @@ const userTotalListings = async (req, res) => {
       success: true,
       error: false,
       message: "User listings retrieved successfully",
-      totalPages: 1,
-      currentPage: 1,
-      limit: listings.length,
-      total: listings.length,
+      totalPages: Math.ceil(verifiedListings / limitNum),
+      currentPage: pageNum,
+      limit: limitNum,
+      total: verifiedListings,
       meta: {
         totalUserListings,
         verifiedListings,
@@ -883,13 +890,24 @@ const getMyFavoriteListings = async (req, res) => {
       });
     }
 
-    // Get all favorite listings
-    const favorites = await FavoriteListing.find({ myId: userId }).populate({
-      path: "favoriteListingId",
-      populate: {
-        path: "userId",
-      },
-    });
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count
+    const totalFavorites = await FavoriteListing.countDocuments({ myId: userId });
+
+    // Get all favorite listings with pagination
+    const favorites = await FavoriteListing.find({ myId: userId })
+      .skip(skip)
+      .limit(limitNum)
+      .populate({
+        path: "favoriteListingId",
+        populate: {
+          path: "userId",
+        },
+      });
 
     // Extract listing data and add isFavoritedByMe field
     const favoriteListings = favorites.map((fav) => {
@@ -902,10 +920,10 @@ const getMyFavoriteListings = async (req, res) => {
       success: true,
       message: "Favorite listings retrieved successfully",
       pagination: {
-        currentPage: 1,
-        totalPages: 1,
-        totalUsers: favoriteListings.length,
-        limit: favoriteListings.length,
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalFavorites / limitNum),
+        totalUsers: totalFavorites,
+        limit: limitNum,
       },
       data: {
         listings: favoriteListings,
