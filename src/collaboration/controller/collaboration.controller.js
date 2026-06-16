@@ -1735,7 +1735,7 @@ export const acceptOrRejectCollaboration = async (req, res) => {
 export const getCollaborationsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { status } = req.query;
+    const { status, page = 1, limit = 10 } = req.query;
 
     if (!userId) {
       return res.status(400).json({
@@ -1743,6 +1743,15 @@ export const getCollaborationsByUser = async (req, res) => {
         message: "User ID is required",
       });
     }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1) {
+      return res.status(400).json({ success: false, message: "Invalid pagination parameters" });
+    }
+
+    const skip = (pageNum - 1) * limitNum;
 
     // Build filter based on status
     const filter = {
@@ -1777,13 +1786,24 @@ export const getCollaborationsByUser = async (req, res) => {
       .select(
         "selectDeal description addAirbnbLink inTimeAndDate outTimeAndDate compensation guestCount deliverables status negotiationStatus paymentStatus socialMediaLinks negotiationMessage",
       )
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    const total = await Collaborations.countDocuments(filter);
 
     return res.status(200).json({
       success: true,
       message: `Collaborations${status ? ` with status '${status}'` : ""} retrieved successfully`,
-      count: collaborations.length,
-      data: collaborations,
+      data: {
+        collaborations,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          total,
+          limit: limitNum,
+        },
+      },
       status: status || "all",
     });
   } catch (error) {

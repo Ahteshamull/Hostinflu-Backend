@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Payment from "../../payment/schema/payment.modal.js";
 
 // Admin function - only admin and super admin can see all earnings
@@ -223,6 +224,103 @@ export const getSingleEarning = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error getting single earning",
+      error: error.message,
+    });
+  }
+};
+
+// Get Influencer earning growth
+export const influencerEarningGrowth = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User authentication required",
+      });
+    }
+
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31);
+
+    // Get total earnings for the influencer
+    const totalEarnings = await Payment.aggregate([
+      {
+        $match: {
+          selectInfluencerOrHost: new mongoose.Types.ObjectId(userId),
+          status: "SUCCESS"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $ifNull: ["$influencerAmount", { $ifNull: ["$influencer_amount", "$amount"] }] } }
+        }
+      }
+    ]);
+
+    // Get monthly earnings trend for the specific year
+    const monthlyEarnings = await Payment.aggregate([
+      {
+        $match: {
+          selectInfluencerOrHost: new mongoose.Types.ObjectId(userId),
+          status: "SUCCESS",
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          amount: { $sum: { $ifNull: ["$influencerAmount", { $ifNull: ["$influencer_amount", "$amount"] }] } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Initialize 12 months data
+    const monthlyData = [];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    for (let i = 1; i <= 12; i++) {
+      const monthData = monthlyEarnings.find((item) => item._id === i);
+      monthlyData.push({
+        month: months[i - 1],
+        monthNumber: i,
+        amount: monthData ? monthData.amount : 0,
+        count: monthData ? monthData.count : 0,
+      });
+    }
+
+    // Get detailed payment history
+    const earningsHistory = await Payment.find({
+      selectInfluencerOrHost: userId,
+      status: "SUCCESS"
+    })
+      .populate("title", "description status payment") // Populate collaboration details
+      .populate("userId", "name email image") // Populate host details
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Influencer earning growth retrieved successfully",
+      data: {
+        year,
+        totalEarnings: totalEarnings[0]?.total || 0,
+        monthlyData,
+        earningsHistory,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting influencer earning growth:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error getting influencer earning growth",
       error: error.message,
     });
   }

@@ -2,6 +2,7 @@ import express from "express";
 import {
   totalEarning,
   getSingleEarning,
+  influencerEarningGrowth
 } from "../controller/earning.controller.js";
 import {
   authenticateToken,
@@ -24,6 +25,12 @@ router.get(
   authenticateToken,
   requireSuperAdminOrAdminRole,
   getSingleEarning,
+);
+
+router.get(
+  "/influencer-growth",
+  authenticateToken,
+  influencerEarningGrowth
 );
 
 export default router;

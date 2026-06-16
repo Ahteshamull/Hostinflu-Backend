@@ -347,29 +347,35 @@ export const webhook = async (req, res) => {
         if (payment) {
           console.log("✅ Payment found:", payment._id);
 
-          // Update payment status and payment intent ID
-          await Payment.findByIdAndUpdate(payment._id, {
-            status: "IN_PROGRESS", // payment amount hold in platform account
-            paymentIntentId: session.payment_intent,
-          });
+          if (payment.status !== "IN_PROGRESS") {
+            const intentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+            
+            // Update payment status and payment intent ID
+            await Payment.findByIdAndUpdate(payment._id, {
+              status: "IN_PROGRESS", // payment amount hold in platform account
+              paymentIntentId: intentId,
+            });
 
-          console.log("✅ Payment status updated to IN_PROGRESS");
+            console.log("✅ Payment status updated to IN_PROGRESS");
 
-          // Update collaboration payment status and status
-          const updatedCollab = await Collaborations.findByIdAndUpdate(
-            payment.title,
-            {
-              paymentStatus: "in_progress",
-              status: "ongoing",
-            },
-            { new: true },
-          );
+            // Update collaboration payment status and status
+            const updatedCollab = await Collaborations.findByIdAndUpdate(
+              payment.title,
+              {
+                paymentStatus: "in_progress",
+                status: "ongoing",
+              },
+              { new: true },
+            );
 
-          console.log("✅ Collaboration updated:", {
-            id: updatedCollab._id,
-            status: updatedCollab.status,
-            paymentStatus: updatedCollab.paymentStatus,
-          });
+            console.log("✅ Collaboration updated:", {
+              id: updatedCollab?._id,
+              status: updatedCollab?.status,
+              paymentStatus: updatedCollab?.paymentStatus,
+            });
+          } else {
+             console.log("✅ Payment already IN_PROGRESS, skipping duplicate update");
+          }
         } else {
           console.log("❌ Payment not found for session:", session.id);
         }
@@ -489,6 +495,7 @@ export const capturePayment = async (req, res) => {
     // Find payment with collaboration details
     const payment = await Payment.findById(paymentId)
       .populate("userId")
+      .populate("selectInfluencerOrHost")
       .populate({
         path: "title",
         populate: ["userId", "selectInfluencerOrHost"],
@@ -556,13 +563,19 @@ export const capturePayment = async (req, res) => {
       });
     }
 
-    // For now, we'll just mark as paid and calculate amounts
-    // await stripe.transfers.create({
-    //   amount: influencerAmount,
-    //   currency: "usd",
-    //   destination: influencerStripeAccountId,
-    //   source_transaction: chargeId,
-    // });
+    // Transfer funds to the influencer's Stripe account
+    const influencerStripeAccountId = payment.selectInfluencerOrHost?.stripeAccountId;
+    
+    if (influencerStripeAccountId) {
+      await stripe.transfers.create({
+        amount: influencerAmount,
+        currency: "usd",
+        destination: influencerStripeAccountId,
+        source_transaction: typeof chargeId === 'string' ? chargeId : chargeId?.id,
+      });
+    } else {
+      console.warn("Influencer does not have a connected Stripe account. Transfer skipped.");
+    }
 
     // Update payment status and amounts
     await Payment.findByIdAndUpdate(paymentId, {
@@ -671,13 +684,20 @@ export const getUserPayments = async (req, res) => {
       filter.status = status.toUpperCase();
     }
 
-    const skip = (page - 1) * limit;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1) {
+      return res.status(400).json({ success: false, message: "Invalid pagination parameters" });
+    }
+
+    const skip = (pageNum - 1) * limitNum;
 
     const payments = await Payment.find(filter)
       .populate("title", "status payment")
       .populate("userId", "name email")
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
+      .limit(limitNum)
       .skip(skip);
 
     const total = await Payment.countDocuments(filter);
@@ -688,10 +708,10 @@ export const getUserPayments = async (req, res) => {
       data: {
         payments,
         pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(total / limit),
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
           total,
-          limit: parseInt(limit),
+          limit: limitNum,
         },
       },
     });

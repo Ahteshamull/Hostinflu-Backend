@@ -1,0 +1,162 @@
+# Hostinflu - Project Architecture and Flow
+
+## 1. Introduction
+Hostinflu is a Node.js/Express.js backend application serving as a platform that handles users, hosts, property listings, and various interactions (collaborations, messages, bookings/deals). It uses MongoDB (via Mongoose) as its database.
+
+## 2. Server Initialization Flow (`src/index.js`)
+1. **Environment Setup**: `dotenv` loads environment variables.
+2. **Express & Server Config**: Express app is initialized, and an HTTP server is created using `http.createServer(app)`.
+3. **Socket.IO**: Real-time capabilities are initialized via `initializeSocket(server)`.
+4. **Middleware Configuration**:
+   - CORS is enabled.
+   - Raw JSON parsing for specific routes like `/api/v1/payment/webhook` (Stripe).
+   - Standard `express.json()` and `express.urlencoded()` parsers.
+   - `cookie-parser` for cookie handling.
+   - Static folder `/uploads` is exposed.
+5. **Routing**: Main API router from `src/api/index.js` is mounted.
+6. **Database Connection**: `dbConnect()` is called to establish a MongoDB connection.
+7. **Listening**: The server starts listening on the configured PORT (default 5000).
+
+## 3. API Routing Flow (`src/api/index.js`)
+The root API path is typically `/api/v1`. The main router registers several feature-specific modules:
+- `/auth`: Authentication (login, register, tokens).
+- `/users`: User profile management.
+- `/admin`: Admin operations (super admin, verify listings, etc.).
+- `/listing`: Property listings CRUD and searching.
+- `/contact`: Contact forms/messages.
+- `/notification`: System notifications.
+- `/search`: Search functionality.
+- `/deals`: Booking and deal management.
+- `/collaboration`: Host/Influencer collaborations.
+- `/message`: Chat/Messaging system.
+- `/dashboard`: Analytics and dashboard statistics.
+- `/redeem`, `/referral`, `/gift`, `/earning`: Rewards and monetization modules.
+- `/payment`, `/Transactions`: Stripe payments and transaction history.
+- `/review`, `/faq`, `/report`, `/calender`, `/legalDoc`: Miscellaneous features.
+- **Fallback**: A 404 handler for unmatched routes.
+
+## 4. Module Structure (Example: `admin` & `listing`)
+Each module in `src/` generally follows a standard structure:
+* **`routes/index.js`**: Defines the endpoint paths and connects them to controller functions. Contains middleware for authentication (`authenticateToken`, `superAdminMiddleware`) and file uploads (`upload.single()`).
+* **`controller/`**: Contains the business logic for the endpoints (e.g., `listing.controller.js`). Handles request parsing, database operations via Mongoose models, and sending JSON responses.
+* **`schema/` or `model/`**: Mongoose models defining the database schemas (e.g., `Listing`, `User`).
+* **`service/`**: (Sometimes present) Reusable business logic or external integrations.
+
+## 5. Key Workflows
+
+### Authentication Flow
+1. Users/Admins register or login through `/auth` or `/admin` routes.
+2. Passwords are encrypted (bcrypt).
+3. JWT tokens are generated and sent back to the client.
+4. Protected routes use `authenticateToken` middleware to verify the JWT from the `Authorization` header.
+
+### Listing Creation & Verification Flow
+1. **Creation**: An authenticated user submits a listing via `POST /api/v1/listing/create-listing` (multipart form-data for images).
+2. **Database Update**: The listing is saved with a status of `pending`. The user's document is updated with the listing reference.
+3. **Notification**: Admin receives a notification about the new listing.
+4. **Verification**: Admin reviews the listing and calls `PUT /api/v1/listing/admin-accept-listing/:id` to set status to `verified` or `rejected`.
+5. **Notification**: The listing owner is notified of the decision.
+
+### Real-time Communication
+- Socket.IO is integrated to handle live updates, likely for the `/message` (chat) and `/notification` modules, allowing instant communication between users.
+
+### File Uploads
+- Handled locally using `multer` middleware. Images are stored in the `uploads/` directory and served statically.
+
+## 6. Technology Stack
+- **Core**: Node.js, Express.js
+- **Database**: MongoDB, Mongoose
+- **Authentication**: JWT (JSON Web Tokens), bcrypt
+- **Real-time**: Socket.IO
+- **Payments**: Stripe (`stripe` SDK)
+- **File Uploads**: Multer
+- **Email**: Nodemailer
+
+
+
+
+
+Hostinflu Payment Flow & APIs
+This document outlines the end-to-end payment flow using Stripe in the Hostinflu application and lists all the relevant APIs.
+
+🔄 End-to-End Payment Flow
+The payment system in Hostinflu uses Stripe Connect and Manual Capture (Hold and Release) to safely manage funds between Hosts, Influencers, and the Platform.
+
+1. Influencer Stripe Onboarding
+Before an influencer can receive money, they must connect a Stripe account.
+
+API Used: POST /api/v1/payment/stripe-account-onboarding
+Flow:
+If the user doesn't have a Stripe account, an Express account is created for them.
+A Stripe onboarding link is generated and returned to the frontend.
+The user goes to Stripe, completes KYC, and is redirected back to the platform.
+Once verified, their isStripeConnected flag becomes true.
+2. Host Initiates Payment (Holding Funds)
+When a Host wants to pay for a collaboration, they initiate a Checkout Session.
+
+API Used: POST /api/v1/payment/checkout-session/:collaborationId
+Flow:
+System checks the compensation amount from the collaboration.
+Creates a Stripe Checkout Session where capture_method: "manual". This means the Host's card will be pre-authorized (funds held), but the money won't move yet.
+A Payment document is created in the database with status PENDING.
+The Host completes the payment on the Stripe checkout page.
+3. Stripe Webhook (Confirming the Hold)
+Stripe notifies the backend that the Host has successfully authorized the payment.
+
+API Used: POST /api/v1/payment/webhook (Automatically called by Stripe)
+Flow:
+Catches the checkout.session.completed event.
+Finds the Payment via sessionId and updates the status to IN_PROGRESS (meaning funds are currently held).
+Updates the Collaboration status to ongoing and paymentStatus to in_progress.
+4. Releasing Funds to Influencer (Capture & Transfer)
+Once the collaboration work is completed, the Host releases the held funds.
+
+API Used: POST /api/v1/payment/capture/:paymentId
+Flow:
+Verifies the collaboration is completed.
+Calculates the split: 10% Platform Fee goes to the Admin, and 90% goes to the Influencer.
+Calls Stripe to capture the previously held Payment Intent.
+Instantly calls stripe.transfers.create to send the 90% share to the influencerStripeAccountId.
+Updates Payment status to SUCCESS and records adminAmount and influencerAmount.
+🛠️ Complete API List
+Base URL: /api/v1/payment
+
+1. Stripe Onboarding
+POST /stripe-account-onboarding
+
+Auth: Required (Host or Influencer)
+Purpose: Creates or retrieves Stripe Express account link for the user.
+Response: Returns onboardingLink and account status.
+2. Create Checkout Session
+POST /checkout-session/:collaborationId
+
+Auth: Required (Host Only)
+Body: { "description": "Optional payment info" }
+Purpose: Starts the payment process for a collaboration.
+Response: Returns checkoutUrl to redirect the user to Stripe.
+3. Stripe Webhook
+POST /webhook
+
+Auth: None (Stripe Signature verified via raw body)
+Purpose: Listens to Stripe events (checkout.session.completed, payment_intent.payment_failed, etc.) and automatically updates DB statuses.
+4. Capture Payment (Release Funds)
+POST /capture/:paymentId
+
+Auth: Required (Host Only - must be the creator of the collaboration)
+Purpose: Captures the held funds, takes a 10% platform commission, and transfers the rest to the influencer. Updates DB status to SUCCESS.
+5. Check Payment Status
+GET /status/:paymentId
+
+Auth: Required (Must own the payment)
+Purpose: Returns the current status of a specific payment (PENDING, IN_PROGRESS, SUCCESS, etc.).
+6. Get User Payments History
+GET /my-payments?page=1&limit=10&status=SUCCESS
+
+Auth: Required
+Query Params: page, limit, status (optional)
+Purpose: Returns a paginated list of all payments made or received by the logged-in user.
+7. User Spending Growth (Analytics)
+GET /user-spending-growth?year=2024
+
+Auth: Required
+Purpose: Returns the Host's total spending and month-by-month spending data for the dashboard charts.
