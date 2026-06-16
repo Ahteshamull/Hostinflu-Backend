@@ -169,7 +169,7 @@ const getAllListings = async (req, res) => {
       filter.propertyType = propertyType;
     }
 
-    // Add search functionality for city, country, and name
+    
     if (search) {
       filter.$or = [
         { title: { $regex: search, $options: "i" } },
