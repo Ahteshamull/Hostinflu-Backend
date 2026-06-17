@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Chat Demo</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+        .container { display: flex; gap: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex: 1; }
+        .log-box { height: 400px; overflow-y: auto; background: #222; color: #0f0; padding: 10px; font-family: monospace; border-radius: 4px; margin-top: 10px; }
+        input, button { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .message-incoming { color: #f0a; }
+        .message-outgoing { color: #0ff; }
+        .system-msg { color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h2>Elena Backend - Chat Demo</h2>
+    
+    <div class="container">
+        <!-- Connection Panel -->
+        <div class="panel">
+            <h3>1. Connect</h3>
+            <label>Your User ID (Must be valid Host/Influencer ID):</label>
+            <input type="text" id="userId" placeholder="Enter your MongoDB User ID...">
+            
+            <label>Backend URL:</label>
+            <input type="text" id="serverUrl" value="http://localhost:3000">
+
+            <button id="connectBtn" onclick="connectSocket()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnectSocket()" style="display: none; background: #dc3545;">Disconnect</button>
+            
+            <div id="status" style="margin-top: 10px; font-weight: bold; color: red;">Disconnected</div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="panel">
+            <h3>2. Send Message</h3>
+            <label>Receiver User ID:</label>
+            <input type="text" id="receiverId" placeholder="Enter receiver MongoDB ID...">
+
+            <label>Message Text:</label>
+            <input type="text" id="messageText" placeholder="Type a message...">
+
+            <button onclick="sendMessage()">Send Message</button>
+            <button onclick="getConversations()" style="background: #28a745;">Load Conversations</button>
+
+            <!-- Optional: Join specific conversation -->
+            <hr>
+            <label>Join Conversation ID (Optional):</label>
+            <input type="text" id="conversationId" placeholder="Enter conversation ID...">
+            <button onclick="joinConversation()" style="background: #17a2b8;">Join Room</button>
+        </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="panel" style="margin-top: 20px;">
+        <h3>Event Logs</h3>
+        <div class="log-box" id="logBox"></div>
+    </div>
+
+    <script>
+        let socket;
+
+        function log(msg, type = "system-msg") {
+            const box = document.getElementById('logBox');
+            const time = new Date().toLocaleTimeString();
+            box.innerHTML += `<div class="${type}">[${time}] ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function connectSocket() {
+            const userId = document.getElementById('userId').value.trim();
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+
+            if (!userId) {
+                alert("Please enter Your User ID");
+                return;
+            }
+
+            log(`Connecting to ${serverUrl} as User: ${userId}...`);
+
+            socket = io(serverUrl, {
+                query: { userId: userId }, // The backend accepts `userId` or `id`
+                transports: ["websocket", "polling"]
+            });
+
+            socket.on("connect", () => {
+                log(`Connected successfully! Socket ID: ${socket.id}`, 'system-msg');
+                document.getElementById('status').innerText = "Connected";
+                document.getElementById('status').style.color = "green";
+                document.getElementById('connectBtn').style.display = "none";
+                document.getElementById('disconnectBtn').style.display = "block";
+            });
+
+            socket.on("disconnect", () => {
+                log("Disconnected from server", 'system-msg');
+                document.getElementById('status').innerText = "Disconnected";
+                document.getElementById('status').style.color = "red";
+                document.getElementById('connectBtn').style.display = "block";
+                document.getElementById('disconnectBtn').style.display = "none";
+            });
+
+            // Listen to various backend events
+            socket.on("auth-error", (data) => log(`Auth Error: ${JSON.stringify(data)}`, 'system-msg'));
+            socket.on("socket-error", (data) => log(`Socket Error: ${JSON.stringify(data)}`, 'system-msg'));
+
+            socket.on("single-message-sent", (data) => log(`Message Sent Ack: ${JSON.stringify(data)}`, 'message-outgoing'));
+            socket.on("new-message", (data) => log(`New Message in Room: ${JSON.stringify(data)}`, 'message-incoming'));
+            socket.on("new-message-notification", (data) => log(`New Notification: ${JSON.stringify(data)}`, 'message-incoming'));
+            
+            socket.on("conversation-list", (data) => log(`Conversations: ${JSON.stringify(data)}`, 'system-msg'));
+            socket.on("message-page-result", (data) => log(`Messages: ${JSON.stringify(data)}`, 'system-msg'));
+            socket.on("user-typing", (data) => log(`User typing: ${JSON.stringify(data)}`, 'system-msg'));
+            socket.on("messages-seen", (data) => log(`Messages Seen: ${JSON.stringify(data)}`, 'system-msg'));
+        }
+
+        function disconnectSocket() {
+            if (socket) {
+                socket.disconnect();
+            }
+        }
+
+        function sendMessage() {
+            if (!socket || !socket.connected) {
+                alert("Please connect first!");
+                return;
+            }
+
+            const receiverId = document.getElementById('receiverId').value.trim();
+            const text = document.getElementById('messageText').value.trim();
+
+            if (!receiverId || !text) {
+                alert("Please enter Receiver ID and Message");
+                return;
+            }
+
+            const payload = {
+                receiverId: receiverId,
+                text: text
+            };
+
+            log(`Sending: ${JSON.stringify(payload)}`, 'message-outgoing');
+            socket.emit("single-chat-send-message", payload);
+            
+            document.getElementById('messageText').value = ""; // Clear input
+        }
+
+        function getConversations() {
+            if (!socket || !socket.connected) return alert("Connect first!");
+            log("Requesting conversations list...");
+            socket.emit("get-conversations", { page: 1, limit: 10 });
+        }
+
+        function joinConversation() {
+            if (!socket || !socket.connected) return alert("Connect first!");
+            const conversationId = document.getElementById('conversationId').value.trim();
+            if(!conversationId) return alert("Enter conversation ID");
+            
+            log(`Joining conversation room: ${conversationId}`);
+            socket.emit("join-conversation", { conversationId });
+        }
+    </script>
+</body>
+</html>
