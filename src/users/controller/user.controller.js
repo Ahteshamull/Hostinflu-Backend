@@ -152,46 +152,6 @@ export const singleUser = async (req, res) => {
 
         userData.redeemStars = validRedeemStars;
       }
-
-      userData.redeemStars = await Promise.all(
-        userData.redeemStars.map(async (redeemStar) => {
-          const collaboration = await Collaborations.findById(
-            redeemStar.collaborationId,
-          )
-            .populate("userId", "name email role")
-            .populate("selectInfluencerOrHost", "name email role");
-
-          return {
-            ...redeemStar.toObject(),
-            collaboration: collaboration
-              ? {
-                  _id: collaboration._id,
-                  status: collaboration.status,
-                  numberOfNights:
-                    collaboration.compensation?.numberOfNights || 0,
-                  payment: collaboration.payment,
-                  createdAt: collaboration.createdAt,
-                  creator: collaboration.userId
-                    ? {
-                        _id: collaboration.userId._id,
-                        name: collaboration.userId.name,
-                        email: collaboration.userId.email,
-                        role: collaboration.userId.role,
-                      }
-                    : null,
-                  target: collaboration.selectInfluencerOrHost
-                    ? {
-                        _id: collaboration.selectInfluencerOrHost._id,
-                        name: collaboration.selectInfluencerOrHost.name,
-                        email: collaboration.selectInfluencerOrHost.email,
-                        role: collaboration.selectInfluencerOrHost.role,
-                      }
-                    : null,
-                }
-              : null,
-          };
-        }),
-      );
     }
 
     /* =========================
@@ -222,15 +182,36 @@ export const singleUser = async (req, res) => {
     ========================= */
 
     let activeListings = [];
+    let verifiedListings = [];
 
     if (userData.listings && userData.listings.length > 0) {
       const existingListings = await Listing.find({
         _id: { $in: userData.listings },
         status: { $ne: "rejected" },
-      }).select("_id");
+      }).select("_id status");
 
       activeListings = existingListings.map((listing) =>
         listing._id.toString(),
+      );
+
+      verifiedListings = existingListings
+        .filter((listing) => listing.status === "verified")
+        .map((listing) => listing._id.toString());
+    }
+
+    /* =========================
+       5.5. Filter Collaborations
+    ========================= */
+
+    let activeCollaborations = [];
+
+    if (userData.collaborations && userData.collaborations.length > 0) {
+      const existingCollaborations = await Collaborations.find({
+        _id: { $in: userData.collaborations },
+      }).select("_id");
+
+      activeCollaborations = existingCollaborations.map((collab) =>
+        collab._id.toString(),
       );
     }
 
@@ -311,22 +292,26 @@ export const singleUser = async (req, res) => {
        9. Response
     ========================= */
 
+    const responseData = userData.toObject();
+    delete responseData.redeemStars; // Removed to prevent too much data being sent
+
     return res.status(200).json({
       success: true,
       message: "User retrieved successfully",
       data: {
-        ...userData.toObject(),
+        ...responseData,
 
         deals: activeDeals,
         dealsTotal: activeDeals.length,
 
         listings: activeListings,
         listingsTotal: activeListings.length,
+        verifiedListings,
+        verifiedListingsTotal: verifiedListings.length,
         totalListings: totalListings.length,
 
-        collaborationsTotal: userData.collaborations
-          ? userData.collaborations.length
-          : 0,
+        collaborations: activeCollaborations,
+        collaborationsTotal: activeCollaborations.length,
 
         completeDealsTotal: userData.completeDeals
           ? userData.completeDeals.length
