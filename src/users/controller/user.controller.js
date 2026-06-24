@@ -852,7 +852,7 @@ export const topInfluencer = async (req, res) => {
     const influencers = await userModel
       .find({ role: "influencer" })
       .populate("collaborations") // Simple population without selectListing
-      .select("") // Select all fields
+      .select("-password -confirmPassword -refreshToken") // Exclude sensitive fields
       .sort({ collaborationsTotal: -1 })
       .limit(limit)
       .skip((page - 1) * limit);

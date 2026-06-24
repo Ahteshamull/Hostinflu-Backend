@@ -148,10 +148,10 @@ export const createUser = async (req, res) => {
         // Send notification to admin about new user registration
         await notifyAdminOnUserCreated(user._id, user.name, user.email);
 
-        // Populate user data with all information
+        // Populate user data with all information except credentials
         const populatedUser = await userModel
           .findById(user._id)
-          .select("") // Select all fields
+          .select("-password -confirmPassword -refreshToken") // Exclude sensitive fields
           .populate("collaborations")
           .populate("redeemStars.collaborationId");
 
@@ -392,50 +392,75 @@ export const forgotPassword = async (req, res) => {
 };
 
 export const verifyOtp = async (req, res) => {
-  const { otp } = req.body;
+  const { otp, email } = req.body;
   if (!otp) return res.status(400).json({ message: "OTP is required" });
-
-  const resets = await PasswordReset.find({
-    otpExpiresAt: { $gt: new Date() },
-    verified: false,
-  });
 
   let matchedReset = null;
 
-  for (const reset of resets) {
-    const attemptCheck = otpService.canAttempt(reset);
-    if (!attemptCheck.allowed) continue;
+  try {
+    if (email) {
+      // Fast index-supported O(1) query by email
+      const reset = await PasswordReset.findOne({
+        email: email.trim().toLowerCase(),
+        verified: false,
+        otpExpiresAt: { $gt: new Date() },
+      });
 
-    const valid = await otpService.verifyOTP(otp, reset.hashedOTP);
-    if (valid) {
-      matchedReset = reset;
-      break;
+      if (reset) {
+        const attemptCheck = otpService.canAttempt(reset);
+        if (attemptCheck.allowed) {
+          const valid = await otpService.verifyOTP(otp, reset.hashedOTP);
+          if (valid) {
+            matchedReset = reset;
+          }
+        }
+      }
+    } else {
+      // Fallback: search all active unverified resets (CPU intensive)
+      const resets = await PasswordReset.find({
+        otpExpiresAt: { $gt: new Date() },
+        verified: false,
+      });
+
+      for (const reset of resets) {
+        const attemptCheck = otpService.canAttempt(reset);
+        if (!attemptCheck.allowed) continue;
+
+        const valid = await otpService.verifyOTP(otp, reset.hashedOTP);
+        if (valid) {
+          matchedReset = reset;
+          break;
+        }
+      }
     }
+
+    if (!matchedReset) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    matchedReset.verified = true;
+    matchedReset.lastAttemptAt = new Date();
+    await matchedReset.save();
+
+    // ✅ Generate reset token
+    const resetToken = jwt.sign(
+      {
+        userId: matchedReset.email,
+        purpose: "password-reset",
+      },
+      process.env.RESET_TOKEN_SECRET || "secret123",
+      { expiresIn: "10m" },
+    );
+
+    return res.json({
+      success: true,
+      message: "OTP verified",
+      resetToken,
+    });
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    return res.status(500).json({ message: "Server error during OTP verification" });
   }
-
-  if (!matchedReset) {
-    return res.status(400).json({ message: "Invalid or expired OTP" });
-  }
-
-  matchedReset.verified = true;
-  matchedReset.lastAttemptAt = new Date();
-  await matchedReset.save();
-
-  // ✅ Generate reset token
-  const resetToken = jwt.sign(
-    {
-      userId: matchedReset.email,
-      purpose: "password-reset",
-    },
-    process.env.RESET_TOKEN_SECRET || "secret123",
-    { expiresIn: "10m" },
-  );
-
-  return res.json({
-    success: true,
-    message: "OTP verified",
-    resetToken,
-  });
 };
 
 export const resetPassword = async (req, res) => {

@@ -12,11 +12,9 @@ import { initializeSocket } from "./socket/connection/socket.Connection.js";
 
 const app = express();
 
-
 const server = createServer(app);
 
 const PORT = process.env.PORT || 5000;
-
 
 initializeSocket(server);
 
@@ -26,7 +24,6 @@ app.use(
     credentials: true,
   }),
 );
-
 
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
 

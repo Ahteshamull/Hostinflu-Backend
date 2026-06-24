@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import "dotenv/config";
 import { Server as SocketIO } from "socket.io";
 import handleChatEvents from "../handeler/message.handle.chat.js";
@@ -29,94 +30,107 @@ export const initializeSocket = (server) => {
   }
 
   io.on("connection", async (socket) => {
-    // Get user ID from query parameters
-    const userId = socket.handshake.query?.userId || socket.handshake.query?.id;
+    try {
+      // Get user ID from query parameters
+      const userId = socket.handshake.query?.userId || socket.handshake.query?.id;
 
-    if (!userId) {
-      socket.emit("auth-error", { message: "User ID is required" });
-      socket.disconnect();
-      return;
-    }
+      if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+        socket.emit("auth-error", { message: "Valid User ID is required" });
+        socket.disconnect();
+        return;
+      }
 
-    // Verify user exists and has proper role
-    const currentUser = await userModal.findById(userId).select("_id role");
-    if (!currentUser) {
-      socket.emit("auth-error", { message: "User not found" });
-      socket.disconnect();
-      return;
-    }
+      // Verify user exists and has proper role
+      const currentUser = await userModal.findById(userId).select("_id role");
+      if (!currentUser) {
+        socket.emit("auth-error", { message: "User not found" });
+        socket.disconnect();
+        return;
+      }
 
-    // Only allow hosts and influencers to connect
-    if (currentUser.role !== "host" && currentUser.role !== "influencer") {
-      socket.emit("auth-error", {
-        message: "Only hosts and influencers can use messaging",
-      });
-      socket.disconnect();
-      return;
-    }
+      // Only allow hosts and influencers to connect
+      if (currentUser.role !== "host" && currentUser.role !== "influencer") {
+        socket.emit("auth-error", {
+          message: "Only hosts and influencers can use messaging",
+        });
+        socket.disconnect();
+        return;
+      }
 
-    const currentUserId = currentUser._id.toString();
+      const currentUserId = currentUser._id.toString();
 
-    const user = await userModal.findByIdAndUpdate(
-      currentUserId,
-      {
-        $set: {
-          isActive: true,
-          updatedAt: new Date(),
-        },
-      },
-      { new: true, upsert: true },
-    );
-    if (!user) {
-      throw new Error("issues by updating user status");
-    }
-
-    // Store user info
-    onlineUsers.set(currentUserId, {
-      socketId: socket.id,
-      role: currentUser.role,
-    });
-
-    // Join user to their personal room
-    socket.join(`user-${currentUserId}`);
-
-    // Find and join user's conversations
-    const userConversations = await conversations
-      .find({
-        participants: currentUserId,
-      })
-      .select("_id");
-
-    userConversations.forEach((conv) => socket.join(conv._id.toString()));
-
-    // Handle user online event
-    socket.on("user-online", (userData) => {
-      const { userId: onlineUserId, role } = userData;
-    });
-
-    // Call event handlers for chat messages
-
-    handleChatEvents(io, socket, currentUserId);
-
-    socket.on("disconnect", async () => {
       const user = await userModal.findByIdAndUpdate(
         currentUserId,
         {
           $set: {
-            isActive: false,
+            isActive: true,
             updatedAt: new Date(),
           },
         },
         { new: true, upsert: true },
       );
-
       if (!user) {
         throw new Error("issues by updating user status");
       }
 
-      // Remove user from online map
-      onlineUsers.delete(currentUserId);
-    });
+      // Store user info
+      onlineUsers.set(currentUserId, {
+        socketId: socket.id,
+        role: currentUser.role,
+      });
+
+      // Join user to their personal room
+      socket.join(`user-${currentUserId}`);
+
+      // Find and join user's conversations
+      const userConversations = await conversations
+        .find({
+          participants: currentUserId,
+        })
+        .select("_id");
+
+      userConversations.forEach((conv) => socket.join(conv._id.toString()));
+
+      // Handle user online event
+      socket.on("user-online", (userData) => {
+        const { userId: onlineUserId, role } = userData;
+      });
+
+      // Call event handlers for chat messages
+      handleChatEvents(io, socket, currentUserId);
+
+      socket.on("disconnect", async () => {
+        try {
+          const user = await userModal.findByIdAndUpdate(
+            currentUserId,
+            {
+              $set: {
+                isActive: false,
+                updatedAt: new Date(),
+              },
+            },
+            { new: true, upsert: true },
+          );
+
+          if (!user) {
+            console.error("Issues updating user status on disconnect");
+          }
+        } catch (error) {
+          console.error("Error in socket disconnect handler:", error);
+        } finally {
+          // Remove user from online map
+          onlineUsers.delete(currentUserId);
+        }
+      });
+    } catch (error) {
+      console.error("Error in socket connection handler:", error);
+      try {
+        socket.emit("socket-error", { errorMessage: "Internal server connection error" });
+        socket.disconnect();
+      } catch (err) {
+        // Ignore emit errors if socket is already disconnected
+      }
+    }
   });
 
   return io;
