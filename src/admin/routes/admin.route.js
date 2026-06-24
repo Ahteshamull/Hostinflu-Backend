@@ -24,7 +24,7 @@ router.post(
   "/create-admin",
   authenticateToken,
   upload.single("image"),
-  createAdmin
+  createAdmin,
 );
 
 //localhost:3000/api/v1/admin/admin-login
@@ -35,14 +35,19 @@ router.put(
   "/update-admin-personal-info",
   upload.single("image"),
   authenticateToken,
-  updateAdminPersonalInfo
+  updateAdminPersonalInfo,
 );
 
 //localhost:3000/api/v1/admin/change-password
 router.put("/change-password", authenticateToken, adminChangePassword);
 
 //localhost:3000/api/v1/admin/delete-admin/:id
-router.delete("/delete-admin/:id", authenticateToken, superAdminMiddleware, deleteAdmin);
+router.delete(
+  "/delete-admin/:id",
+  authenticateToken,
+  superAdminMiddleware,
+  deleteAdmin,
+);
 
 //localhost:3000/api/v1/admin/all-admins
 router.get("/all-admins", authenticateToken, allAdmin);
