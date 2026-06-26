@@ -132,35 +132,23 @@ const getSingleConversationListIntoDb = async (currentUserRoleId, query) => {
       participants: currentUserRoleId,
     });
 
-    const allConversationsResolved = await Promise.all(
-      allConversations.map(async (conv) => {
-        const participantsResolved = await Promise.all(
-          (conv.participants || []).map(async (pid) => {
-            try {
-              const userDoc = await userModal.findById(
-                pid,
-                "fullname image email"
-              );
-              if (userDoc) {
-                return {
-                  _id: userDoc._id,
-                  name: userDoc.fullname,
-                  image: userDoc.image,
-                };
-              }
-            } catch (err) {
-              // ignore and fall through to return raw id
-            }
-            return { _id: pid };
-          })
-        );
+    const allConversationsResolved = allConversations.map((conv) => {
+      const participantsResolved = (conv.participants || []).map((participant) => {
+        if (participant && typeof participant === "object") {
+          return {
+            _id: participant._id,
+            name: participant.fullname,
+            image: participant.image,
+          };
+        }
+        return { _id: participant };
+      });
 
-        return {
-          ...conv.toObject(),
-          participants: participantsResolved,
-        };
-      })
-    );
+      return {
+        ...conv.toObject(),
+        participants: participantsResolved,
+      };
+    });
 
     return { meta, allConversations: allConversationsResolved };
   } catch (error) {

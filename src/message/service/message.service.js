@@ -53,7 +53,8 @@ const new_message_IntoDb = async (user, data, files = null, req = null) => {
   // Join online users to room
   const participants = [user.id, data.receiverId].filter(Boolean);
   for (const participantId of participants) {
-    const socketId = onlineUsers.get(participantId.toString());
+    const onlineUserData = onlineUsers.get(participantId.toString());
+    const socketId = onlineUserData?.socketId;
     if (socketId) {
       const participantSocket = io.sockets.sockets.get(socketId);
       if (participantSocket) {
@@ -526,7 +527,7 @@ const getUserConversationId = async (userId, receiverId, options = {}) => {
     const { page = 1, limit = 20 } = options;
 
     const conversation = await conversations.findOne({
-      participants: { $in: [userId, receiverId] },
+      participants: { $all: [userId, receiverId] },
     });
 
     if (!conversation) {

@@ -60,9 +60,6 @@ const requireSuperAdminOrAdminRole = async (req, res, next) => {
     const admin = await Admin.findById(req.user.id);
 
     if (!admin) {
-      // Try to find all admins to see what's in the collection
-      const allAdmins = await Admin.find({});
-
       return res.status(403).json({
         message: "Access denied. Admin not found.",
       });

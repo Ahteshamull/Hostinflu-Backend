@@ -77,13 +77,13 @@ class SendOtp {
           process.env.OTP_EMAIL ||
           process.env.EMAIL_USER,
         to: toEmail,
-        subject: "Test Email - Dalil Arehan",
+        subject: "Test Email - Hostinflu",
         html: `
           <h2>🎉 Email Configuration Test</h2>
           <p>If you receive this email, your Nodemailer configuration is working correctly!</p>
           <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
           <hr>
-          <p><small>This is a test email from Dalil Arehan backend service.</small></p>
+          <p><small>This is a test email from Hostinflu backend service.</small></p>
         `,
       });
 
@@ -124,7 +124,7 @@ Security Notice:
 - This code expires in 10 minutes
 - If you didn't request this reset, please ignore this email
 
-© ${new Date().getFullYear()} Dalil Arehan. All rights reserved.
+© ${new Date().getFullYear()} Hostinflu. All rights reserved.
       `,
     };
 
@@ -230,15 +230,15 @@ Security Notice:
               </ul>
             </div>
             <div class="footer">
-              <p>This is an automated email from Dalil Arehan</p>
-              <p>© ${new Date().getFullYear()} Dalil Arehan. All rights reserved.</p>
+              <p>This is an automated email from Hostinflu</p>
+              <p>© ${new Date().getFullYear()} Hostinflu. All rights reserved.</p>
             </div>
           </div>
         </body>
         </html>
       `,
       text: `
-Password Reset Successful - Dalil Arehan
+Password Reset Successful - Hostinflu
  
 Hello ${userName}!
  
@@ -253,7 +253,7 @@ For your security, we recommend:
 - Enabling two-factor authentication if available
 - Logging out of all devices and logging back in
  
-© ${new Date().getFullYear()} Dalil Arehan. All rights reserved.
+© ${new Date().getFullYear()} Hostinflu. All rights reserved.
       `,
     };
 

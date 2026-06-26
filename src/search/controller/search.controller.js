@@ -30,6 +30,11 @@ const globalSearch = async (req, res) => {
       },
     };
 
+    let userCount = 0;
+    let listingCount = 0;
+    let dealCount = 0;
+    let collaborationCount = 0;
+
     // Search Users
     if (searchType === "all" || searchType === "users") {
       const userFilter = {};
@@ -44,12 +49,16 @@ const globalSearch = async (req, res) => {
         ];
       }
 
-      const users = await User.find(userFilter)
-        .select("name email userName role city country aboutMe image")
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
+      const [users, count] = await Promise.all([
+        User.find(userFilter)
+          .select("name email userName role city country aboutMe image")
+          .limit(limit * 1)
+          .skip((page - 1) * limit),
+        User.countDocuments(userFilter)
+      ]);
 
       results.users = users;
+      userCount = count;
     }
 
     // Search Listings
@@ -80,13 +89,17 @@ const globalSearch = async (req, res) => {
         if (maxPrice) listingFilter.price.$lte = parseFloat(maxPrice);
       }
 
-      const listings = await Listing.find(listingFilter)
-        .populate("userId")
-        .sort({ createdAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
+      const [listings, count] = await Promise.all([
+        Listing.find(listingFilter)
+          .populate("userId")
+          .sort({ createdAt: -1 })
+          .limit(limit * 1)
+          .skip((page - 1) * limit),
+        Listing.countDocuments(listingFilter)
+      ]);
 
       results.listings = listings;
+      listingCount = count;
     }
 
     // Search Deals
@@ -99,14 +112,18 @@ const globalSearch = async (req, res) => {
         ];
       }
 
-      const deals = await Deal.find(dealFilter)
-        .populate("userId")
-        .populate("title", "title location")
-        .sort({ createdAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
+      const [deals, count] = await Promise.all([
+        Deal.find(dealFilter)
+          .populate("userId")
+          .populate("title", "title location")
+          .sort({ createdAt: -1 })
+          .limit(limit * 1)
+          .skip((page - 1) * limit),
+        Deal.countDocuments(dealFilter)
+      ]);
 
       results.deals = deals;
+      dealCount = count;
     }
 
     // Search Collaborations
@@ -123,23 +140,23 @@ const globalSearch = async (req, res) => {
         ];
       }
 
-      const collaborations = await Collaboration.find(collaborationFilter)
-        .populate("userId")
-        .populate("selectInfluencerOrHost")
-        .populate("selectDeal")
-        .sort({ createdAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
+      const [collaborations, count] = await Promise.all([
+        Collaboration.find(collaborationFilter)
+          .populate("userId")
+          .populate("selectInfluencerOrHost")
+          .populate("selectDeal")
+          .sort({ createdAt: -1 })
+          .limit(limit * 1)
+          .skip((page - 1) * limit),
+        Collaboration.countDocuments(collaborationFilter)
+      ]);
 
       results.collaborations = collaborations;
+      collaborationCount = count;
     }
 
-    // Calculate total results
-    const total =
-      results.users.length +
-      results.listings.length +
-      results.deals.length +
-      results.collaborations.length;
+    // Calculate total results from database matching count
+    const total = userCount + listingCount + dealCount + collaborationCount;
     results.pagination.total = total;
     results.pagination.totalPages = Math.ceil(total / limit);
 

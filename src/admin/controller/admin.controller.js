@@ -433,36 +433,22 @@ const forgotPassAdmin = async (req, res) => {
 
 const OTPVerifyAdmin = async (req, res) => {
   const { otp, email } = req.body;
-  if (!otp) {
-    return res.status(400).json({ message: "OTP is required" });
+  if (!otp || !email) {
+    return res.status(400).json({ message: "OTP and email are required" });
   }
 
   try {
     let reset = null;
-    if (email) {
-      // Fast index-supported query by email
-      reset = await PasswordReset.findOne({
-        email: email.trim().toLowerCase(),
-        verified: false,
-      });
+    // Fast index-supported query by email
+    reset = await PasswordReset.findOne({
+      email: email.trim().toLowerCase(),
+      verified: false,
+    });
 
-      if (reset) {
-        const isValidOTP = await otpService.verifyOTP(otp, reset.hashedOTP);
-        if (!isValidOTP) {
-          reset = null;
-        }
-      }
-    } else {
-      // Fallback: Find all unverified OTP records (CPU intensive)
-      const resets = await PasswordReset.find({ verified: false });
-
-      // Find the matching OTP by verification
-      for (const resetRecord of resets) {
-        const isValidOTP = await otpService.verifyOTP(otp, resetRecord.hashedOTP);
-        if (isValidOTP) {
-          reset = resetRecord;
-          break;
-        }
+    if (reset) {
+      const isValidOTP = await otpService.verifyOTP(otp, reset.hashedOTP);
+      if (!isValidOTP) {
+        reset = null;
       }
     }
 
