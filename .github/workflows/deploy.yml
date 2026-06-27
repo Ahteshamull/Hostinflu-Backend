@@ -1,0 +1,43 @@
+name: Deploy Backend (Remote Build)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    if: github.repository == 'Ahteshamull/Hostinflu-Backends'
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and Deploy on Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e 
+            
+            # 1. Load NVM
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
+            # 2. Enter project folder
+            cd /home/ubuntu/Hostinflu-Backend
+            
+            # 3. Pull code
+            # Back up local .env to prevent git pull from failing or overwriting it
+            if [ -f .env ]; then mv .env .env.bak; fi
+            
+            git pull origin main
+            
+            # Restore local production .env
+            if [ -f .env.bak ]; then mv .env.bak .env; fi
+            
+            # 4. Install dependencies
+            npm install --production
+            
+            # 5. Restart application process using PM2
+            # Adjust the PM2 name/command if necessary
+            pm2 restart all || pm2 start src/index.js --name "Hostinflu-Backend" --max-memory-restart 800M
