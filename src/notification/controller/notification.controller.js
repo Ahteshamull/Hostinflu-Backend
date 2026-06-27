@@ -1,4 +1,6 @@
 import Notification from "../schema/notification.modal.js";
+import userModel from "../../auth/schema/auth.modal.js";
+import { sendEmail } from "../../config/email.config.js";
 
 const listNotifications = async (req, res) => {
   try {
@@ -175,42 +177,87 @@ const createCollaborationNotification = async (
   try {
     const { selectInfluencerOrHost, userId, _id } = collaborationData;
 
+    // Fetch both users to get their email addresses and names
+    const sender = await userModel.findById(userId);
+    const receiver = await userModel.findById(selectInfluencerOrHost);
+
+    if (!sender || !receiver) {
+      throw new Error("Sender or receiver not found");
+    }
+
     // Determine receiver based on creator role
-    let receiverId, receiverRole, title, message;
+    let receiverRole, receiverTitle, receiverMessage;
+    let senderTitle, senderMessage;
 
     if (creatorRole === "host") {
       // Host creates collaboration -> notify influencer
-      receiverId = selectInfluencerOrHost;
       receiverRole = "influencer";
-      title = "New Collaboration Request";
-      message =
-        "A host has sent you a collaboration request. Please review and respond.";
+      receiverTitle = "New Collaboration Request";
+      receiverMessage = `A host (${sender.name}) has sent you a collaboration request. Please review and respond.`;
+      
+      senderTitle = "Collaboration Request Sent";
+      senderMessage = `You have successfully sent a collaboration request to ${receiver.name}.`;
     } else if (creatorRole === "influencer") {
       // Influencer creates collaboration -> notify host
-      receiverId = selectInfluencerOrHost;
       receiverRole = "host";
-      title = "New Collaboration Request";
-      message =
-        "An influencer has sent you a collaboration request. Please review and respond.";
+      receiverTitle = "New Collaboration Request";
+      receiverMessage = `An influencer (${sender.name}) has sent you a collaboration request. Please review and respond.`;
+      
+      senderTitle = "Collaboration Request Sent";
+      senderMessage = `You have successfully sent a collaboration request to ${receiver.name}.`;
     } else {
       throw new Error("Invalid creator role for notification");
     }
 
-    // Create notification
-    const notification = new Notification({
+    // 1. Create notification for the receiver
+    const receiverNotification = new Notification({
       type: "collaboration_request",
-      title,
-      message,
+      title: receiverTitle,
+      message: receiverMessage,
       collaborationId: _id,
       createdBy: userId,
-      receiverId,
+      receiverId: selectInfluencerOrHost,
       receiverRole,
       isRead: false,
     });
+    const savedReceiverNotification = await receiverNotification.save();
 
-    const savedNotification = await notification.save();
+    // 2. Create notification for the sender
+    const senderNotification = new Notification({
+      type: "collaboration_request",
+      title: senderTitle,
+      message: senderMessage,
+      collaborationId: _id,
+      createdBy: userId,
+      receiverId: userId,
+      receiverRole: creatorRole,
+      isRead: false,
+    });
+    const savedSenderNotification = await senderNotification.save();
 
-    return savedNotification;
+    // 3. Send email to the receiver
+    try {
+      await sendEmail({
+        email: receiver.email,
+        subject: receiverTitle,
+        message: receiverMessage,
+      });
+    } catch (error) {
+      console.error("Failed to send email to receiver:", error);
+    }
+
+    // 4. Send email to the sender
+    try {
+      await sendEmail({
+        email: sender.email,
+        subject: senderTitle,
+        message: senderMessage,
+      });
+    } catch (error) {
+      console.error("Failed to send email to sender:", error);
+    }
+
+    return { savedReceiverNotification, savedSenderNotification };
   } catch (error) {
     throw error;
   }
