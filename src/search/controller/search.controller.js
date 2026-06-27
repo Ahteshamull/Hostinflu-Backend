@@ -181,7 +181,13 @@ const specificSearch = async (req, res) => {
     const {
       query: collection = "all", // users | listings | collaborations | deals | all
       searchType: keyword = "", // actual search text
+      page = 1,
+      limit = 20,
     } = req.query;
+
+    const parsedPage = parseInt(page, 10) || 1;
+    const parsedLimit = parseInt(limit, 10) || 20;
+    const skip = (parsedPage - 1) * parsedLimit;
 
     // ✅ validate collection
     const validCollections = [
@@ -195,14 +201,13 @@ const specificSearch = async (req, res) => {
       "deals",
       "deal", // singular form
     ];
-    const actualCollection = validCollections.includes(collection)
+    let actualCollection = validCollections.includes(collection)
       ? collection
       : "all";
 
     // If collection is invalid, fallback to the keyword as collection if it's valid
     if (collection !== actualCollection && validCollections.includes(keyword)) {
       actualCollection = keyword;
-    } else if (collection !== actualCollection) {
     }
 
     const searchRegex = keyword ? { $regex: keyword, $options: "i" } : null;
@@ -216,76 +221,63 @@ const specificSearch = async (req, res) => {
 
     // 👤 USERS - search if collection is "users" or "all"
     if (actualCollection === "users" || actualCollection === "all") {
-      const users = await User.find({})
+      const userFilter = {};
+      if (keyword) {
+        userFilter.$or = [
+          { name: searchRegex },
+          { email: searchRegex },
+          { phone: searchRegex },
+        ];
+      }
+
+      results.users = await User.find(userFilter)
         .select("name email phone role image createdAt")
         .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
         .lean();
-
-      // Filter users in JavaScript after population
-      const filteredUsers = users.filter((user) => {
-        if (!keyword) return true;
-
-        const searchTerm = keyword.toLowerCase();
-
-        return (
-          (user.name && user.name.toLowerCase().includes(searchTerm)) ||
-          (user.email && user.email.toLowerCase().includes(searchTerm)) ||
-          (user.phone && user.phone.toLowerCase().includes(searchTerm))
-        );
-      });
-
-      results.users = filteredUsers;
     }
 
     // 🏠 LISTINGS - search if collection is "listings" or "all"
     if (actualCollection === "listings" || actualCollection === "all") {
-      const listings = await Listing.find({ status: "verified" })
+      const listingFilter = { status: "verified" };
+      if (keyword) {
+        listingFilter.$or = [
+          { title: searchRegex },
+          { location: searchRegex },
+          { propertyType: searchRegex },
+          { status: searchRegex },
+        ];
+      }
+
+      results.listings = await Listing.find(listingFilter)
         .populate("userId")
         .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
         .lean();
-
-      // Filter listings in JavaScript after population
-      const filteredListings = listings.filter((listing) => {
-        if (!keyword) return true;
-
-        const searchTerm = keyword.toLowerCase();
-
-        return (
-          (listing.title && listing.title.toLowerCase().includes(searchTerm)) ||
-          (listing.location &&
-            listing.location.toLowerCase().includes(searchTerm)) ||
-          (listing.propertyType &&
-            listing.propertyType.toLowerCase().includes(searchTerm)) ||
-          (listing.status && listing.status.toLowerCase().includes(searchTerm))
-        );
-      });
-
-      results.listings = filteredListings;
     }
 
     // 🤝 COLLABORATIONS - search if collection is "collaborations" or "all"
     if (actualCollection === "collaborations" || actualCollection === "all") {
-      const collaborations = await Collaboration.find({})
+      const collaborationFilter = {};
+      if (keyword) {
+        collaborationFilter.$or = [
+          { payment: searchRegex },
+          { status: searchRegex },
+        ];
+      }
+
+      const collaborations = await Collaboration.find(collaborationFilter)
         .populate("userId")
         .populate("selectInfluencerOrHost")
         .populate("selectDeal")
         .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
         .lean();
 
-      // Filter collaborations in JavaScript after population
-      const filteredCollaborations = collaborations.filter((collab) => {
-        if (!keyword) return true;
-
-        const searchTerm = keyword.toLowerCase();
-
-        return (
-          (collab.payment &&
-            collab.payment.toLowerCase().includes(searchTerm)) ||
-          (collab.status && collab.status.toLowerCase().includes(searchTerm))
-        );
-      });
-
-      results.collaborations = filteredCollaborations.map((collab) => {
+      results.collaborations = collaborations.map((collab) => {
         const duration =
           collab.freeStay && collab.startDate && collab.endDate
             ? `${Math.ceil(
@@ -310,32 +302,42 @@ const specificSearch = async (req, res) => {
 
     // DEALS - search if collection is "deals" or "all"
     if (actualCollection === "deals" || actualCollection === "all") {
-      // First get all deals, then filter in JavaScript
-      const deals = await Deal.find({})
+      const dealFilter = {};
+      if (keyword) {
+        dealFilter.$or = [
+          { description: searchRegex },
+          { status: searchRegex },
+          { addAirbnbLink: searchRegex },
+        ];
+      }
+
+      const deals = await Deal.find(dealFilter)
         .populate("userId")
         .populate("title")
         .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
         .lean();
 
-      // Filter deals in JavaScript after population
-      const filteredDeals = deals.filter((deal) => {
-        if (!keyword) return true;
-
-        const searchTerm = keyword.toLowerCase();
-
-        return (
-          (deal.description &&
-            deal.description.toLowerCase().includes(searchTerm)) ||
-          (deal.status && deal.status.toLowerCase().includes(searchTerm)) ||
-          (deal.addAirbnbLink &&
-            deal.addAirbnbLink.toLowerCase().includes(searchTerm)) ||
-          (deal.title &&
-            deal.title.title &&
-            deal.title.title.toLowerCase().includes(searchTerm))
-        );
-      });
-
-      results.deals = filteredDeals;
+      // For deals, we also need to match search regex on populated title fields if keyword exists
+      if (keyword) {
+        // Find if the populated title contains the keyword
+        results.deals = deals.filter((deal) => {
+          return (
+            (deal.description &&
+              deal.description.toLowerCase().includes(keyword.toLowerCase())) ||
+            (deal.status &&
+              deal.status.toLowerCase().includes(keyword.toLowerCase())) ||
+            (deal.addAirbnbLink &&
+              deal.addAirbnbLink.toLowerCase().includes(keyword.toLowerCase())) ||
+            (deal.title &&
+              deal.title.title &&
+              deal.title.title.toLowerCase().includes(keyword.toLowerCase()))
+          );
+        });
+      } else {
+        results.deals = deals;
+      }
     }
 
     res.status(200).json({

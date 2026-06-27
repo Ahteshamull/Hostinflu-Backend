@@ -54,13 +54,14 @@ const new_message_IntoDb = async (user, data, files = null, req = null) => {
   const participants = [user.id, data.receiverId].filter(Boolean);
   for (const participantId of participants) {
     const onlineUserData = onlineUsers.get(participantId.toString());
-    const socketId = onlineUserData?.socketId;
-    if (socketId) {
-      const participantSocket = io.sockets.sockets.get(socketId);
-      if (participantSocket) {
-        const roomId = conversation._id.toString();
-        participantSocket.join(roomId);
-        participantSocket.data.currentConversationId = roomId;
+    if (onlineUserData && onlineUserData.sockets) {
+      for (const socketId of onlineUserData.sockets) {
+        const participantSocket = io.sockets.sockets.get(socketId);
+        if (participantSocket) {
+          const roomId = conversation._id.toString();
+          participantSocket.join(roomId);
+          participantSocket.data.currentConversationId = roomId;
+        }
       }
     }
   }

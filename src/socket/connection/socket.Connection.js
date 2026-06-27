@@ -74,10 +74,17 @@ export const initializeSocket = (server) => {
       }
 
       // Store user info
-      onlineUsers.set(currentUserId, {
-        socketId: socket.id,
-        role: currentUser.role,
-      });
+      let userData = onlineUsers.get(currentUserId);
+      if (!userData) {
+        userData = {
+          socketId: socket.id,
+          sockets: new Set(),
+          role: currentUser.role,
+        };
+      }
+      userData.sockets.add(socket.id);
+      userData.socketId = socket.id; // Keep socketId pointing to latest/active socket
+      onlineUsers.set(currentUserId, userData);
 
       // Join user to their personal room
       socket.join(`user-${currentUserId}`);
@@ -101,25 +108,35 @@ export const initializeSocket = (server) => {
 
       socket.on("disconnect", async () => {
         try {
-          const user = await userModal.findByIdAndUpdate(
-            currentUserId,
-            {
-              $set: {
-                isActive: false,
-                updatedAt: new Date(),
-              },
-            },
-            { new: true, upsert: true },
-          );
+          const currentUserData = onlineUsers.get(currentUserId);
+          if (currentUserData) {
+            currentUserData.sockets.delete(socket.id);
+            if (currentUserData.sockets.size === 0) {
+              // Remove user from online map
+              onlineUsers.delete(currentUserId);
 
-          if (!user) {
-            console.error("Issues updating user status on disconnect");
+              // Set status to offline in database
+              const user = await userModal.findByIdAndUpdate(
+                currentUserId,
+                {
+                  $set: {
+                    isActive: false,
+                    updatedAt: new Date(),
+                  },
+                },
+                { new: true, upsert: true },
+              );
+
+              if (!user) {
+                console.error("Issues updating user status on disconnect");
+              }
+            } else {
+              // Update fallback socketId to one of the remaining active sockets
+              currentUserData.socketId = Array.from(currentUserData.sockets)[0];
+            }
           }
         } catch (error) {
           console.error("Error in socket disconnect handler:", error);
-        } finally {
-          // Remove user from online map
-          onlineUsers.delete(currentUserId);
         }
       });
     } catch (error) {
