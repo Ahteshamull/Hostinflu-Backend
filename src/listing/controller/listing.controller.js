@@ -174,6 +174,7 @@ const getAllListings = async (req, res) => {
       filter.$or = [
         { title: { $regex: search, $options: "i" } },
         { location: { $regex: search, $options: "i" } },
+        { propertyType: { $regex: search, $options: "i" } },
       ];
     }
 
