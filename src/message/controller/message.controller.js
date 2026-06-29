@@ -130,8 +130,9 @@ const getUserConversation = async (req, res) => {
   }
 
   try {
+    const userId = req.user?.id || req.user?._id;
     const result = await MessageService.getUserConversationId(
-      req.user.id,
+      userId,
       receiverId,
       { page, limit },
     );

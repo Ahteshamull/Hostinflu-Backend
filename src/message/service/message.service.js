@@ -528,11 +528,17 @@ const getUserConversationId = async (userId, receiverId, options = {}) => {
     const { page = 1, limit = 20 } = options;
 
     const conversation = await conversations.findOne({
-      participants: { $all: [userId, receiverId] },
+      participants: { 
+        $all: [
+          new mongoose.Types.ObjectId(userId), 
+          new mongoose.Types.ObjectId(receiverId)
+        ] 
+      },
     });
 
     if (!conversation) {
       return {
+        conversationId: null,
         messages: [],
         pagination: {
           currentPage: parseInt(page),
@@ -555,6 +561,7 @@ const getUserConversationId = async (userId, receiverId, options = {}) => {
     ]);
 
     return {
+      conversationId: conversation._id,
       messages: messageList,
       pagination: {
         currentPage: parseInt(page),
