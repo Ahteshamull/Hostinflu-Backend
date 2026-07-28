@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   authenticateToken,
   requireHostRole,
+  requireSuperAdminOrAdminRole,
 } from "../../helper/middlewares/auth.middleware.js";
 const router = Router();
 
@@ -43,7 +44,7 @@ router.post("/webhook", webhook);
 router.post(
   "/capture/:paymentId",
   authenticateToken,
-  requireHostRole,
+  requireSuperAdminOrAdminRole,
   capturePayment,
 );
 

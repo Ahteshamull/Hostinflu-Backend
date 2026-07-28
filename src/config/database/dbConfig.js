@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import dns from "dns";
+
+// Fix for Node.js DNS resolution path issue on Windows
+dns.setServers(["8.8.8.8"]);
 
 const dbConnect = async () => {
   try {
