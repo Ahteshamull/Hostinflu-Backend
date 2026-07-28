@@ -348,8 +348,11 @@ export const webhook = async (req, res) => {
           console.log("✅ Payment found:", payment._id);
 
           if (payment.status !== "IN_PROGRESS") {
-            const intentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
-            
+            const intentId =
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : session.payment_intent?.id;
+
             // Update payment status and payment intent ID
             await Payment.findByIdAndUpdate(payment._id, {
               status: "IN_PROGRESS", // payment amount hold in platform account
@@ -374,7 +377,9 @@ export const webhook = async (req, res) => {
               paymentStatus: updatedCollab?.paymentStatus,
             });
           } else {
-             console.log("✅ Payment already IN_PROGRESS, skipping duplicate update");
+            console.log(
+              "✅ Payment already IN_PROGRESS, skipping duplicate update",
+            );
           }
         } else {
           console.log("❌ Payment not found for session:", session.id);
@@ -508,14 +513,7 @@ export const capturePayment = async (req, res) => {
       });
     }
 
-    // Check if user owns the collaboration (host)
     const collaboration = payment.title;
-    if (collaboration.userId._id.toString() !== userId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Only the collaboration creator can release payments",
-      });
-    }
 
     // Check if payment is in IN_PROGRESS status (held)
     if (payment.status !== "IN_PROGRESS") {
@@ -564,17 +562,21 @@ export const capturePayment = async (req, res) => {
     }
 
     // Transfer funds to the influencer's Stripe account
-    const influencerStripeAccountId = payment.selectInfluencerOrHost?.stripeAccountId;
-    
+    const influencerStripeAccountId =
+      payment.selectInfluencerOrHost?.stripeAccountId;
+
     if (influencerStripeAccountId) {
       await stripe.transfers.create({
         amount: influencerAmount,
         currency: "usd",
         destination: influencerStripeAccountId,
-        source_transaction: typeof chargeId === 'string' ? chargeId : chargeId?.id,
+        source_transaction:
+          typeof chargeId === "string" ? chargeId : chargeId?.id,
       });
     } else {
-      console.warn("Influencer does not have a connected Stripe account. Transfer skipped.");
+      console.warn(
+        "Influencer does not have a connected Stripe account. Transfer skipped.",
+      );
     }
 
     // Update payment status and amounts
@@ -688,7 +690,9 @@ export const getUserPayments = async (req, res) => {
     const limitNum = parseInt(limit, 10);
 
     if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1) {
-      return res.status(400).json({ success: false, message: "Invalid pagination parameters" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid pagination parameters" });
     }
 
     const skip = (pageNum - 1) * limitNum;
