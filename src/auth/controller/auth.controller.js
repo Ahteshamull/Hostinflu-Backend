@@ -755,11 +755,9 @@ export const verifyRegistrationOtp = async (req, res) => {
       .json({
         success: true,
         message: "Email verified successfully",
-        data: {
-          user: verifiedUserData,
-          accessToken,
-          refreshToken,
-        },
+        data: verifiedUserData,
+        accessToken,
+        refreshToken,
       });
   } catch (error) {
     console.error("Error in verifyRegistrationOtp:", error);
