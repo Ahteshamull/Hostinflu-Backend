@@ -8,6 +8,8 @@ import {
   ResendOtp,
   resetPassword,
   createUser,
+  verifyRegistrationOtp,
+  resendRegistrationOtp,
   verifyOtp,
   changePassword,
   currentUserLogin,
@@ -28,6 +30,13 @@ import {
 const router = express.Router();
 //localhost:3000/api/v1/auth/create-user
 router.post("/create-user", createUser);
+
+//localhost:3000/api/v1/auth/verify-registration-otp
+router.post("/verify-registration-otp", verifyRegistrationOtp);
+
+//localhost:3000/api/v1/auth/resend-registration-otp
+router.post("/resend-registration-otp", resendRegistrationOtp);
+
 //localhost:3000/api/v1/auth/login
 router.post("/login", login);
 //localhost:3000/api/v1/auth/logout

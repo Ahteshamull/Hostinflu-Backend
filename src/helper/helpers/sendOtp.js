@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import emailTemplate_verify from "./emailTemplate.js";
+import registrationEmailTemplate from "./registrationEmailTemplate.js";
 
 class SendOtp {
   constructor() {
@@ -138,6 +139,44 @@ Security Notice:
       console.error("❌ Failed to send OTP email:", error);
       console.error("Error details:", error.message);
       console.error("Error code:", error.code);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async sendRegistrationOTPEmail(email, otp, userName = "User") {
+    const mailOptions = {
+      from:
+        process.env.EMAIL_FROM ||
+        process.env.OTP_EMAIL ||
+        process.env.EMAIL_USER,
+      to: email,
+      subject: "Verify Your Email - Hostinflu",
+      html: registrationEmailTemplate(otp, userName),
+      text: `
+Welcome to Hostinflu!
+
+Hello ${userName}!
+
+Thank you for joining Hostinflu. To verify your email address, please use the following 6-digit verification code:
+
+Verification Code: ${otp}
+
+This code expires in 10 minutes.
+
+Security Notice:
+- Never share this OTP with anyone
+- If you didn't create an account with Hostinflu, please ignore this email
+
+© ${new Date().getFullYear()} Hostinflu. All rights reserved.
+      `,
+    };
+
+    try {
+      const transporter = this.getTransporter();
+      const result = await transporter.sendMail(mailOptions);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error("❌ Failed to send registration OTP email:", error);
       return { success: false, error: error.message };
     }
   }

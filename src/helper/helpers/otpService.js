@@ -6,8 +6,11 @@ const MAX_RESEND = 3;
 const RESEND_INTERVAL_MIN = 2;
 
 const otpService = {
-  generateOTP() {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+  generateOTP(digits = 6) {
+    if (digits === 4) {
+      return Math.floor(1000 + Math.random() * 9000).toString();
+    }
+    return Math.floor(100000 + Math.random() * 900000).toString();
   },
 
   hashOTP(otp) {

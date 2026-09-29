@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import otpService from "../../helper/helpers/otpService.js";
 import PasswordReset from "../schema/passwordReset.modal.js";
 import sendOtp from "../../helper/helpers/sendOtp.js";
+import EmailVerification from "../schema/emailVerification.modal.js";
 import { notifyAdminOnUserCreated } from "../../notification/service/notification.service.js";
 import fs from "fs";
 import path from "path";
@@ -145,6 +146,29 @@ export const createUser = async (req, res) => {
 
         await user.save();
 
+        // Generate 6-digit OTP for email verification
+        const otp = otpService.generateOTP(6);
+        const hashedOTP = otpService.hashOTP(otp);
+        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // Upsert EmailVerification record
+        await EmailVerification.findOneAndUpdate(
+          { email },
+          {
+            email,
+            hashedOTP,
+            otpCreatedAt: new Date(),
+            otpExpiresAt,
+            attempts: 0,
+            resendCount: 0,
+            verified: false,
+          },
+          { upsert: true, returnDocument: "after" },
+        );
+
+        // Send 6-digit verification OTP email to user
+        await sendOtp.sendRegistrationOTPEmail(email, otp, user.name);
+
         // Send notification to admin about new user registration
         await notifyAdminOnUserCreated(user._id, user.name, user.email);
 
@@ -157,7 +181,8 @@ export const createUser = async (req, res) => {
 
         return res.status(201).send({
           success: true,
-          message: "User Created Successfully",
+          message:
+            "User created successfully. A 6-digit verification code has been sent to your email.",
           data: populatedUser,
         });
       }
@@ -290,6 +315,17 @@ export const login = async (req, res) => {
     return res.status(401).json({
       error: true,
       message: "Invalid credentials",
+    });
+  }
+
+  // Guard: check if email is verified
+  if (existingUser.isEmailVerified === false) {
+    return res.status(403).json({
+      success: false,
+      error: true,
+      errorType: "EMAIL_NOT_VERIFIED",
+      message:
+        "Please verify your email before logging in. A 6-digit verification code was sent to your email.",
     });
   }
 
@@ -595,6 +631,218 @@ export const ResendOtp = async (req, res) => {
     return res.status(500).json({
       error: true,
       message: "Failed to send OTP. Please try again.",
+    });
+  }
+};
+
+export const verifyRegistrationOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body || {};
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Email and 6-digit OTP are required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedOtp = otp.toString().trim();
+
+    if (normalizedOtp.length !== 6) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Verification code must be exactly 6 digits",
+      });
+    }
+
+    // Check if user exists
+    const user = await userModel.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: true,
+        message: "No account found with this email",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(200).json({
+        success: true,
+        message: "Email is already verified. You can log in.",
+      });
+    }
+
+    // Find active verification record
+    const verificationRecord = await EmailVerification.findOne({
+      email: normalizedEmail,
+      verified: false,
+      otpExpiresAt: { $gt: new Date() },
+    });
+
+    if (!verificationRecord) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message:
+          "Verification code has expired or is invalid. Please request a new one.",
+      });
+    }
+
+    const attemptCheck = otpService.canAttempt(verificationRecord);
+    if (!attemptCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: true,
+        message: attemptCheck.message,
+      });
+    }
+
+    const isValidOtp = await otpService.verifyOTP(
+      normalizedOtp,
+      verificationRecord.hashedOTP,
+    );
+
+    if (!isValidOtp) {
+      verificationRecord.attempts = (verificationRecord.attempts || 0) + 1;
+      verificationRecord.lastAttemptAt = new Date();
+      await verificationRecord.save();
+
+      const remainingAttempts = Math.max(0, 5 - verificationRecord.attempts);
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: `Invalid verification code. ${remainingAttempts} attempts remaining.`,
+      });
+    }
+
+    // Mark verification record as verified
+    verificationRecord.verified = true;
+    await verificationRecord.save();
+
+    // Modern Mongoose update: returnDocument: 'after'
+    const updatedUser = await userModel.findOneAndUpdate(
+      { email: normalizedEmail },
+      { isEmailVerified: true },
+      { returnDocument: "after" },
+    );
+
+    // Generate tokens for auto-login
+    const { accessToken, refreshToken } =
+      await generateAccessAndRefreshToken(updatedUser);
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+
+    const verifiedUserData = {
+      id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      userName: updatedUser.userName,
+      role: updatedUser.role,
+      isEmailVerified: updatedUser.isEmailVerified,
+    };
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, cookieOptions)
+      .cookie("refreshToken", refreshToken, cookieOptions)
+      .json({
+        success: true,
+        message: "Email verified successfully",
+        data: {
+          user: verifiedUserData,
+          accessToken,
+          refreshToken,
+        },
+      });
+  } catch (error) {
+    console.error("Error in verifyRegistrationOtp:", error);
+    return res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error verifying email OTP",
+      details: error.message,
+    });
+  }
+};
+
+export const resendRegistrationOtp = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Email is required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await userModel.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: true,
+        message: "No account found with this email",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "Email is already verified. You can log in.",
+      });
+    }
+
+    let record = await EmailVerification.findOne({ email: normalizedEmail });
+
+    if (record) {
+      const resendCheck = otpService.canResend(record);
+      if (!resendCheck.allowed) {
+        return res.status(429).json({
+          success: false,
+          error: true,
+          message: resendCheck.message,
+        });
+      }
+
+      record.resendCount = (record.resendCount || 0) + 1;
+      record.lastResendAt = new Date();
+    } else {
+      record = new EmailVerification({ email: normalizedEmail });
+    }
+
+    const otp = otpService.generateOTP(6);
+    record.hashedOTP = otpService.hashOTP(otp);
+    record.otpCreatedAt = new Date();
+    record.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    record.attempts = 0;
+    record.verified = false;
+
+    await record.save();
+
+    await sendOtp.sendRegistrationOTPEmail(normalizedEmail, otp, user.name);
+
+    return res.status(200).json({
+      success: true,
+      message: "A new 6-digit verification code has been sent to your email",
+    });
+  } catch (error) {
+    console.error("Error in resendRegistrationOtp:", error);
+    return res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error resending registration OTP",
+      details: error.message,
     });
   }
 };

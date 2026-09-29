@@ -227,6 +227,7 @@ const userSchema = new Schema(
     referralCount: { type: Number, default: 0 },
     stripeAccountId: { type: String },
     isStripeConnected: { type: Boolean, default: false },
+    isEmailVerified: { type: Boolean, default: false },
   },
   {
     timestamps: true,
