@@ -11,7 +11,9 @@ const handleChatEvents = async (io, socket, currentUserId) => {
     try {
       const { conversationId } = data || {};
       if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
-        socket.emit("socket-error", { errorMessage: "Invalid conversation ID" });
+        socket.emit("socket-error", {
+          errorMessage: "Invalid conversation ID",
+        });
         return;
       }
 
@@ -50,7 +52,9 @@ const handleChatEvents = async (io, socket, currentUserId) => {
     try {
       const { conversationId, page, limit, sort } = data || {};
       if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
-        socket.emit("socket-error", { errorMessage: "Invalid conversation ID" });
+        socket.emit("socket-error", {
+          errorMessage: "Invalid conversation ID",
+        });
         return;
       }
       const query = { page, limit, sort };
@@ -90,7 +94,9 @@ const handleChatEvents = async (io, socket, currentUserId) => {
   socket.on("single-chat-send-message", async (data) => {
     try {
       if (!data) {
-        socket.emit("socket-error", { errorMessage: "Message data is required" });
+        socket.emit("socket-error", {
+          errorMessage: "Message data is required",
+        });
         return;
       }
       await handleSingleSendMessage(io, socket, currentUserId, data);
@@ -103,7 +109,9 @@ const handleChatEvents = async (io, socket, currentUserId) => {
     try {
       const { conversationId } = data || {};
       if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
-        socket.emit("socket-error", { errorMessage: "Invalid conversation ID" });
+        socket.emit("socket-error", {
+          errorMessage: "Invalid conversation ID",
+        });
         return;
       }
       await handleSeenMessage(io, socket, currentUserId, conversationId);
