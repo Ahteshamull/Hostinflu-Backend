@@ -21,6 +21,7 @@ import gift from "../gift/routes/index.js";
 import faq from "../faq/routes/index.js";
 import report from "../report/routes/index.js";
 import calender from "../calender/routes/index.js";
+import { getSystemMetrics } from "../helper/helpers/serverTelemetry.js";
 
 const router = express.Router();
 const baseurl = process.env.BASE_URL || "/api/v1";
@@ -46,7 +47,23 @@ router.use(baseurl, review);
 router.use(baseurl, gift);
 router.use(baseurl, faq);
 router.use(baseurl, report);
-router.use(baseurl, calender)
+router.use(baseurl, calender);
+
+// System Telemetry Metrics Endpoint
+// localhost:3000/api/v1/get-system-metrics
+router.get(`${baseurl}/get-system-metrics`, async (req, res) => {
+  try {
+    const metrics = await getSystemMetrics();
+    return res.status(200).json(metrics);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: true,
+      message: "Error retrieving system telemetry metrics",
+      details: error.message,
+    });
+  }
+});
 
 // Update code
 router.use(baseurl, (req, res) => {

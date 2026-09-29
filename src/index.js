@@ -9,6 +9,9 @@ import dbConnect from "./config/database/dbConfig.js";
 import router from "./api/index.js";
 import cors from "cors";
 import { initializeSocket } from "./socket/connection/socket.Connection.js";
+import { telemetryMiddleware } from "./helper/middlewares/telemetryMiddleware.js";
+import { renderTelemetryDashboardHtml } from "./helper/helpers/telemetryDashboardHtml.js";
+import { getSystemMetrics } from "./helper/helpers/serverTelemetry.js";
 
 const app = express();
 
@@ -33,16 +36,50 @@ app.use(cookieParser());
 
 app.use("/uploads", express.static("uploads"));
 
-app.use(router);
+// Request telemetry logging middleware
+app.use(telemetryMiddleware);
 
-app.get("/", (req, res) => {
-  res.json({
-    error: false,
-    success: true,
-    message: `Welcome to Hostinflu. Server is running on port ${PORT}`,
-    version: "v1",
-  });
+// Main dashboard and root route
+app.get("/", async (req, res) => {
+  // If client specifically requests JSON (API client / Postman / query flag)
+  const acceptsHtml = req.headers.accept?.includes("text/html");
+  const wantsJson =
+    req.query.format === "json" ||
+    (req.headers.accept?.includes("application/json") && !acceptsHtml);
+
+  if (wantsJson) {
+    const metrics = await getSystemMetrics();
+    return res.json({
+      error: false,
+      success: true,
+      message: `Welcome to Hostinflu. Server is running on port ${PORT}`,
+      version: "v1",
+      ...metrics,
+    });
+  }
+
+  // Render the real-time live telemetry dashboard HTML
+  res.setHeader("Content-Type", "text/html");
+  return res.send(renderTelemetryDashboardHtml());
 });
+
+// Direct telemetry dashboard route
+app.get("/telemetry", (req, res) => {
+  res.setHeader("Content-Type", "text/html");
+  return res.send(renderTelemetryDashboardHtml());
+});
+
+// Direct system metrics endpoint
+app.get("/get-system-metrics", async (req, res) => {
+  try {
+    const metrics = await getSystemMetrics();
+    return res.json(metrics);
+  } catch (err) {
+    return res.status(500).json({ error: true, message: err.message });
+  }
+});
+
+app.use(router);
 
 dbConnect();
 
