@@ -5,9 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "build": "echo 'Build complete (No compilation needed for vanilla JS)'",
+    "start": "node api.js && node src/index.js",
+    "dev": "node api.js && nodemon src/index.js",
+    "build": "node api.js && echo 'Build complete (No compilation needed for vanilla JS)'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
